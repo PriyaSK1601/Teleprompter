@@ -3,6 +3,7 @@ import { ipcChannels, type AppPingResponse } from "../shared/ipc";
 import {
   createOverlayWindow,
   broadcastScriptChanged,
+  broadcastSettingsChanged,
   closeOverlayWindow,
   getOverlayState,
   hideOverlayWindow,
@@ -13,11 +14,14 @@ import {
 import {
   clearActiveScript,
   deleteScript,
+  loadAppSettings,
   getScriptsState,
   getStorageInfo,
   renameScript,
+  resetAppSettings,
   saveScript,
-  setActiveScript
+  setActiveScript,
+  updateAppSettings
 } from "./storage";
 import { getShortcutStatus } from "./shortcuts";
 
@@ -93,6 +97,22 @@ export function registerIpcHandlers(): void {
     const state = clearActiveScript();
     broadcastScriptChanged();
     return state;
+  });
+
+  ipcMain.handle(ipcChannels.settingsGet, async () => {
+    return loadAppSettings();
+  });
+
+  ipcMain.handle(ipcChannels.settingsUpdate, async (_event, update) => {
+    const settings = updateAppSettings(update);
+    broadcastSettingsChanged(settings);
+    return settings;
+  });
+
+  ipcMain.handle(ipcChannels.settingsReset, async () => {
+    const settings = resetAppSettings();
+    broadcastSettingsChanged(settings);
+    return settings;
   });
 
   ipcMain.handle(ipcChannels.storageGetInfo, async () => {

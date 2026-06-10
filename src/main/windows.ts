@@ -2,13 +2,15 @@ import { BrowserWindow, screen } from "electron";
 import { join } from "node:path";
 import {
   ipcChannels,
+  type AppSettings,
   type OverlayBounds,
   type OverlayState,
   type ScriptChangedEvent,
+  type SettingsChangedEvent,
   type TeleprompterCommand,
   type TeleprompterCommandEvent
 } from "../shared/ipc";
-import { getScriptsState, loadOverlaySettings, saveOverlaySettings } from "./storage";
+import { getScriptsState, loadAppSettings, loadOverlaySettings, saveOverlaySettings } from "./storage";
 
 const rootPath = join(__dirname, "..", "..");
 const overlayDefaultSize = {
@@ -117,6 +119,18 @@ function sendScriptChangedEvent(): void {
   overlayWindow.webContents.send(ipcChannels.scriptChangedEvent, event);
 }
 
+function sendSettingsChangedEvent(settings: AppSettings = loadAppSettings()): void {
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    return;
+  }
+
+  const event: SettingsChangedEvent = {
+    settings
+  };
+
+  overlayWindow.webContents.send(ipcChannels.settingsChangedEvent, event);
+}
+
 export function createEditorWindow(): BrowserWindow {
   if (editorWindow && !editorWindow.isDestroyed()) {
     editorWindow.focus();
@@ -150,6 +164,7 @@ export function createOverlayWindow(): BrowserWindow {
     overlayWindow.show();
     applyClickThrough(loadOverlaySettings().clickThroughEnabled);
     sendScriptChangedEvent();
+    sendSettingsChangedEvent();
     return overlayWindow;
   }
 
@@ -180,7 +195,10 @@ export function createOverlayWindow(): BrowserWindow {
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   applyClickThrough(loadOverlaySettings().clickThroughEnabled);
   overlayWindow.loadFile(rendererPath("overlay"));
-  overlayWindow.webContents.once("did-finish-load", sendScriptChangedEvent);
+  overlayWindow.webContents.once("did-finish-load", () => {
+    sendScriptChangedEvent();
+    sendSettingsChangedEvent();
+  });
   overlayWindow.on("move", scheduleOverlayBoundsSave);
   overlayWindow.on("resize", scheduleOverlayBoundsSave);
   overlayWindow.on("closed", () => {
@@ -283,4 +301,8 @@ export function sendTeleprompterCommand(
 
 export function broadcastScriptChanged(): void {
   sendScriptChangedEvent();
+}
+
+export function broadcastSettingsChanged(settings?: AppSettings): void {
+  sendSettingsChangedEvent(settings);
 }

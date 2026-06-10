@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 3: script editor and local persistence.
+Stage 4: customisation and settings.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, and local script persistence:
+The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, and overlay customisation:
 
 - Main process
 - Editor window
@@ -29,8 +29,13 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Local saved scripts in the Electron user data directory
 - Save, open, rename, delete, and clear-editor actions
 - Active script sync to the overlay
+- Persisted text settings for font size, colour, line spacing, and alignment
+- Persisted overlay appearance settings for opacity and background colour
+- Persisted countdown and scroll speed settings
+- Live settings sync to the overlay
+- Reset-to-default settings action
 
-It does not implement user customization settings, screen-share testing adjustments, or packaging yet.
+It does not implement screen-share testing adjustments or packaging yet.
 
 ## Default Shortcuts
 

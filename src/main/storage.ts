@@ -3,11 +3,13 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
+  AppSettings,
   OverlaySettings,
   SaveScriptInput,
   ScriptRecord,
   ScriptsFile,
   ScriptsState,
+  SettingsUpdate,
   StorageInfo
 } from "../shared/ipc";
 
@@ -19,6 +21,27 @@ const defaultOverlaySettings: OverlaySettings = {
 const defaultScriptsFile: ScriptsFile = {
   version: 1,
   scripts: []
+};
+
+const defaultAppSettings: AppSettings = {
+  version: 1,
+  text: {
+    fontSize: 32,
+    textColor: "#f9fafb",
+    lineHeight: 1.5,
+    alignment: "center"
+  },
+  overlayAppearance: {
+    opacity: 0.82,
+    backgroundColor: "#111827"
+  },
+  countdown: {
+    enabled: true,
+    seconds: 3
+  },
+  behavior: {
+    scrollSpeed: 36
+  }
 };
 
 export function getStorageInfo(): StorageInfo {
@@ -42,6 +65,55 @@ function overlaySettingsPath(): string {
 
 function scriptsPath(): string {
   return join(app.getPath("userData"), "scripts", "scripts.json");
+}
+
+function appSettingsPath(): string {
+  return join(app.getPath("userData"), "settings", "settings.json");
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function normalizeAppSettings(settings: AppSettings): AppSettings {
+  const alignmentValues = ["left", "center", "right"] as const;
+
+  return {
+    version: 1,
+    text: {
+      fontSize: clamp(Number(settings.text.fontSize) || defaultAppSettings.text.fontSize, 18, 72),
+      textColor: isHexColor(settings.text.textColor)
+        ? settings.text.textColor
+        : defaultAppSettings.text.textColor,
+      lineHeight: clamp(Number(settings.text.lineHeight) || defaultAppSettings.text.lineHeight, 1.1, 2.2),
+      alignment: alignmentValues.includes(settings.text.alignment)
+        ? settings.text.alignment
+        : defaultAppSettings.text.alignment
+    },
+    overlayAppearance: {
+      opacity: clamp(
+        Number(settings.overlayAppearance.opacity) || defaultAppSettings.overlayAppearance.opacity,
+        0.25,
+        1
+      ),
+      backgroundColor: isHexColor(settings.overlayAppearance.backgroundColor)
+        ? settings.overlayAppearance.backgroundColor
+        : defaultAppSettings.overlayAppearance.backgroundColor
+    },
+    countdown: {
+      enabled: Boolean(settings.countdown.enabled),
+      seconds: Math.round(clamp(Number(settings.countdown.seconds) || defaultAppSettings.countdown.seconds, 0, 10))
+    },
+    behavior: {
+      scrollSpeed: Math.round(
+        clamp(Number(settings.behavior.scrollSpeed) || defaultAppSettings.behavior.scrollSpeed, 8, 160)
+      )
+    }
+  };
 }
 
 function isOverlaySettings(value: unknown): value is OverlaySettings {
@@ -76,6 +148,101 @@ export function loadOverlaySettings(): OverlaySettings {
 export function saveOverlaySettings(settings: OverlaySettings): void {
   ensureAppDataDirectories();
   writeFileSync(overlaySettingsPath(), `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+}
+
+function isAppSettings(value: unknown): value is AppSettings {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<AppSettings>;
+
+  return (
+    candidate.version === 1 &&
+    typeof candidate.text === "object" &&
+    typeof candidate.overlayAppearance === "object" &&
+    typeof candidate.countdown === "object" &&
+    typeof candidate.behavior === "object"
+  );
+}
+
+export function getDefaultAppSettings(): AppSettings {
+  return normalizeAppSettings(defaultAppSettings);
+}
+
+export function loadAppSettings(): AppSettings {
+  const path = appSettingsPath();
+
+  if (!existsSync(path)) {
+    return getDefaultAppSettings();
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+
+    if (isAppSettings(parsed)) {
+      return normalizeAppSettings({
+        version: 1,
+        text: {
+          ...defaultAppSettings.text,
+          ...parsed.text
+        },
+        overlayAppearance: {
+          ...defaultAppSettings.overlayAppearance,
+          ...parsed.overlayAppearance
+        },
+        countdown: {
+          ...defaultAppSettings.countdown,
+          ...parsed.countdown
+        },
+        behavior: {
+          ...defaultAppSettings.behavior,
+          ...parsed.behavior
+        }
+      });
+    }
+  } catch {
+    return getDefaultAppSettings();
+  }
+
+  return getDefaultAppSettings();
+}
+
+export function saveAppSettings(settings: AppSettings): void {
+  ensureAppDataDirectories();
+  writeFileSync(appSettingsPath(), `${JSON.stringify(normalizeAppSettings(settings), null, 2)}\n`, "utf8");
+}
+
+export function updateAppSettings(update: SettingsUpdate): AppSettings {
+  const currentSettings = loadAppSettings();
+  const nextSettings = normalizeAppSettings({
+    version: 1,
+    text: {
+      ...currentSettings.text,
+      ...update.text
+    },
+    overlayAppearance: {
+      ...currentSettings.overlayAppearance,
+      ...update.overlayAppearance
+    },
+    countdown: {
+      ...currentSettings.countdown,
+      ...update.countdown
+    },
+    behavior: {
+      ...currentSettings.behavior,
+      ...update.behavior
+    }
+  });
+
+  saveAppSettings(nextSettings);
+  return nextSettings;
+}
+
+export function resetAppSettings(): AppSettings {
+  const settings = getDefaultAppSettings();
+  saveAppSettings(settings);
+  return settings;
 }
 
 function isScriptRecord(value: unknown): value is ScriptRecord {

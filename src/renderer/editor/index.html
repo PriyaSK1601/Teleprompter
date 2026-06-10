@@ -9,7 +9,7 @@
   <body>
     <main class="app-shell">
       <section class="panel">
-        <p class="eyebrow">Stage 3 script persistence</p>
+        <p class="eyebrow">Stage 4 customisation and settings</p>
         <h1>Teleprompter Editor</h1>
         <p class="muted">
           Paste or edit a plain-text script, save it locally, and send the active script to the overlay.
@@ -34,6 +34,58 @@
               <button id="clearScriptButton" type="button">Clear editor</button>
             </div>
           </section>
+        </section>
+        <section class="settings-panel">
+          <div class="section-header">
+            <h2>Overlay settings</h2>
+            <button id="resetSettingsButton" type="button">Reset defaults</button>
+          </div>
+          <div class="settings-grid">
+            <label class="field-label" for="fontSizeInput">
+              Font size
+              <input id="fontSizeInput" class="range-input" type="range" min="18" max="72" step="1" />
+              <span id="fontSizeValue" class="setting-value"></span>
+            </label>
+            <label class="field-label" for="lineHeightInput">
+              Line spacing
+              <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
+              <span id="lineHeightValue" class="setting-value"></span>
+            </label>
+            <label class="field-label" for="textColorInput">
+              Text colour
+              <input id="textColorInput" class="color-input" type="color" />
+            </label>
+            <label class="field-label" for="alignmentSelect">
+              Alignment
+              <select id="alignmentSelect" class="text-input">
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+            <label class="field-label" for="opacityInput">
+              Overlay opacity
+              <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
+              <span id="opacityValue" class="setting-value"></span>
+            </label>
+            <label class="field-label" for="backgroundColorInput">
+              Background colour
+              <input id="backgroundColorInput" class="color-input" type="color" />
+            </label>
+            <label class="check-row settings-check">
+              <input id="countdownEnabledInput" type="checkbox" />
+              <span>Enable countdown</span>
+            </label>
+            <label class="field-label" for="countdownSecondsInput">
+              Countdown seconds
+              <input id="countdownSecondsInput" class="number-input" type="number" min="0" max="10" step="1" />
+            </label>
+            <label class="field-label" for="scrollSpeedInput">
+              Scroll speed
+              <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
+              <span id="scrollSpeedValue" class="setting-value"></span>
+            </label>
+          </div>
         </section>
         <div class="actions">
           <button id="pingButton" type="button">Ping main process</button>

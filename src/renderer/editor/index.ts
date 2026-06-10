@@ -1,4 +1,4 @@
-import type { ScriptRecord, ScriptsState, TeleprompterCommand } from "../../shared/ipc";
+import type { AppSettings, ScriptRecord, ScriptsState, TeleprompterCommand } from "../../shared/ipc";
 
 const statusElement = document.querySelector<HTMLPreElement>("#status");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
@@ -9,6 +9,20 @@ const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScrip
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
+const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
+const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
+const lineHeightInput = document.querySelector<HTMLInputElement>("#lineHeightInput");
+const lineHeightValue = document.querySelector<HTMLElement>("#lineHeightValue");
+const textColorInput = document.querySelector<HTMLInputElement>("#textColorInput");
+const alignmentSelect = document.querySelector<HTMLSelectElement>("#alignmentSelect");
+const opacityInput = document.querySelector<HTMLInputElement>("#opacityInput");
+const opacityValue = document.querySelector<HTMLElement>("#opacityValue");
+const backgroundColorInput = document.querySelector<HTMLInputElement>("#backgroundColorInput");
+const countdownEnabledInput = document.querySelector<HTMLInputElement>("#countdownEnabledInput");
+const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdownSecondsInput");
+const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
+const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const pingButton = document.querySelector<HTMLButtonElement>("#pingButton");
 const openOverlayButton = document.querySelector<HTMLButtonElement>("#openOverlayButton");
 const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
@@ -25,6 +39,7 @@ let currentScriptsState: ScriptsState = {
   scripts: []
 };
 let activeScriptId: string | undefined;
+let settingsRenderLocked = false;
 
 function setStatus(message: string): void {
   if (statusElement) {
@@ -81,6 +96,98 @@ function renderScriptsState(state: ScriptsState, status?: string): void {
   if (status) {
     setStatus(status);
   }
+}
+
+function renderSettings(settings: AppSettings): void {
+  settingsRenderLocked = true;
+
+  if (fontSizeInput) {
+    fontSizeInput.value = String(settings.text.fontSize);
+  }
+
+  if (fontSizeValue) {
+    fontSizeValue.textContent = `${settings.text.fontSize}px`;
+  }
+
+  if (lineHeightInput) {
+    lineHeightInput.value = String(settings.text.lineHeight);
+  }
+
+  if (lineHeightValue) {
+    lineHeightValue.textContent = settings.text.lineHeight.toFixed(2);
+  }
+
+  if (textColorInput) {
+    textColorInput.value = settings.text.textColor;
+  }
+
+  if (alignmentSelect) {
+    alignmentSelect.value = settings.text.alignment;
+  }
+
+  if (opacityInput) {
+    opacityInput.value = String(settings.overlayAppearance.opacity);
+  }
+
+  if (opacityValue) {
+    opacityValue.textContent = `${Math.round(settings.overlayAppearance.opacity * 100)}%`;
+  }
+
+  if (backgroundColorInput) {
+    backgroundColorInput.value = settings.overlayAppearance.backgroundColor;
+  }
+
+  if (countdownEnabledInput) {
+    countdownEnabledInput.checked = settings.countdown.enabled;
+  }
+
+  if (countdownSecondsInput) {
+    countdownSecondsInput.value = String(settings.countdown.seconds);
+  }
+
+  if (scrollSpeedInput) {
+    scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
+  }
+
+  if (scrollSpeedValue) {
+    scrollSpeedValue.textContent = `${settings.behavior.scrollSpeed} px/s`;
+  }
+
+  settingsRenderLocked = false;
+}
+
+async function loadSettings(): Promise<void> {
+  const settings = await window.teleprompter.getSettings();
+  renderSettings(settings);
+}
+
+async function saveSettingsFromControls(): Promise<void> {
+  if (settingsRenderLocked) {
+    return;
+  }
+
+  const settings = await window.teleprompter.updateSettings({
+    text: {
+      fontSize: Number(fontSizeInput?.value),
+      textColor: textColorInput?.value,
+      lineHeight: Number(lineHeightInput?.value),
+      alignment: alignmentSelect?.value as AppSettings["text"]["alignment"]
+    },
+    overlayAppearance: {
+      opacity: Number(opacityInput?.value),
+      backgroundColor: backgroundColorInput?.value
+    },
+    countdown: {
+      enabled: Boolean(countdownEnabledInput?.checked),
+      seconds: Number(countdownSecondsInput?.value)
+    },
+    behavior: {
+      scrollSpeed: Number(scrollSpeedInput?.value)
+    }
+  });
+
+  renderSettings(settings);
+  setStatus("Saved settings and updated overlay.");
 }
 
 async function loadScriptsState(): Promise<void> {
@@ -273,4 +380,38 @@ clearScriptButton?.addEventListener("click", async () => {
 
 loadScriptsState().catch(() => {
   setStatus("Unable to load local scripts.");
+});
+
+loadSettings().catch(() => {
+  setStatus("Unable to load settings.");
+});
+
+for (const control of [
+  fontSizeInput,
+  lineHeightInput,
+  textColorInput,
+  alignmentSelect,
+  opacityInput,
+  backgroundColorInput,
+  countdownEnabledInput,
+  countdownSecondsInput,
+  scrollSpeedInput
+]) {
+  control?.addEventListener("input", () => {
+    saveSettingsFromControls().catch(() => {
+      setStatus("Unable to save settings.");
+    });
+  });
+
+  control?.addEventListener("change", () => {
+    saveSettingsFromControls().catch(() => {
+      setStatus("Unable to save settings.");
+    });
+  });
+}
+
+resetSettingsButton?.addEventListener("click", async () => {
+  const settings = await window.teleprompter.resetSettings();
+  renderSettings(settings);
+  setStatus("Reset overlay settings to defaults.");
 });

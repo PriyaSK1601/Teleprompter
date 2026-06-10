@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   ipcChannels,
   type ScriptChangedEvent,
+  type SettingsChangedEvent,
   type TeleprompterApi,
   type TeleprompterCommandEvent
 } from "../shared/ipc";
@@ -43,6 +44,20 @@ const teleprompterApi: TeleprompterApi = {
 
     return () => {
       ipcRenderer.removeListener(ipcChannels.scriptChangedEvent, listener);
+    };
+  },
+  getSettings: () => ipcRenderer.invoke(ipcChannels.settingsGet),
+  updateSettings: (update) => ipcRenderer.invoke(ipcChannels.settingsUpdate, update),
+  resetSettings: () => ipcRenderer.invoke(ipcChannels.settingsReset),
+  onSettingsChanged: (callback: (event: SettingsChangedEvent) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, settingsEvent: SettingsChangedEvent) => {
+      callback(settingsEvent);
+    };
+
+    ipcRenderer.on(ipcChannels.settingsChangedEvent, listener);
+
+    return () => {
+      ipcRenderer.removeListener(ipcChannels.settingsChangedEvent, listener);
     };
   },
   getStorageInfo: () => ipcRenderer.invoke(ipcChannels.storageGetInfo)

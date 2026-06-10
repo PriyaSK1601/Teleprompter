@@ -1,3 +1,5 @@
+import type { AppSettings } from "../../shared/ipc";
+
 const overlayStatus = document.querySelector<HTMLParagraphElement>("#overlayStatus");
 const countdownElement = document.querySelector<HTMLElement>("#countdown");
 const promptViewport = document.querySelector<HTMLElement>("#promptViewport");
@@ -13,6 +15,18 @@ let lastFrameTime = 0;
 let animationFrameId: number | null = null;
 let countdownTimerId: number | null = null;
 let countdownRemaining = 0;
+let countdownEnabled = true;
+let countdownSeconds = 3;
+
+function hexToRgb(hexColor: string): { red: number; green: number; blue: number } {
+  const normalized = hexColor.replace("#", "");
+
+  return {
+    red: Number.parseInt(normalized.slice(0, 2), 16),
+    green: Number.parseInt(normalized.slice(2, 4), 16),
+    blue: Number.parseInt(normalized.slice(4, 6), 16)
+  };
+}
 
 function updateLabels(): void {
   if (overlayStatus) {
@@ -26,6 +40,24 @@ function updateLabels(): void {
   if (speedLabel) {
     speedLabel.textContent = `Speed: ${speedPixelsPerSecond} px/s`;
   }
+}
+
+function applySettings(settings: AppSettings): void {
+  speedPixelsPerSecond = settings.behavior.scrollSpeed;
+  countdownEnabled = settings.countdown.enabled;
+  countdownSeconds = settings.countdown.seconds;
+  const background = hexToRgb(settings.overlayAppearance.backgroundColor);
+
+  document.documentElement.style.setProperty(
+    "--overlay-bg",
+    `rgb(${background.red} ${background.green} ${background.blue} / ${settings.overlayAppearance.opacity})`
+  );
+  document.documentElement.style.setProperty("--prompt-font-size", `${settings.text.fontSize}px`);
+  document.documentElement.style.setProperty("--prompt-text-color", settings.text.textColor);
+  document.documentElement.style.setProperty("--prompt-line-height", String(settings.text.lineHeight));
+  document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
+
+  updateLabels();
 }
 
 function clearCountdown(): void {
@@ -88,7 +120,13 @@ function startRunning(): void {
 
 function startCountdown(): void {
   clearCountdown();
-  countdownRemaining = 3;
+
+  if (!countdownEnabled || countdownSeconds <= 0) {
+    startRunning();
+    return;
+  }
+
+  countdownRemaining = countdownSeconds;
   setState("countdown");
 
   if (countdownElement) {
@@ -206,10 +244,18 @@ window.teleprompter.onScriptChanged((event) => {
   renderScript(event.activeScript?.body);
 });
 
+window.teleprompter.onSettingsChanged((event) => {
+  applySettings(event.settings);
+});
+
 window.teleprompter.getScriptsState().then((state) => {
   renderScript(state.activeScript?.body);
 }).catch(() => {
   renderScript();
+});
+
+window.teleprompter.getSettings().then(applySettings).catch(() => {
+  updateLabels();
 });
 
 updateLabels();

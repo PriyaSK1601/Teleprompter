@@ -16,6 +16,10 @@ export const ipcChannels = {
   scriptsDelete: "scripts:delete",
   scriptsClearActive: "scripts:clearActive",
   scriptChangedEvent: "scripts:changed",
+  settingsGet: "settings:get",
+  settingsUpdate: "settings:update",
+  settingsReset: "settings:reset",
+  settingsChangedEvent: "settings:changed",
   storageGetInfo: "storage:getInfo"
 } as const;
 
@@ -100,6 +104,48 @@ export type ScriptChangedEvent = {
   activeScript?: ScriptRecord;
 };
 
+export type TextAlignment = "left" | "center" | "right";
+
+export type TextSettings = {
+  fontSize: number;
+  textColor: string;
+  lineHeight: number;
+  alignment: TextAlignment;
+};
+
+export type OverlayAppearanceSettings = {
+  opacity: number;
+  backgroundColor: string;
+};
+
+export type CountdownSettings = {
+  enabled: boolean;
+  seconds: number;
+};
+
+export type BehaviorSettings = {
+  scrollSpeed: number;
+};
+
+export type AppSettings = {
+  version: 1;
+  text: TextSettings;
+  overlayAppearance: OverlayAppearanceSettings;
+  countdown: CountdownSettings;
+  behavior: BehaviorSettings;
+};
+
+export type SettingsUpdate = {
+  text?: Partial<TextSettings>;
+  overlayAppearance?: Partial<OverlayAppearanceSettings>;
+  countdown?: Partial<CountdownSettings>;
+  behavior?: Partial<BehaviorSettings>;
+};
+
+export type SettingsChangedEvent = {
+  settings: AppSettings;
+};
+
 export type TeleprompterApi = {
   ping: () => Promise<AppPingResponse>;
   openOverlay: () => Promise<void>;
@@ -118,5 +164,9 @@ export type TeleprompterApi = {
   deleteScript: (id: string) => Promise<ScriptsState>;
   clearActiveScript: () => Promise<ScriptsState>;
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => () => void;
+  getSettings: () => Promise<AppSettings>;
+  updateSettings: (update: SettingsUpdate) => Promise<AppSettings>;
+  resetSettings: () => Promise<AppSettings>;
+  onSettingsChanged: (callback: (event: SettingsChangedEvent) => void) => () => void;
   getStorageInfo: () => Promise<StorageInfo>;
 };
