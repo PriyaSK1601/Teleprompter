@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teleprompter Overlay</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body class="overlay-body">
+    <main class="overlay-shell">
+      <div class="drag-region">
+        <span>Drag to position</span>
+        <span id="overlayStatus">Idle</span>
+      </div>
+      <section class="countdown" id="countdown" hidden></section>
+      <section class="prompt-viewport" id="promptViewport">
+        <article class="prompt-text" id="promptText">
+          <p>No active script loaded yet.</p>
+        </article>
+      </section>
+      <footer class="overlay-controls">
+        <span id="stateLabel">State: idle</span>
+        <span id="speedLabel">Speed: 36 px/s</span>
+      </footer>
+    </main>
+    <script src="../../../dist/renderer/overlay/index.js"></script>
+  </body>
+</html>

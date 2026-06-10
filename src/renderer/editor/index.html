@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teleprompter</title>
+    <link rel="stylesheet" href="../shared.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel">
+        <p class="eyebrow">Stage 3 script persistence</p>
+        <h1>Teleprompter Editor</h1>
+        <p class="muted">
+          Paste or edit a plain-text script, save it locally, and send the active script to the overlay.
+        </p>
+        <section class="editor-grid">
+          <aside class="script-list-panel">
+            <div class="section-header">
+              <h2>Saved scripts</h2>
+              <button id="newScriptButton" type="button">New</button>
+            </div>
+            <ul id="scriptList" class="script-list"></ul>
+          </aside>
+          <section class="script-editor-panel">
+            <label class="field-label" for="scriptTitle">Title</label>
+            <input id="scriptTitle" class="text-input" type="text" placeholder="Untitled script" />
+            <label class="field-label" for="scriptBody">Script</label>
+            <textarea id="scriptBody" class="script-body" placeholder="Paste your script here..."></textarea>
+            <div class="actions">
+              <button id="saveScriptButton" type="button">Save script</button>
+              <button id="renameScriptButton" type="button">Rename</button>
+              <button id="deleteScriptButton" type="button">Delete</button>
+              <button id="clearScriptButton" type="button">Clear editor</button>
+            </div>
+          </section>
+        </section>
+        <div class="actions">
+          <button id="pingButton" type="button">Ping main process</button>
+          <button id="openOverlayButton" type="button">Open overlay</button>
+          <button id="hideOverlayButton" type="button">Hide overlay</button>
+          <button id="resetOverlayButton" type="button">Reset position</button>
+          <button id="closeOverlayButton" type="button">Close overlay</button>
+        </div>
+        <div class="actions">
+          <button id="startPauseButton" type="button">Start / pause</button>
+          <button id="restartButton" type="button">Restart</button>
+          <button id="speedUpButton" type="button">Speed up</button>
+          <button id="slowDownButton" type="button">Slow down</button>
+        </div>
+        <label class="check-row">
+          <input id="clickThroughCheckbox" type="checkbox" />
+          <span>Enable click-through experiment</span>
+        </label>
+        <section class="shortcut-panel">
+          <h2>Global shortcuts</h2>
+          <ul id="shortcutList"></ul>
+        </section>
+        <pre id="status" class="status">Ready.</pre>
+      </section>
+    </main>
+    <script src="../../../dist/renderer/editor/index.js"></script>
+  </body>
+</html>

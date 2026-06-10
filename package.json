@@ -1,0 +1,19 @@
+{
+  "name": "teleprompter",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Windows-first desktop teleprompter app.",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "electron": "^31.2.1",
+    "typescript": "^5.5.3"
+  }
+}
+
