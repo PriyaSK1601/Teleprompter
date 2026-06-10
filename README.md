@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 5: screen-share and capture testing plan.
+Stage 6: MVP packaging and beta release readiness.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, and a screen-share capture test plan:
+The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, and Windows packaging configuration:
 
 - Main process
 - Editor window
@@ -36,8 +36,12 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Reset-to-default settings action
 - Manual capture test matrix for Zoom, Teams, Google Meet, OBS, Loom, PowerPoint, Chrome, and Edge
 - Capture-result definitions and evidence requirements
+- electron-builder configuration for Windows NSIS and portable builds
+- Recovery reset for overlay position and settings
+- Basic local startup and shortcut-failure logging
+- Private beta release notes
 
-It does not implement packaging yet.
+It does not implement code signing or auto-updates yet.
 
 ## Screen-share Status
 
@@ -78,8 +82,24 @@ Build:
 npm run build
 ```
 
+Create a Windows unpacked build:
+
+```sh
+npm run pack:win
+```
+
+Create Windows installer and portable artifacts:
+
+```sh
+npm run dist:win
+```
+
 Start the app:
 
 ```sh
 npm run dev
 ```
+
+## Beta Notes
+
+Use [docs/11-beta-release-notes.md](docs/11-beta-release-notes.md) before distributing a private Windows beta.

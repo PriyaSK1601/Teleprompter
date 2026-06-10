@@ -3,17 +3,58 @@
   "version": "0.0.0",
   "private": true,
   "description": "Windows-first desktop teleprompter app.",
+  "author": "Teleprompter",
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "npm run build && electron .",
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "pack:win": "npm run build && electron-builder --win --x64 --dir",
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "build": {
+    "appId": "com.teleprompter.desktop",
+    "productName": "Teleprompter",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-${arch}-installer.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-portable.${ext}"
+    }
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "electron": "^31.2.1",
+    "electron-builder": "^24.13.3",
     "typescript": "^5.5.3"
   }
 }
-

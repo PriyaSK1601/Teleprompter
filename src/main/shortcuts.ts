@@ -1,5 +1,6 @@
 import { app, globalShortcut } from "electron";
 import type { ShortcutStatus, TeleprompterCommand } from "../shared/ipc";
+import { logWarn } from "./logger";
 
 type ShortcutDefinition = {
   action: TeleprompterCommand;
@@ -27,6 +28,10 @@ export function registerGlobalShortcuts(onCommand: (command: TeleprompterCommand
       ...definition,
       registered
     });
+
+    if (!registered) {
+      logWarn("Global shortcut registration failed", definition);
+    }
   }
 }
 
@@ -44,4 +49,3 @@ export function getShortcutStatus(): ShortcutStatus[] {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
-

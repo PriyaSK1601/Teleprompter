@@ -60,6 +60,7 @@ const teleprompterApi: TeleprompterApi = {
       ipcRenderer.removeListener(ipcChannels.settingsChangedEvent, listener);
     };
   },
+  resetRecoveryState: () => ipcRenderer.invoke(ipcChannels.recoveryReset),
   getStorageInfo: () => ipcRenderer.invoke(ipcChannels.storageGetInfo)
 };
 

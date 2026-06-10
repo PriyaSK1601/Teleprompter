@@ -20,6 +20,7 @@ export const ipcChannels = {
   settingsUpdate: "settings:update",
   settingsReset: "settings:reset",
   settingsChangedEvent: "settings:changed",
+  recoveryReset: "recovery:reset",
   storageGetInfo: "storage:getInfo"
 } as const;
 
@@ -168,5 +169,6 @@ export type TeleprompterApi = {
   updateSettings: (update: SettingsUpdate) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
   onSettingsChanged: (callback: (event: SettingsChangedEvent) => void) => () => void;
+  resetRecoveryState: () => Promise<{ settings: AppSettings; overlay: OverlayState }>;
   getStorageInfo: () => Promise<StorageInfo>;
 };

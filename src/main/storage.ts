@@ -245,6 +245,16 @@ export function resetAppSettings(): AppSettings {
   return settings;
 }
 
+export function resetOverlaySettings(): OverlaySettings {
+  const settings: OverlaySettings = {
+    version: 1,
+    clickThroughEnabled: false
+  };
+
+  saveOverlaySettings(settings);
+  return settings;
+}
+
 function isScriptRecord(value: unknown): value is ScriptRecord {
   if (!value || typeof value !== "object") {
     return false;

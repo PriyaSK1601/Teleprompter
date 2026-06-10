@@ -5,6 +5,7 @@ import {
   broadcastScriptChanged,
   broadcastSettingsChanged,
   closeOverlayWindow,
+  closeOverlayForRecovery,
   getOverlayState,
   hideOverlayWindow,
   resetOverlayPosition,
@@ -19,11 +20,13 @@ import {
   getStorageInfo,
   renameScript,
   resetAppSettings,
+  resetOverlaySettings,
   saveScript,
   setActiveScript,
   updateAppSettings
 } from "./storage";
 import { getShortcutStatus } from "./shortcuts";
+import { logInfo } from "./logger";
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(ipcChannels.appPing, async (): Promise<AppPingResponse> => {
@@ -113,6 +116,19 @@ export function registerIpcHandlers(): void {
     const settings = resetAppSettings();
     broadcastSettingsChanged(settings);
     return settings;
+  });
+
+  ipcMain.handle(ipcChannels.recoveryReset, async () => {
+    const settings = resetAppSettings();
+    resetOverlaySettings();
+    closeOverlayForRecovery();
+    const overlay = resetOverlayPosition();
+    broadcastSettingsChanged(settings);
+    logInfo("Recovery reset completed");
+    return {
+      settings,
+      overlay
+    };
   });
 
   ipcMain.handle(ipcChannels.storageGetInfo, async () => {

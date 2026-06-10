@@ -246,6 +246,12 @@ export function resetOverlayPosition(): OverlayState {
   return getOverlayState();
 }
 
+export function closeOverlayForRecovery(): void {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.close();
+  }
+}
+
 export function setOverlayClickThrough(enabled: boolean): OverlayState {
   const settings = loadOverlaySettings();
   saveOverlaySettings({

@@ -10,6 +10,7 @@ const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const recoveryResetButton = document.querySelector<HTMLButtonElement>("#recoveryResetButton");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
 const lineHeightInput = document.querySelector<HTMLInputElement>("#lineHeightInput");
@@ -414,4 +415,10 @@ resetSettingsButton?.addEventListener("click", async () => {
   const settings = await window.teleprompter.resetSettings();
   renderSettings(settings);
   setStatus("Reset overlay settings to defaults.");
+});
+
+recoveryResetButton?.addEventListener("click", async () => {
+  const result = await window.teleprompter.resetRecoveryState();
+  renderSettings(result.settings);
+  await refreshOverlayState("Recovered overlay position and settings");
 });
