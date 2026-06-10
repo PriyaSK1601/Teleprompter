@@ -6,6 +6,18 @@ import { ensureAppDataDirectories } from "./storage";
 import { sendTeleprompterCommand } from "./windows";
 import { createEditorWindow } from "./windows";
 
+const remoteDebuggingPort = process.env.TELEPROMPTER_REMOTE_DEBUGGING_PORT;
+
+if (remoteDebuggingPort) {
+  app.commandLine.appendSwitch("remote-debugging-port", remoteDebuggingPort);
+}
+
+const userDataPath = process.env.TELEPROMPTER_USER_DATA_DIR;
+
+if (userDataPath) {
+  app.setPath("userData", userDataPath);
+}
+
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {

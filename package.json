@@ -7,10 +7,10 @@
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "npm run build && electron .",
+    "dev": "npm run build && node scripts/run-electron.cjs .",
     "dist:win": "npm run build && electron-builder --win --x64",
     "pack:win": "npm run build && electron-builder --win --x64 --dir",
-    "start": "electron .",
+    "start": "node scripts/run-electron.cjs .",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "build": {

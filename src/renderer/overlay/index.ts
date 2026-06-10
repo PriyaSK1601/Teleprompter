@@ -1,5 +1,3 @@
-import type { AppSettings } from "../../shared/ipc";
-
 const overlayStatus = document.querySelector<HTMLParagraphElement>("#overlayStatus");
 const countdownElement = document.querySelector<HTMLElement>("#countdown");
 const promptViewport = document.querySelector<HTMLElement>("#promptViewport");
@@ -325,26 +323,37 @@ function handleCommand(command: string): void {
   }
 }
 
-window.teleprompter.onTeleprompterCommand((event) => {
-  handleCommand(event.command);
-});
+const teleprompterApi = window.teleprompter;
 
-window.teleprompter.onScriptChanged((event) => {
-  renderScript(event.activeScript?.body);
-});
+if (teleprompterApi) {
+  teleprompterApi.onTeleprompterCommand((event) => {
+    handleCommand(event.command);
+  });
 
-window.teleprompter.onSettingsChanged((event) => {
-  applySettings(event.settings);
-});
+  teleprompterApi.onScriptChanged((event) => {
+    renderScript(event.activeScript?.body);
+  });
 
-window.teleprompter.getScriptsState().then((state) => {
-  renderScript(state.activeScript?.body);
-}).catch(() => {
+  teleprompterApi.onSettingsChanged((event) => {
+    applySettings(event.settings);
+  });
+
+  teleprompterApi.getScriptsState().then((state) => {
+    renderScript(state.activeScript?.body);
+  }).catch(() => {
+    renderScript();
+  });
+
+  teleprompterApi.getSettings().then(applySettings).catch(() => {
+    updateLabels();
+  });
+} else {
+  if (overlayStatus) {
+    overlayStatus.textContent = "preload unavailable";
+  }
+
   renderScript();
-});
-
-window.teleprompter.getSettings().then(applySettings).catch(() => {
   updateLabels();
-});
+}
 
 updateLabels();

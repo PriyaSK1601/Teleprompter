@@ -1,5 +1,13 @@
-import { ipcMain } from "electron";
-import { ipcChannels, type AppPingResponse } from "../shared/ipc";
+import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import {
+  ipcChannels,
+  type AppPingResponse,
+  type IpcChannel,
+  type SaveScriptInput,
+  type SettingsUpdate,
+  type ShortcutUpdateInput,
+  type TeleprompterCommand
+} from "../shared/ipc";
 import {
   createOverlayWindow,
   broadcastScriptChanged,
@@ -26,107 +34,138 @@ import {
   updateAppSettings
 } from "./storage";
 import { getShortcutStatus, resetGlobalShortcuts, updateGlobalShortcuts } from "./shortcuts";
-import { logInfo } from "./logger";
+import { logError, logInfo } from "./logger";
+
+function errorMetadata(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    };
+  }
+
+  return {
+    message: String(error)
+  };
+}
+
+function registerLoggedHandler<TResult, TArgs extends unknown[]>(
+  channel: IpcChannel,
+  handler: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TResult> | TResult
+): void {
+  ipcMain.handle(channel, async (event, ...args) => {
+    try {
+      return await handler(event, ...(args as TArgs));
+    } catch (error: unknown) {
+      logError("IPC handler failed", {
+        channel,
+        ...errorMetadata(error)
+      });
+      throw error;
+    }
+  });
+}
 
 export function registerIpcHandlers(): void {
-  ipcMain.handle(ipcChannels.appPing, async (): Promise<AppPingResponse> => {
+  registerLoggedHandler(ipcChannels.appPing, async (): Promise<AppPingResponse> => {
     return {
       message: "pong",
       timestamp: new Date().toISOString()
     };
   });
 
-  ipcMain.handle(ipcChannels.overlayOpen, async (): Promise<void> => {
+  registerLoggedHandler(ipcChannels.overlayOpen, async (): Promise<void> => {
     createOverlayWindow();
   });
 
-  ipcMain.handle(ipcChannels.overlayClose, async (): Promise<void> => {
+  registerLoggedHandler(ipcChannels.overlayClose, async (): Promise<void> => {
     closeOverlayWindow();
   });
 
-  ipcMain.handle(ipcChannels.overlayHide, async (): Promise<void> => {
+  registerLoggedHandler(ipcChannels.overlayHide, async (): Promise<void> => {
     hideOverlayWindow();
   });
 
-  ipcMain.handle(ipcChannels.overlayResetPosition, async () => {
+  registerLoggedHandler(ipcChannels.overlayResetPosition, async () => {
     return resetOverlayPosition();
   });
 
-  ipcMain.handle(ipcChannels.overlaySetClickThrough, async (_event, enabled: boolean) => {
+  registerLoggedHandler(ipcChannels.overlaySetClickThrough, async (_event, enabled: boolean) => {
     return setOverlayClickThrough(enabled);
   });
 
-  ipcMain.handle(ipcChannels.overlayGetState, async () => {
+  registerLoggedHandler(ipcChannels.overlayGetState, async () => {
     return getOverlayState();
   });
 
-  ipcMain.handle(ipcChannels.teleprompterCommand, async (_event, command) => {
+  registerLoggedHandler(ipcChannels.teleprompterCommand, async (_event, command: TeleprompterCommand) => {
     sendTeleprompterCommand(command, "editor");
   });
 
-  ipcMain.handle(ipcChannels.shortcutsGetStatus, async () => {
+  registerLoggedHandler(ipcChannels.shortcutsGetStatus, async () => {
     return getShortcutStatus();
   });
 
-  ipcMain.handle(ipcChannels.shortcutsUpdate, async (_event, input) => {
+  registerLoggedHandler(ipcChannels.shortcutsUpdate, async (_event, input: ShortcutUpdateInput) => {
     return updateGlobalShortcuts(input);
   });
 
-  ipcMain.handle(ipcChannels.shortcutsReset, async () => {
+  registerLoggedHandler(ipcChannels.shortcutsReset, async () => {
     return resetGlobalShortcuts();
   });
 
-  ipcMain.handle(ipcChannels.scriptsGetState, async () => {
+  registerLoggedHandler(ipcChannels.scriptsGetState, async () => {
     return getScriptsState();
   });
 
-  ipcMain.handle(ipcChannels.scriptsSave, async (_event, input) => {
+  registerLoggedHandler(ipcChannels.scriptsSave, async (_event, input: SaveScriptInput) => {
     const state = saveScript(input);
     broadcastScriptChanged();
     return state;
   });
 
-  ipcMain.handle(ipcChannels.scriptsSetActive, async (_event, id: string) => {
+  registerLoggedHandler(ipcChannels.scriptsSetActive, async (_event, id: string) => {
     const state = setActiveScript(id);
     broadcastScriptChanged();
     return state;
   });
 
-  ipcMain.handle(ipcChannels.scriptsRename, async (_event, id: string, title: string) => {
+  registerLoggedHandler(ipcChannels.scriptsRename, async (_event, id: string, title: string) => {
     const state = renameScript(id, title);
     broadcastScriptChanged();
     return state;
   });
 
-  ipcMain.handle(ipcChannels.scriptsDelete, async (_event, id: string) => {
+  registerLoggedHandler(ipcChannels.scriptsDelete, async (_event, id: string) => {
     const state = deleteScript(id);
     broadcastScriptChanged();
     return state;
   });
 
-  ipcMain.handle(ipcChannels.scriptsClearActive, async () => {
+  registerLoggedHandler(ipcChannels.scriptsClearActive, async () => {
     const state = clearActiveScript();
     broadcastScriptChanged();
     return state;
   });
 
-  ipcMain.handle(ipcChannels.settingsGet, async () => {
+  registerLoggedHandler(ipcChannels.settingsGet, async () => {
     return loadAppSettings();
   });
 
-  ipcMain.handle(ipcChannels.settingsUpdate, async (_event, update) => {
+  registerLoggedHandler(ipcChannels.settingsUpdate, async (_event, update: SettingsUpdate) => {
     const settings = updateAppSettings(update);
     broadcastSettingsChanged(settings);
     return settings;
   });
 
-  ipcMain.handle(ipcChannels.settingsReset, async () => {
+  registerLoggedHandler(ipcChannels.settingsReset, async () => {
     const settings = resetAppSettings();
     broadcastSettingsChanged(settings);
     return settings;
   });
 
-  ipcMain.handle(ipcChannels.recoveryReset, async () => {
+  registerLoggedHandler(ipcChannels.recoveryReset, async () => {
     const settings = resetAppSettings();
     resetOverlaySettings();
     closeOverlayForRecovery();
@@ -139,7 +178,7 @@ export function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle(ipcChannels.storageGetInfo, async () => {
+  registerLoggedHandler(ipcChannels.storageGetInfo, async () => {
     return getStorageInfo();
   });
 }

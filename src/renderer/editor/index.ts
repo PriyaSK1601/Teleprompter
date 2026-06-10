@@ -1,12 +1,3 @@
-import type {
-  AppSettings,
-  ShortcutBinding,
-  ShortcutStatus,
-  ScriptRecord,
-  ScriptsState,
-  TeleprompterCommand
-} from "../../shared/ipc";
-
 const statusElement = document.querySelector<HTMLPreElement>("#status");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
 const saveScriptButton = document.querySelector<HTMLButtonElement>("#saveScriptButton");
@@ -52,6 +43,38 @@ let currentScriptsState: ScriptsState = {
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
 
+const ipcBackedControls = [
+  newScriptButton,
+  saveScriptButton,
+  renameScriptButton,
+  deleteScriptButton,
+  clearScriptButton,
+  resetSettingsButton,
+  recoveryResetButton,
+  fontSizeInput,
+  lineHeightInput,
+  textColorInput,
+  alignmentSelect,
+  opacityInput,
+  backgroundColorInput,
+  countdownEnabledInput,
+  countdownSecondsInput,
+  scrollSpeedInput,
+  highlightModeSelect,
+  pingButton,
+  openOverlayButton,
+  hideOverlayButton,
+  resetOverlayButton,
+  closeOverlayButton,
+  startPauseButton,
+  restartButton,
+  speedUpButton,
+  slowDownButton,
+  clickThroughCheckbox,
+  saveShortcutsButton,
+  resetShortcutsButton
+];
+
 const shortcutLabels: Record<TeleprompterCommand, string> = {
   showOverlay: "Show overlay",
   hideOverlay: "Hide overlay",
@@ -66,6 +89,81 @@ function setStatus(message: string): void {
     statusElement.textContent = message;
   }
 }
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function preloadUnavailableMessage(): string {
+  return "Preload API unavailable. Launch the app through Electron with npm run dev so feature buttons can reach the main process.";
+}
+
+function setIpcControlsDisabled(disabled: boolean): void {
+  for (const control of ipcBackedControls) {
+    if (control) {
+      control.disabled = disabled;
+    }
+  }
+}
+
+function getTeleprompterApi(): TeleprompterApi | undefined {
+  return window.teleprompter;
+}
+
+function requireTeleprompterApi(): TeleprompterApi {
+  const api = getTeleprompterApi();
+
+  if (!api) {
+    throw new Error(preloadUnavailableMessage());
+  }
+
+  return api;
+}
+
+function handleMissingPreloadApi(): void {
+  setIpcControlsDisabled(true);
+
+  if (shortcutList) {
+    shortcutList.textContent = "Shortcut controls require the Electron preload API.";
+  }
+
+  setStatus(preloadUnavailableMessage());
+}
+
+function initializePreloadApi(): boolean {
+  if (!getTeleprompterApi()) {
+    handleMissingPreloadApi();
+    return false;
+  }
+
+  setIpcControlsDisabled(false);
+  return true;
+}
+
+async function runEditorAction(label: string, action: () => Promise<void>): Promise<void> {
+  if (!getTeleprompterApi()) {
+    handleMissingPreloadApi();
+    return;
+  }
+
+  try {
+    await action();
+  } catch (error: unknown) {
+    setStatus(`${label} failed.\n${formatError(error)}`);
+  }
+}
+
+window.addEventListener("error", (event) => {
+  setStatus(`Renderer error.\n${event.message}`);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  setStatus(`Unhandled renderer rejection.\n${formatError(event.reason)}`);
+});
 
 function setEditorFromScript(script?: ScriptRecord): void {
   activeScriptId = script?.id;
@@ -100,8 +198,10 @@ function renderScriptsList(): void {
     button.type = "button";
     button.className = script.id === activeScriptId ? "script-list-item active" : "script-list-item";
     button.textContent = script.title;
-    button.addEventListener("click", async () => {
-      await loadScript(script.id);
+    button.addEventListener("click", () => {
+      void runEditorAction("Open saved script", async () => {
+        await loadScript(script.id);
+      });
     });
     item.append(button);
     scriptList.append(item);
@@ -181,7 +281,7 @@ function renderSettings(settings: AppSettings): void {
 }
 
 async function loadSettings(): Promise<void> {
-  const settings = await window.teleprompter.getSettings();
+  const settings = await requireTeleprompterApi().getSettings();
   renderSettings(settings);
 }
 
@@ -190,7 +290,7 @@ async function saveSettingsFromControls(): Promise<void> {
     return;
   }
 
-  const settings = await window.teleprompter.updateSettings({
+  const settings = await requireTeleprompterApi().updateSettings({
     text: {
       fontSize: Number(fontSizeInput?.value),
       textColor: textColorInput?.value,
@@ -218,12 +318,12 @@ async function saveSettingsFromControls(): Promise<void> {
 }
 
 async function loadScriptsState(): Promise<void> {
-  const state = await window.teleprompter.getScriptsState();
+  const state = await requireTeleprompterApi().getScriptsState();
   renderScriptsState(state, "Loaded local scripts.");
 }
 
 async function loadScript(id: string): Promise<void> {
-  const state = await window.teleprompter.setActiveScript(id);
+  const state = await requireTeleprompterApi().setActiveScript(id);
   renderScriptsState(state, "Opened saved script.");
 }
 
@@ -244,7 +344,7 @@ async function saveCurrentScript(): Promise<void> {
     return;
   }
 
-  const state = await window.teleprompter.saveScript({
+  const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
     body
@@ -253,7 +353,7 @@ async function saveCurrentScript(): Promise<void> {
 }
 
 async function refreshOverlayState(prefix?: string): Promise<void> {
-  const state = await window.teleprompter.getOverlayState();
+  const state = await requireTeleprompterApi().getOverlayState();
 
   if (clickThroughCheckbox) {
     clickThroughCheckbox.checked = state.isClickThroughEnabled;
@@ -272,7 +372,7 @@ async function refreshOverlayState(prefix?: string): Promise<void> {
 }
 
 async function sendTeleprompterCommand(command: TeleprompterCommand): Promise<void> {
-  await window.teleprompter.sendTeleprompterCommand(command);
+  await requireTeleprompterApi().sendTeleprompterCommand(command);
   await refreshOverlayState(`Sent command: ${command}`);
 }
 
@@ -320,7 +420,7 @@ function renderShortcutRows(shortcuts: ShortcutStatus[]): void {
 }
 
 async function renderShortcutStatus(): Promise<void> {
-  const shortcuts = await window.teleprompter.getShortcutStatus();
+  const shortcuts = await requireTeleprompterApi().getShortcutStatus();
   renderShortcutRows(shortcuts);
 }
 
@@ -345,140 +445,176 @@ function getShortcutBindingsFromForm(): ShortcutBinding[] {
   });
 }
 
-pingButton?.addEventListener("click", async () => {
-  const [pingResponse, storageInfo] = await Promise.all([
-    window.teleprompter.ping(),
-    window.teleprompter.getStorageInfo()
-  ]);
+pingButton?.addEventListener("click", () => {
+  void runEditorAction("Ping main process", async () => {
+    const api = requireTeleprompterApi();
+    const [pingResponse, storageInfo] = await Promise.all([api.ping(), api.getStorageInfo()]);
 
-  setStatus(
-    JSON.stringify(
-      {
-        ping: pingResponse,
-        storage: storageInfo
-      },
-      null,
-      2
-    )
-  );
-});
-
-openOverlayButton?.addEventListener("click", async () => {
-  await window.teleprompter.openOverlay();
-  await refreshOverlayState("Overlay window opened");
-});
-
-hideOverlayButton?.addEventListener("click", async () => {
-  await window.teleprompter.hideOverlay();
-  await refreshOverlayState("Overlay window hidden");
-});
-
-resetOverlayButton?.addEventListener("click", async () => {
-  await window.teleprompter.resetOverlayPosition();
-  await refreshOverlayState("Overlay position reset");
-});
-
-closeOverlayButton?.addEventListener("click", async () => {
-  await window.teleprompter.closeOverlay();
-  await refreshOverlayState("Overlay window closed");
-});
-
-startPauseButton?.addEventListener("click", async () => {
-  await sendTeleprompterCommand("startPause");
-});
-
-restartButton?.addEventListener("click", async () => {
-  await sendTeleprompterCommand("restart");
-});
-
-speedUpButton?.addEventListener("click", async () => {
-  await sendTeleprompterCommand("speedUp");
-});
-
-slowDownButton?.addEventListener("click", async () => {
-  await sendTeleprompterCommand("slowDown");
-});
-
-clickThroughCheckbox?.addEventListener("change", async () => {
-  await window.teleprompter.setOverlayClickThrough(clickThroughCheckbox.checked);
-  await refreshOverlayState("Click-through setting changed");
-});
-
-refreshOverlayState().catch(() => {
-  setStatus("Unable to load overlay state.");
-});
-
-renderShortcutStatus().catch(() => {
-  if (shortcutList) {
-    shortcutList.textContent = "Unable to load shortcut status.";
-  }
-});
-
-saveShortcutsButton?.addEventListener("click", async () => {
-  const shortcuts = await window.teleprompter.updateShortcuts({
-    bindings: getShortcutBindingsFromForm()
+    setStatus(
+      JSON.stringify(
+        {
+          ping: pingResponse,
+          storage: storageInfo
+        },
+        null,
+        2
+      )
+    );
   });
-  renderShortcutRows(shortcuts);
-  setStatus("Saved shortcuts and refreshed global registrations.");
 });
 
-resetShortcutsButton?.addEventListener("click", async () => {
-  const shortcuts = await window.teleprompter.resetShortcuts();
-  renderShortcutRows(shortcuts);
-  setStatus("Reset shortcuts to defaults.");
+openOverlayButton?.addEventListener("click", () => {
+  void runEditorAction("Open overlay", async () => {
+    await requireTeleprompterApi().openOverlay();
+    await refreshOverlayState("Overlay window opened");
+  });
 });
 
-newScriptButton?.addEventListener("click", async () => {
-  const state = await window.teleprompter.clearActiveScript();
-  renderScriptsState(state, "Started a new unsaved script.");
+hideOverlayButton?.addEventListener("click", () => {
+  void runEditorAction("Hide overlay", async () => {
+    await requireTeleprompterApi().hideOverlay();
+    await refreshOverlayState("Overlay window hidden");
+  });
 });
 
-saveScriptButton?.addEventListener("click", async () => {
-  await saveCurrentScript();
+resetOverlayButton?.addEventListener("click", () => {
+  void runEditorAction("Reset overlay position", async () => {
+    await requireTeleprompterApi().resetOverlayPosition();
+    await refreshOverlayState("Overlay position reset");
+  });
 });
 
-renameScriptButton?.addEventListener("click", async () => {
-  if (!activeScriptId) {
-    setStatus("Save the script before renaming it.");
-    return;
-  }
-
-  const title = window.prompt("Rename script", getEditorTitle());
-
-  if (title === null) {
-    return;
-  }
-
-  const state = await window.teleprompter.renameScript(activeScriptId, title);
-  renderScriptsState(state, "Renamed script.");
+closeOverlayButton?.addEventListener("click", () => {
+  void runEditorAction("Close overlay", async () => {
+    await requireTeleprompterApi().closeOverlay();
+    await refreshOverlayState("Overlay window closed");
+  });
 });
 
-deleteScriptButton?.addEventListener("click", async () => {
-  if (!activeScriptId) {
-    setStatus("No saved script selected.");
-    return;
-  }
-
-  if (!window.confirm("Delete this saved script from local storage?")) {
-    return;
-  }
-
-  const state = await window.teleprompter.deleteScript(activeScriptId);
-  renderScriptsState(state, "Deleted script.");
+startPauseButton?.addEventListener("click", () => {
+  void runEditorAction("Start or pause teleprompter", async () => {
+    await sendTeleprompterCommand("startPause");
+  });
 });
 
-clearScriptButton?.addEventListener("click", async () => {
-  const state = await window.teleprompter.clearActiveScript();
-  renderScriptsState(state, "Cleared editor. Saved scripts were not deleted.");
+restartButton?.addEventListener("click", () => {
+  void runEditorAction("Restart teleprompter", async () => {
+    await sendTeleprompterCommand("restart");
+  });
 });
 
-loadScriptsState().catch(() => {
-  setStatus("Unable to load local scripts.");
+speedUpButton?.addEventListener("click", () => {
+  void runEditorAction("Speed up teleprompter", async () => {
+    await sendTeleprompterCommand("speedUp");
+  });
 });
 
-loadSettings().catch(() => {
-  setStatus("Unable to load settings.");
+slowDownButton?.addEventListener("click", () => {
+  void runEditorAction("Slow down teleprompter", async () => {
+    await sendTeleprompterCommand("slowDown");
+  });
 });
+
+clickThroughCheckbox?.addEventListener("change", () => {
+  void runEditorAction("Change click-through setting", async () => {
+    await requireTeleprompterApi().setOverlayClickThrough(clickThroughCheckbox.checked);
+    await refreshOverlayState("Click-through setting changed");
+  });
+});
+
+const preloadApiReady = initializePreloadApi();
+
+if (preloadApiReady) {
+  void runEditorAction("Load overlay state", async () => {
+    await refreshOverlayState();
+  });
+
+  void runEditorAction("Load shortcut status", async () => {
+    await renderShortcutStatus();
+  });
+}
+
+saveShortcutsButton?.addEventListener("click", () => {
+  void runEditorAction("Save shortcuts", async () => {
+    const shortcuts = await requireTeleprompterApi().updateShortcuts({
+      bindings: getShortcutBindingsFromForm()
+    });
+    renderShortcutRows(shortcuts);
+    setStatus("Saved shortcuts and refreshed global registrations.");
+  });
+});
+
+resetShortcutsButton?.addEventListener("click", () => {
+  void runEditorAction("Reset shortcuts", async () => {
+    const shortcuts = await requireTeleprompterApi().resetShortcuts();
+    renderShortcutRows(shortcuts);
+    setStatus("Reset shortcuts to defaults.");
+  });
+});
+
+newScriptButton?.addEventListener("click", () => {
+  void runEditorAction("Start new script", async () => {
+    const state = await requireTeleprompterApi().clearActiveScript();
+    renderScriptsState(state, "Started a new unsaved script.");
+  });
+});
+
+saveScriptButton?.addEventListener("click", () => {
+  void runEditorAction("Save script", async () => {
+    await saveCurrentScript();
+  });
+});
+
+renameScriptButton?.addEventListener("click", () => {
+  void runEditorAction("Rename script", async () => {
+    if (!activeScriptId) {
+      setStatus("Save the script before renaming it.");
+      return;
+    }
+
+    const title = window.prompt("Rename script", getEditorTitle());
+
+    if (title === null) {
+      return;
+    }
+
+    const state = await requireTeleprompterApi().renameScript(activeScriptId, title);
+    renderScriptsState(state, "Renamed script.");
+  });
+});
+
+deleteScriptButton?.addEventListener("click", () => {
+  void runEditorAction("Delete script", async () => {
+    if (!activeScriptId) {
+      setStatus("No saved script selected.");
+      return;
+    }
+
+    if (!window.confirm("Delete this saved script from local storage?")) {
+      return;
+    }
+
+    const state = await requireTeleprompterApi().deleteScript(activeScriptId);
+    renderScriptsState(state, "Deleted script.");
+  });
+});
+
+clearScriptButton?.addEventListener("click", () => {
+  void runEditorAction("Clear editor", async () => {
+    const state = await requireTeleprompterApi().clearActiveScript();
+    renderScriptsState(state, "Cleared editor. Saved scripts were not deleted.");
+  });
+});
+
+if (preloadApiReady) {
+  void runEditorAction("Load local scripts", async () => {
+    await loadScriptsState();
+  });
+
+  void runEditorAction("Load settings", async () => {
+    await loadSettings();
+  });
+}
 
 for (const control of [
   fontSizeInput,
@@ -493,26 +629,30 @@ for (const control of [
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
-    saveSettingsFromControls().catch(() => {
-      setStatus("Unable to save settings.");
+    void runEditorAction("Save settings", async () => {
+      await saveSettingsFromControls();
     });
   });
 
   control?.addEventListener("change", () => {
-    saveSettingsFromControls().catch(() => {
-      setStatus("Unable to save settings.");
+    void runEditorAction("Save settings", async () => {
+      await saveSettingsFromControls();
     });
   });
 }
 
-resetSettingsButton?.addEventListener("click", async () => {
-  const settings = await window.teleprompter.resetSettings();
-  renderSettings(settings);
-  setStatus("Reset overlay settings to defaults.");
+resetSettingsButton?.addEventListener("click", () => {
+  void runEditorAction("Reset settings", async () => {
+    const settings = await requireTeleprompterApi().resetSettings();
+    renderSettings(settings);
+    setStatus("Reset overlay settings to defaults.");
+  });
 });
 
-recoveryResetButton?.addEventListener("click", async () => {
-  const result = await window.teleprompter.resetRecoveryState();
-  renderSettings(result.settings);
-  await refreshOverlayState("Recovered overlay position and settings");
+recoveryResetButton?.addEventListener("click", () => {
+  void runEditorAction("Recover overlay", async () => {
+    const result = await requireTeleprompterApi().resetRecoveryState();
+    renderSettings(result.settings);
+    await refreshOverlayState("Recovered overlay position and settings");
+  });
 });

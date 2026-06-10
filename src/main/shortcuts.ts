@@ -6,10 +6,23 @@ import type { ShortcutBinding, ShortcutUpdateInput } from "../shared/ipc";
 
 const shortcutStatus = new Map<TeleprompterCommand, ShortcutStatus>();
 let commandHandler: ((command: TeleprompterCommand) => void) | null = null;
+let cleanupRegistered = false;
 
 export function registerGlobalShortcuts(onCommand: (command: TeleprompterCommand) => void): void {
   commandHandler = onCommand;
+  registerShortcutCleanup();
   registerBindings(loadShortcutsFile().bindings);
+}
+
+function registerShortcutCleanup(): void {
+  if (cleanupRegistered) {
+    return;
+  }
+
+  cleanupRegistered = true;
+  app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
+  });
 }
 
 function registerBindings(bindings: ShortcutBinding[]): ShortcutStatus[] {
@@ -71,7 +84,3 @@ export function getDefaultShortcutStatus(): ShortcutStatus[] {
     registered: false
   }));
 }
-
-app.on("will-quit", () => {
-  globalShortcut.unregisterAll();
-});
