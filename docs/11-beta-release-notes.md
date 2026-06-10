@@ -18,6 +18,9 @@ This beta is intended for private testing. It should not be marketed as producti
 - Smooth scrolling with countdown.
 - Start/pause, restart, speed up, and slow down controls.
 - Global shortcut registration with visible status.
+- Editable global shortcut bindings.
+- Per-shortcut enable toggles.
+- Shortcut reset-to-default action.
 - Text customization: font size, color, line spacing, and alignment.
 - Overlay customization: opacity and background color.
 - Countdown and scroll speed settings.

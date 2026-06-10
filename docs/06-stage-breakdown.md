@@ -140,6 +140,13 @@ Done means:
 - It does not reduce overlay reliability.
 - It has clear manual tests.
 
+Implemented v1 slice:
+
+- Shortcut customization.
+- Shortcut bindings are persisted locally.
+- Shortcut registration refreshes after saving.
+- Failed registrations remain visible in the editor.
+
 ## Stage 8: Later Experimental Features
 
 When asked to implement this stage, Codex should treat each feature as an experiment with a kill criterion. Candidates:
@@ -155,4 +162,3 @@ Done means:
 
 - The experiment has a prototype, privacy review, and reliability notes.
 - It is not merged into the main MVP experience unless it improves real prompting sessions.
-

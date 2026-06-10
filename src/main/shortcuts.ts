@@ -1,49 +1,75 @@
 import { app, globalShortcut } from "electron";
 import type { ShortcutStatus, TeleprompterCommand } from "../shared/ipc";
 import { logWarn } from "./logger";
-
-type ShortcutDefinition = {
-  action: TeleprompterCommand;
-  accelerator: string;
-};
-
-const shortcutDefinitions: ShortcutDefinition[] = [
-  { action: "showOverlay", accelerator: "CommandOrControl+Alt+O" },
-  { action: "hideOverlay", accelerator: "CommandOrControl+Alt+H" },
-  { action: "startPause", accelerator: "CommandOrControl+Alt+Space" },
-  { action: "restart", accelerator: "CommandOrControl+Alt+R" },
-  { action: "speedUp", accelerator: "CommandOrControl+Alt+Up" },
-  { action: "slowDown", accelerator: "CommandOrControl+Alt+Down" }
-];
+import { defaultShortcutBindings, loadShortcutsFile, resetShortcutBindings, updateShortcutBindings } from "./storage";
+import type { ShortcutBinding, ShortcutUpdateInput } from "../shared/ipc";
 
 const shortcutStatus = new Map<TeleprompterCommand, ShortcutStatus>();
+let commandHandler: ((command: TeleprompterCommand) => void) | null = null;
 
 export function registerGlobalShortcuts(onCommand: (command: TeleprompterCommand) => void): void {
-  for (const definition of shortcutDefinitions) {
-    const registered = globalShortcut.register(definition.accelerator, () => {
-      onCommand(definition.action);
-    });
+  commandHandler = onCommand;
+  registerBindings(loadShortcutsFile().bindings);
+}
 
-    shortcutStatus.set(definition.action, {
-      ...definition,
+function registerBindings(bindings: ShortcutBinding[]): ShortcutStatus[] {
+  globalShortcut.unregisterAll();
+  shortcutStatus.clear();
+
+  for (const binding of bindings) {
+    let registered = false;
+
+    if (binding.enabled) {
+      try {
+        registered = globalShortcut.register(binding.accelerator, () => {
+          commandHandler?.(binding.action);
+        });
+      } catch {
+        registered = false;
+      }
+    }
+
+    shortcutStatus.set(binding.action, {
+      ...binding,
       registered
     });
 
-    if (!registered) {
-      logWarn("Global shortcut registration failed", definition);
+    if (binding.enabled && !registered) {
+      logWarn("Global shortcut registration failed", binding);
     }
   }
+
+  return getShortcutStatus();
 }
 
 export function getShortcutStatus(): ShortcutStatus[] {
-  return shortcutDefinitions.map((definition) => {
+  const bindings = loadShortcutsFile().bindings;
+
+  return bindings.map((binding) => {
     return (
-      shortcutStatus.get(definition.action) ?? {
-        ...definition,
+      shortcutStatus.get(binding.action) ?? {
+        ...binding,
         registered: false
       }
     );
   });
+}
+
+export function updateGlobalShortcuts(input: ShortcutUpdateInput): ShortcutStatus[] {
+  const bindings = updateShortcutBindings(input);
+  return registerBindings(bindings);
+}
+
+export function resetGlobalShortcuts(): ShortcutStatus[] {
+  const bindings = resetShortcutBindings();
+  return registerBindings(bindings);
+}
+
+export function getDefaultShortcutStatus(): ShortcutStatus[] {
+  return defaultShortcutBindings.map((binding) => ({
+    ...binding,
+    registered: false
+  }));
 }
 
 app.on("will-quit", () => {

@@ -1,4 +1,11 @@
-import type { AppSettings, ScriptRecord, ScriptsState, TeleprompterCommand } from "../../shared/ipc";
+import type {
+  AppSettings,
+  ShortcutBinding,
+  ShortcutStatus,
+  ScriptRecord,
+  ScriptsState,
+  TeleprompterCommand
+} from "../../shared/ipc";
 
 const statusElement = document.querySelector<HTMLPreElement>("#status");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
@@ -34,6 +41,8 @@ const restartButton = document.querySelector<HTMLButtonElement>("#restartButton"
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
 const slowDownButton = document.querySelector<HTMLButtonElement>("#slowDownButton");
 const clickThroughCheckbox = document.querySelector<HTMLInputElement>("#clickThroughCheckbox");
+const saveShortcutsButton = document.querySelector<HTMLButtonElement>("#saveShortcutsButton");
+const resetShortcutsButton = document.querySelector<HTMLButtonElement>("#resetShortcutsButton");
 const shortcutList = document.querySelector<HTMLUListElement>("#shortcutList");
 
 let currentScriptsState: ScriptsState = {
@@ -41,6 +50,15 @@ let currentScriptsState: ScriptsState = {
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
+
+const shortcutLabels: Record<TeleprompterCommand, string> = {
+  showOverlay: "Show overlay",
+  hideOverlay: "Hide overlay",
+  startPause: "Start / pause",
+  restart: "Restart",
+  speedUp: "Speed up",
+  slowDown: "Slow down"
+};
 
 function setStatus(message: string): void {
   if (statusElement) {
@@ -250,20 +268,73 @@ async function sendTeleprompterCommand(command: TeleprompterCommand): Promise<vo
   await refreshOverlayState(`Sent command: ${command}`);
 }
 
-async function renderShortcutStatus(): Promise<void> {
+function renderShortcutRows(shortcuts: ShortcutStatus[]): void {
   if (!shortcutList) {
     return;
   }
 
-  const shortcuts = await window.teleprompter.getShortcutStatus();
   shortcutList.textContent = "";
 
   for (const shortcut of shortcuts) {
     const item = document.createElement("li");
-    item.textContent = `${shortcut.action}: ${shortcut.accelerator} ${shortcut.registered ? "registered" : "failed"}`;
-    item.className = shortcut.registered ? "shortcut-ok" : "shortcut-failed";
+    item.className = "shortcut-row";
+    const label = document.createElement("label");
+    label.className = "shortcut-label";
+    label.textContent = shortcutLabels[shortcut.action];
+
+    const input = document.createElement("input");
+    input.className = "text-input shortcut-input";
+    input.type = "text";
+    input.value = shortcut.accelerator;
+    input.dataset.action = shortcut.action;
+    input.setAttribute("aria-label", `${shortcutLabels[shortcut.action]} shortcut`);
+
+    const enabledLabel = document.createElement("label");
+    enabledLabel.className = "shortcut-enabled";
+    const enabled = document.createElement("input");
+    enabled.type = "checkbox";
+    enabled.checked = shortcut.enabled;
+    enabled.dataset.action = shortcut.action;
+    enabled.dataset.enabledControl = "true";
+    enabledLabel.append(enabled, "Enabled");
+
+    const status = document.createElement("span");
+    status.className = shortcut.registered ? "shortcut-ok" : "shortcut-failed";
+    status.textContent = shortcut.enabled
+      ? shortcut.registered
+        ? "Registered"
+        : "Failed"
+      : "Disabled";
+
+    item.append(label, input, enabledLabel, status);
     shortcutList.append(item);
   }
+}
+
+async function renderShortcutStatus(): Promise<void> {
+  const shortcuts = await window.teleprompter.getShortcutStatus();
+  renderShortcutRows(shortcuts);
+}
+
+function getShortcutBindingsFromForm(): ShortcutBinding[] {
+  if (!shortcutList) {
+    return [];
+  }
+
+  const inputs = Array.from(shortcutList.querySelectorAll<HTMLInputElement>(".shortcut-input"));
+
+  return inputs.map((input) => {
+    const action = input.dataset.action as TeleprompterCommand;
+    const enabled = shortcutList.querySelector<HTMLInputElement>(
+      `input[data-enabled-control="true"][data-action="${action}"]`
+    );
+
+    return {
+      action,
+      accelerator: input.value.trim(),
+      enabled: enabled?.checked ?? true
+    };
+  });
 }
 
 pingButton?.addEventListener("click", async () => {
@@ -333,6 +404,20 @@ renderShortcutStatus().catch(() => {
   if (shortcutList) {
     shortcutList.textContent = "Unable to load shortcut status.";
   }
+});
+
+saveShortcutsButton?.addEventListener("click", async () => {
+  const shortcuts = await window.teleprompter.updateShortcuts({
+    bindings: getShortcutBindingsFromForm()
+  });
+  renderShortcutRows(shortcuts);
+  setStatus("Saved shortcuts and refreshed global registrations.");
+});
+
+resetShortcutsButton?.addEventListener("click", async () => {
+  const shortcuts = await window.teleprompter.resetShortcuts();
+  renderShortcutRows(shortcuts);
+  setStatus("Reset shortcuts to defaults.");
 });
 
 newScriptButton?.addEventListener("click", async () => {

@@ -25,7 +25,7 @@ import {
   setActiveScript,
   updateAppSettings
 } from "./storage";
-import { getShortcutStatus } from "./shortcuts";
+import { getShortcutStatus, resetGlobalShortcuts, updateGlobalShortcuts } from "./shortcuts";
 import { logInfo } from "./logger";
 
 export function registerIpcHandlers(): void {
@@ -66,6 +66,14 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(ipcChannels.shortcutsGetStatus, async () => {
     return getShortcutStatus();
+  });
+
+  ipcMain.handle(ipcChannels.shortcutsUpdate, async (_event, input) => {
+    return updateGlobalShortcuts(input);
+  });
+
+  ipcMain.handle(ipcChannels.shortcutsReset, async () => {
+    return resetGlobalShortcuts();
   });
 
   ipcMain.handle(ipcChannels.scriptsGetState, async () => {

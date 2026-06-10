@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 6: MVP packaging and beta release readiness.
+Stage 7: v1 shortcut customisation.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, and Windows packaging configuration:
+The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, and shortcut customisation:
 
 - Main process
 - Editor window
@@ -40,6 +40,10 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Recovery reset for overlay position and settings
 - Basic local startup and shortcut-failure logging
 - Private beta release notes
+- Editable global shortcut bindings
+- Per-shortcut enable toggles
+- Persisted shortcut settings in local user data
+- Shortcut reset-to-default action
 
 It does not implement code signing or auto-updates yet.
 

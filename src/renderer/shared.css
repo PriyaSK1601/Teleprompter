@@ -224,10 +224,32 @@ h2 {
 .shortcut-panel ul {
   color: #d1d5db;
   display: grid;
-  gap: 6px;
+  gap: 10px;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.shortcut-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(110px, 150px) minmax(180px, 1fr) auto minmax(80px, auto);
+}
+
+.shortcut-label {
+  color: #f9fafb;
+  font-weight: 700;
+}
+
+.shortcut-input {
+  margin-bottom: 0;
+}
+
+.shortcut-enabled {
+  align-items: center;
+  display: flex;
+  gap: 6px;
 }
 
 .shortcut-ok {

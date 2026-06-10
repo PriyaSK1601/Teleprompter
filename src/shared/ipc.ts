@@ -9,6 +9,8 @@ export const ipcChannels = {
   teleprompterCommand: "teleprompter:command",
   teleprompterCommandEvent: "teleprompter:commandEvent",
   shortcutsGetStatus: "shortcuts:getStatus",
+  shortcutsUpdate: "shortcuts:update",
+  shortcutsReset: "shortcuts:reset",
   scriptsGetState: "scripts:getState",
   scriptsSave: "scripts:save",
   scriptsSetActive: "scripts:setActive",
@@ -71,7 +73,23 @@ export type TeleprompterCommandEvent = {
 export type ShortcutStatus = {
   action: TeleprompterCommand;
   accelerator: string;
+  enabled: boolean;
   registered: boolean;
+};
+
+export type ShortcutBinding = {
+  action: TeleprompterCommand;
+  accelerator: string;
+  enabled: boolean;
+};
+
+export type ShortcutsFile = {
+  version: 1;
+  bindings: ShortcutBinding[];
+};
+
+export type ShortcutUpdateInput = {
+  bindings: ShortcutBinding[];
 };
 
 export type ScriptRecord = {
@@ -158,6 +176,8 @@ export type TeleprompterApi = {
   sendTeleprompterCommand: (command: TeleprompterCommand) => Promise<void>;
   onTeleprompterCommand: (callback: (event: TeleprompterCommandEvent) => void) => () => void;
   getShortcutStatus: () => Promise<ShortcutStatus[]>;
+  updateShortcuts: (input: ShortcutUpdateInput) => Promise<ShortcutStatus[]>;
+  resetShortcuts: () => Promise<ShortcutStatus[]>;
   getScriptsState: () => Promise<ScriptsState>;
   saveScript: (input: SaveScriptInput) => Promise<ScriptsState>;
   setActiveScript: (id: string) => Promise<ScriptsState>;

@@ -29,6 +29,8 @@ const teleprompterApi: TeleprompterApi = {
     };
   },
   getShortcutStatus: () => ipcRenderer.invoke(ipcChannels.shortcutsGetStatus),
+  updateShortcuts: (input) => ipcRenderer.invoke(ipcChannels.shortcutsUpdate, input),
+  resetShortcuts: () => ipcRenderer.invoke(ipcChannels.shortcutsReset),
   getScriptsState: () => ipcRenderer.invoke(ipcChannels.scriptsGetState),
   saveScript: (input) => ipcRenderer.invoke(ipcChannels.scriptsSave, input),
   setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),

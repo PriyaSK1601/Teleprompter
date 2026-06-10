@@ -7,6 +7,9 @@ import type {
   OverlaySettings,
   SaveScriptInput,
   ScriptRecord,
+  ShortcutBinding,
+  ShortcutUpdateInput,
+  ShortcutsFile,
   ScriptsFile,
   ScriptsState,
   SettingsUpdate,
@@ -21,6 +24,20 @@ const defaultOverlaySettings: OverlaySettings = {
 const defaultScriptsFile: ScriptsFile = {
   version: 1,
   scripts: []
+};
+
+export const defaultShortcutBindings: ShortcutBinding[] = [
+  { action: "showOverlay", accelerator: "CommandOrControl+Alt+O", enabled: true },
+  { action: "hideOverlay", accelerator: "CommandOrControl+Alt+H", enabled: true },
+  { action: "startPause", accelerator: "CommandOrControl+Alt+Space", enabled: true },
+  { action: "restart", accelerator: "CommandOrControl+Alt+R", enabled: true },
+  { action: "speedUp", accelerator: "CommandOrControl+Alt+Up", enabled: true },
+  { action: "slowDown", accelerator: "CommandOrControl+Alt+Down", enabled: true }
+];
+
+const defaultShortcutsFile: ShortcutsFile = {
+  version: 1,
+  bindings: defaultShortcutBindings
 };
 
 const defaultAppSettings: AppSettings = {
@@ -69,6 +86,10 @@ function scriptsPath(): string {
 
 function appSettingsPath(): string {
   return join(app.getPath("userData"), "settings", "settings.json");
+}
+
+function shortcutsPath(): string {
+  return join(app.getPath("userData"), "settings", "shortcuts.json");
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -253,6 +274,104 @@ export function resetOverlaySettings(): OverlaySettings {
 
   saveOverlaySettings(settings);
   return settings;
+}
+
+function isShortcutAction(value: unknown): value is ShortcutBinding["action"] {
+  return defaultShortcutBindings.some((binding) => binding.action === value);
+}
+
+function isShortcutBinding(value: unknown): value is ShortcutBinding {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ShortcutBinding>;
+  return (
+    isShortcutAction(candidate.action) &&
+    typeof candidate.accelerator === "string" &&
+    typeof candidate.enabled === "boolean"
+  );
+}
+
+function isShortcutsFile(value: unknown): value is ShortcutsFile {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ShortcutsFile>;
+  return candidate.version === 1 && Array.isArray(candidate.bindings) && candidate.bindings.every(isShortcutBinding);
+}
+
+function normalizeShortcutBindings(bindings: ShortcutBinding[]): ShortcutBinding[] {
+  return defaultShortcutBindings.map((defaultBinding) => {
+    const override = bindings.find((binding) => binding.action === defaultBinding.action);
+    const accelerator = override?.accelerator.trim() || defaultBinding.accelerator;
+
+    return {
+      action: defaultBinding.action,
+      accelerator,
+      enabled: override?.enabled ?? defaultBinding.enabled
+    };
+  });
+}
+
+export function loadShortcutsFile(): ShortcutsFile {
+  const path = shortcutsPath();
+
+  if (!existsSync(path)) {
+    return {
+      version: 1,
+      bindings: normalizeShortcutBindings(defaultShortcutsFile.bindings)
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+
+    if (isShortcutsFile(parsed)) {
+      return {
+        version: 1,
+        bindings: normalizeShortcutBindings(parsed.bindings)
+      };
+    }
+  } catch {
+    return {
+      version: 1,
+      bindings: normalizeShortcutBindings(defaultShortcutsFile.bindings)
+    };
+  }
+
+  return {
+    version: 1,
+    bindings: normalizeShortcutBindings(defaultShortcutsFile.bindings)
+  };
+}
+
+export function saveShortcutsFile(file: ShortcutsFile): void {
+  ensureAppDataDirectories();
+  writeFileSync(
+    shortcutsPath(),
+    `${JSON.stringify({ version: 1, bindings: normalizeShortcutBindings(file.bindings) }, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+export function updateShortcutBindings(input: ShortcutUpdateInput): ShortcutBinding[] {
+  const bindings = normalizeShortcutBindings(input.bindings);
+  saveShortcutsFile({
+    version: 1,
+    bindings
+  });
+  return bindings;
+}
+
+export function resetShortcutBindings(): ShortcutBinding[] {
+  const bindings = normalizeShortcutBindings(defaultShortcutsFile.bindings);
+  saveShortcutsFile({
+    version: 1,
+    bindings
+  });
+  return bindings;
 }
 
 function isScriptRecord(value: unknown): value is ScriptRecord {
