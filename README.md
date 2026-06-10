@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 4: customisation and settings.
+Stage 5: screen-share and capture testing plan.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, and overlay customisation:
+The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, and a screen-share capture test plan:
 
 - Main process
 - Editor window
@@ -34,8 +34,20 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Persisted countdown and scroll speed settings
 - Live settings sync to the overlay
 - Reset-to-default settings action
+- Manual capture test matrix for Zoom, Teams, Google Meet, OBS, Loom, PowerPoint, Chrome, and Edge
+- Capture-result definitions and evidence requirements
 
-It does not implement screen-share testing adjustments or packaging yet.
+It does not implement packaging yet.
+
+## Screen-share Status
+
+Screen-share and recording behavior must be tested on Windows before making claims about whether the overlay appears in shared or recorded output.
+
+Use [docs/10-screen-share-capture-testing.md](docs/10-screen-share-capture-testing.md) as the Stage 5 execution log.
+
+Current safe wording:
+
+> The overlay is designed to be discreet and controllable. Screen-share visibility depends on the app and share mode.
 
 ## Default Shortcuts
 

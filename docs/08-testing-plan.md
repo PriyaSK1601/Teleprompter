@@ -57,6 +57,8 @@
 
 Document actual behavior. Do not assume hidden overlay behavior.
 
+Use `docs/10-screen-share-capture-testing.md` as the Stage 5 execution log.
+
 | App / Tool | Full Screen Share | Window Share | Tab Share | Recording | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Zoom | Test | Test | N/A | Test | Include desktop app behavior. |
@@ -104,4 +106,3 @@ Minimum beta matrix:
 - Loom desktop or browser recording.
 - PowerPoint presenting and recording.
 - Browser-based screen sharing in Chrome and Edge.
-
