@@ -21,6 +21,7 @@ This beta is intended for private testing. It should not be marketed as producti
 - Editable global shortcut bindings.
 - Per-shortcut enable toggles.
 - Shortcut reset-to-default action.
+- Optional sentence and word highlighting experiments.
 - Text customization: font size, color, line spacing, and alignment.
 - Overlay customization: opacity and background color.
 - Countdown and scroll speed settings.

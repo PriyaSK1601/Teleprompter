@@ -58,6 +58,9 @@ const defaultAppSettings: AppSettings = {
   },
   behavior: {
     scrollSpeed: 36
+  },
+  experimental: {
+    highlightMode: "none"
   }
 };
 
@@ -102,6 +105,7 @@ function isHexColor(value: unknown): value is string {
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   const alignmentValues = ["left", "center", "right"] as const;
+  const highlightModes = ["none", "sentence", "word"] as const;
 
   return {
     version: 1,
@@ -133,6 +137,11 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       scrollSpeed: Math.round(
         clamp(Number(settings.behavior.scrollSpeed) || defaultAppSettings.behavior.scrollSpeed, 8, 160)
       )
+    },
+    experimental: {
+      highlightMode: highlightModes.includes(settings.experimental.highlightMode)
+        ? settings.experimental.highlightMode
+        : defaultAppSettings.experimental.highlightMode
     }
   };
 }
@@ -219,6 +228,10 @@ export function loadAppSettings(): AppSettings {
         behavior: {
           ...defaultAppSettings.behavior,
           ...parsed.behavior
+        },
+        experimental: {
+          ...defaultAppSettings.experimental,
+          ...parsed.experimental
         }
       });
     }
@@ -253,6 +266,10 @@ export function updateAppSettings(update: SettingsUpdate): AppSettings {
     behavior: {
       ...currentSettings.behavior,
       ...update.behavior
+    },
+    experimental: {
+      ...currentSettings.experimental,
+      ...update.experimental
     }
   });
 

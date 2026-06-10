@@ -146,12 +146,19 @@ export type BehaviorSettings = {
   scrollSpeed: number;
 };
 
+export type HighlightMode = "none" | "sentence" | "word";
+
+export type ExperimentalSettings = {
+  highlightMode: HighlightMode;
+};
+
 export type AppSettings = {
   version: 1;
   text: TextSettings;
   overlayAppearance: OverlayAppearanceSettings;
   countdown: CountdownSettings;
   behavior: BehaviorSettings;
+  experimental: ExperimentalSettings;
 };
 
 export type SettingsUpdate = {
@@ -159,6 +166,7 @@ export type SettingsUpdate = {
   overlayAppearance?: Partial<OverlayAppearanceSettings>;
   countdown?: Partial<CountdownSettings>;
   behavior?: Partial<BehaviorSettings>;
+  experimental?: Partial<ExperimentalSettings>;
 };
 
 export type SettingsChangedEvent = {

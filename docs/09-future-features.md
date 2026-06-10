@@ -53,6 +53,12 @@ What it is:
 
 - Highlight one word at a time, similar to karaoke-style prompting.
 
+Current experiment:
+
+- A fixed scroll-progress-based word highlighting mode exists behind the overlay settings.
+- It does not use voice tracking, microphone access, speech recognition, or timing calibration.
+- It should be treated as a usability experiment, not a reliable spoken-word synchronisation feature.
+
 When it becomes worth building:
 
 - Only after reading speed calibration exists.
@@ -158,4 +164,3 @@ When it becomes worth building:
 Recommendation:
 
 - Later experiment. Keep manual global shortcuts as the primary control model.
-

@@ -325,6 +325,18 @@ h2 {
   margin: 0 0 28px;
 }
 
+.prompt-text [data-highlight-kind] {
+  border-radius: 4px;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.prompt-highlight-active {
+  background: rgb(147 197 253 / 0.24);
+  color: #ffffff;
+}
+
 .countdown {
   -webkit-app-region: no-drag;
   align-items: center;

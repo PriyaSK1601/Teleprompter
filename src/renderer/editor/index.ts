@@ -31,6 +31,7 @@ const countdownEnabledInput = document.querySelector<HTMLInputElement>("#countdo
 const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdownSecondsInput");
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
+const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const pingButton = document.querySelector<HTMLButtonElement>("#pingButton");
 const openOverlayButton = document.querySelector<HTMLButtonElement>("#openOverlayButton");
 const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
@@ -172,6 +173,10 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedValue.textContent = `${settings.behavior.scrollSpeed} px/s`;
   }
 
+  if (highlightModeSelect) {
+    highlightModeSelect.value = settings.experimental.highlightMode;
+  }
+
   settingsRenderLocked = false;
 }
 
@@ -202,6 +207,9 @@ async function saveSettingsFromControls(): Promise<void> {
     },
     behavior: {
       scrollSpeed: Number(scrollSpeedInput?.value)
+    },
+    experimental: {
+      highlightMode: highlightModeSelect?.value as AppSettings["experimental"]["highlightMode"]
     }
   });
 
@@ -481,7 +489,8 @@ for (const control of [
   backgroundColorInput,
   countdownEnabledInput,
   countdownSecondsInput,
-  scrollSpeedInput
+  scrollSpeedInput,
+  highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
     saveSettingsFromControls().catch(() => {

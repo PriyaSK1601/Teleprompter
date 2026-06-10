@@ -162,3 +162,10 @@ Done means:
 
 - The experiment has a prototype, privacy review, and reliability notes.
 - It is not merged into the main MVP experience unless it improves real prompting sessions.
+
+Implemented experiment:
+
+- Optional sentence and word highlighting modes.
+- Highlighting uses scroll progress only.
+- No microphone permission, voice tracking, speech recognition, backend, cloud sync, or AI features were added.
+- Default highlight mode remains `none`.

@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 7: v1 shortcut customisation.
+Stage 8: experimental highlighting.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, and shortcut customisation:
+The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, shortcut customisation, and experimental highlighting:
 
 - Main process
 - Editor window
@@ -44,8 +44,11 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Per-shortcut enable toggles
 - Persisted shortcut settings in local user data
 - Shortcut reset-to-default action
+- Optional sentence highlighting experiment
+- Optional word highlighting experiment
+- Highlighting is based on scroll progress, not microphone or voice tracking
 
-It does not implement code signing or auto-updates yet.
+It does not implement voice tracking, code signing, or auto-updates yet.
 
 ## Screen-share Status
 

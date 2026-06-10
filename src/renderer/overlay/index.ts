@@ -17,6 +17,8 @@ let countdownTimerId: number | null = null;
 let countdownRemaining = 0;
 let countdownEnabled = true;
 let countdownSeconds = 3;
+let highlightMode: AppSettings["experimental"]["highlightMode"] = "none";
+let currentHighlightIndex = -1;
 
 function hexToRgb(hexColor: string): { red: number; green: number; blue: number } {
   const normalized = hexColor.replace("#", "");
@@ -42,10 +44,59 @@ function updateLabels(): void {
   }
 }
 
+function getActiveHighlightElements(): HTMLElement[] {
+  if (!promptText || highlightMode === "none") {
+    return [];
+  }
+
+  return Array.from(promptText.querySelectorAll<HTMLElement>(`[data-highlight-kind="${highlightMode}"]`));
+}
+
+function clearActiveHighlight(): void {
+  if (!promptText) {
+    return;
+  }
+
+  for (const element of Array.from(promptText.querySelectorAll(".prompt-highlight-active"))) {
+    element.classList.remove("prompt-highlight-active");
+  }
+
+  currentHighlightIndex = -1;
+}
+
+function updateHighlight(): void {
+  if (!promptViewport || highlightMode === "none") {
+    clearActiveHighlight();
+    return;
+  }
+
+  const elements = getActiveHighlightElements();
+
+  if (elements.length === 0) {
+    return;
+  }
+
+  const maxScrollTop = Math.max(1, promptViewport.scrollHeight - promptViewport.clientHeight);
+  const progress = Math.min(1, Math.max(0, promptViewport.scrollTop / maxScrollTop));
+  const nextIndex = Math.min(elements.length - 1, Math.floor(progress * elements.length));
+
+  if (nextIndex === currentHighlightIndex) {
+    return;
+  }
+
+  if (currentHighlightIndex >= 0) {
+    elements[currentHighlightIndex]?.classList.remove("prompt-highlight-active");
+  }
+
+  elements[nextIndex]?.classList.add("prompt-highlight-active");
+  currentHighlightIndex = nextIndex;
+}
+
 function applySettings(settings: AppSettings): void {
   speedPixelsPerSecond = settings.behavior.scrollSpeed;
   countdownEnabled = settings.countdown.enabled;
   countdownSeconds = settings.countdown.seconds;
+  highlightMode = settings.experimental.highlightMode;
   const background = hexToRgb(settings.overlayAppearance.backgroundColor);
 
   document.documentElement.style.setProperty(
@@ -58,6 +109,7 @@ function applySettings(settings: AppSettings): void {
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 
   updateLabels();
+  updateHighlight();
 }
 
 function clearCountdown(): void {
@@ -90,11 +142,13 @@ function scrollFrame(timestamp: number): void {
   const deltaSeconds = (timestamp - lastFrameTime) / 1000;
   lastFrameTime = timestamp;
   promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
+  updateHighlight();
 
   const maxScrollTop = promptViewport.scrollHeight - promptViewport.clientHeight;
 
   if (promptViewport.scrollTop >= maxScrollTop) {
     promptViewport.scrollTop = maxScrollTop;
+    updateHighlight();
     setState("completed");
     animationFrameId = null;
     return;
@@ -174,6 +228,7 @@ function restart(): void {
 
   if (promptViewport) {
     promptViewport.scrollTop = 0;
+    updateHighlight();
   }
 
   startCountdown();
@@ -187,6 +242,31 @@ function speedUp(): void {
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
   updateLabels();
+}
+
+function splitSentences(text: string): string[] {
+  const matches = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+  return matches?.map((sentence) => sentence.trim()).filter(Boolean) ?? [text];
+}
+
+function appendWordSpans(parent: HTMLElement, sentence: string): void {
+  const parts = sentence.split(/(\s+)/);
+
+  for (const part of parts) {
+    if (part.length === 0) {
+      continue;
+    }
+
+    if (/^\s+$/.test(part)) {
+      parent.append(document.createTextNode(part));
+      continue;
+    }
+
+    const word = document.createElement("span");
+    word.dataset.highlightKind = "word";
+    word.textContent = part;
+    parent.append(word);
+  }
 }
 
 function renderScript(body?: string): void {
@@ -203,11 +283,20 @@ function renderScript(body?: string): void {
 
   for (const block of blocks) {
     const paragraph = document.createElement("p");
-    paragraph.textContent = block;
+
+    for (const sentence of splitSentences(block)) {
+      const sentenceElement = document.createElement("span");
+      sentenceElement.dataset.highlightKind = "sentence";
+      appendWordSpans(sentenceElement, sentence);
+      paragraph.append(sentenceElement, " ");
+    }
+
     promptText.append(paragraph);
   }
 
   promptViewport.scrollTop = 0;
+  clearActiveHighlight();
+  updateHighlight();
 
   if (state !== "idle") {
     clearCountdown();
