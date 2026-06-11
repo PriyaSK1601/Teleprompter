@@ -91,13 +91,26 @@
               </select>
             </label>
           </div>
+          <div class="settings-preview-card">
+            <p class="eyebrow">Live Preview</p>
+            <div id="settingsPreview" class="settings-preview-text">
+              Your words appear here, styled exactly like the teleprompter overlay.
+            </div>
+          </div>
         </section>
 
         <section class="settings-section">
           <h3>Teleprompter</h3>
           <div class="settings-grid">
+            <label class="field-label" for="scrollModeSelect">
+              Scroll mode
+              <select id="scrollModeSelect" class="text-input">
+                <option value="manual">Manual</option>
+                <option value="voice">Voice Tracking</option>
+              </select>
+            </label>
             <label class="field-label" for="scrollSpeedInput">
-              Scroll speed
+              Manual scroll speed
               <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
               <span id="scrollSpeedValue" class="setting-value"></span>
             </label>

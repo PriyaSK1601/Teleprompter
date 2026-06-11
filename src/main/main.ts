@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, session } from "electron";
 import { registerIpcHandlers } from "./ipc";
 import { logError, logInfo } from "./logger";
 import { registerGlobalShortcuts } from "./shortcuts";
@@ -26,6 +26,9 @@ if (!gotSingleInstanceLock) {
 
 app.whenReady().then(() => {
   ensureAppDataDirectories();
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media");
+  });
   logInfo("App starting", {
     version: app.getVersion(),
     platform: process.platform

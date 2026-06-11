@@ -23,9 +23,11 @@ const opacityValue = document.querySelector<HTMLElement>("#opacityValue");
 const backgroundColorInput = document.querySelector<HTMLInputElement>("#backgroundColorInput");
 const countdownEnabledInput = document.querySelector<HTMLInputElement>("#countdownEnabledInput");
 const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdownSecondsInput");
+const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
+const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -47,6 +49,7 @@ const ipcBackedControls = [
   backgroundColorInput,
   countdownEnabledInput,
   countdownSecondsInput,
+  scrollModeSelect,
   scrollSpeedInput,
   highlightModeSelect
 ];
@@ -269,11 +272,39 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedValue.textContent = `${settings.behavior.scrollSpeed} px/s`;
   }
 
+  if (scrollModeSelect) {
+    scrollModeSelect.value = settings.behavior.scrollMode;
+  }
+
   if (highlightModeSelect) {
     highlightModeSelect.value = settings.experimental.highlightMode;
   }
 
+  renderSettingsPreview(settings);
+
   settingsRenderLocked = false;
+}
+
+function renderSettingsPreview(settings: AppSettings): void {
+  if (!settingsPreview) {
+    return;
+  }
+
+  settingsPreview.style.color = settings.text.textColor;
+  settingsPreview.style.fontSize = `${settings.text.fontSize}px`;
+  settingsPreview.style.lineHeight = String(settings.text.lineHeight);
+  settingsPreview.style.textAlign = settings.text.alignment;
+}
+
+function renderSettingsPreviewFromControls(): void {
+  if (!settingsPreview) {
+    return;
+  }
+
+  settingsPreview.style.color = textColorInput?.value ?? "";
+  settingsPreview.style.fontSize = `${Number(fontSizeInput?.value) || 32}px`;
+  settingsPreview.style.lineHeight = String(Number(lineHeightInput?.value) || 1.5);
+  settingsPreview.style.textAlign = alignmentSelect?.value ?? "center";
 }
 
 async function loadSettings(): Promise<void> {
@@ -302,7 +333,8 @@ async function saveSettingsFromControls(): Promise<void> {
       seconds: Number(countdownSecondsInput?.value)
     },
     behavior: {
-      scrollSpeed: Number(scrollSpeedInput?.value)
+      scrollSpeed: Number(scrollSpeedInput?.value),
+      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"]
     },
     experimental: {
       highlightMode: highlightModeSelect?.value as AppSettings["experimental"]["highlightMode"]
@@ -389,14 +421,17 @@ for (const control of [
   backgroundColorInput,
   countdownEnabledInput,
   countdownSecondsInput,
+  scrollModeSelect,
   scrollSpeedInput,
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
+    renderSettingsPreviewFromControls();
     void runEditorAction("Save settings", saveSettingsFromControls);
   });
 
   control?.addEventListener("change", () => {
+    renderSettingsPreviewFromControls();
     void runEditorAction("Save settings", saveSettingsFromControls);
   });
 }

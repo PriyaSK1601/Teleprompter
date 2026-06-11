@@ -144,6 +144,7 @@ export type CountdownSettings = {
 
 export type BehaviorSettings = {
   scrollSpeed: number;
+  scrollMode: "manual" | "voice";
 };
 
 export type HighlightMode = "none" | "sentence" | "word";

@@ -331,6 +331,22 @@ h3 {
   grid-template-columns: 1fr 1fr;
 }
 
+.settings-preview-card {
+  background: rgb(6 8 12 / 0.44);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 18px;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.settings-preview-text {
+  color: var(--prompt-text-color);
+  font-size: var(--prompt-font-size);
+  line-height: var(--prompt-line-height);
+  margin-top: 10px;
+  text-align: var(--prompt-text-align);
+}
+
 .field-label {
   color: #cbd5e1;
   display: grid;
@@ -408,11 +424,24 @@ h3 {
 }
 
 .overlay-drag-handle {
+  align-items: center;
   color: rgb(248 250 252 / 0.72);
+  display: flex;
   font-size: 12px;
   font-weight: 760;
+  gap: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.overlay-mode-pill {
+  background: rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  color: rgb(248 250 252 / 0.78);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
 }
 
 .overlay-control-bar {
@@ -521,6 +550,12 @@ h3 {
   padding: 6px 4px 0;
 }
 
+.overlay-progress-main {
+  display: grid;
+  flex: 1;
+  gap: 7px;
+}
+
 .overlay-progress-track {
   background: rgb(255 255 255 / 0.1);
   border-radius: 999px;
@@ -542,6 +577,20 @@ h3 {
   font-weight: 700;
   min-width: 34px;
   text-align: right;
+}
+
+.overlay-status-row {
+  align-items: center;
+  color: rgb(248 250 252 / 0.58);
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 12px;
+  min-height: 14px;
+}
+
+#feedbackLabel {
+  color: rgb(255 255 255 / 0.82);
 }
 
 @media (max-width: 860px) {

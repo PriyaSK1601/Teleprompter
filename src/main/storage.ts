@@ -57,7 +57,8 @@ const defaultAppSettings: AppSettings = {
     seconds: 3
   },
   behavior: {
-    scrollSpeed: 36
+    scrollSpeed: 36,
+    scrollMode: "manual"
   },
   experimental: {
     highlightMode: "sentence"
@@ -106,6 +107,7 @@ function isHexColor(value: unknown): value is string {
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   const alignmentValues = ["left", "center", "right"] as const;
   const highlightModes = ["none", "sentence", "word"] as const;
+  const scrollModes = ["manual", "voice"] as const;
 
   return {
     version: 1,
@@ -136,7 +138,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     behavior: {
       scrollSpeed: Math.round(
         clamp(Number(settings.behavior.scrollSpeed) || defaultAppSettings.behavior.scrollSpeed, 8, 160)
-      )
+      ),
+      scrollMode: scrollModes.includes(settings.behavior.scrollMode)
+        ? settings.behavior.scrollMode
+        : defaultAppSettings.behavior.scrollMode
     },
     experimental: {
       highlightMode: highlightModes.includes(settings.experimental.highlightMode)

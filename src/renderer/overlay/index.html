@@ -9,7 +9,10 @@
   <body class="overlay-body">
     <main class="overlay-shell">
       <header class="overlay-topbar">
-        <div class="overlay-drag-handle">Teleprompter</div>
+        <div class="overlay-drag-handle">
+          <span>Teleprompter</span>
+          <span id="modeLabel" class="overlay-mode-pill">Manual</span>
+        </div>
         <nav class="overlay-control-bar" aria-label="Teleprompter controls">
           <button id="hideOverlayButton" class="overlay-control" type="button">Hide</button>
           <button id="slowDownButton" class="overlay-control" type="button">−</button>
@@ -29,8 +32,15 @@
       </section>
 
       <footer class="overlay-progress-wrap">
-        <div class="overlay-progress-track" aria-hidden="true">
-          <div id="progressBar" class="overlay-progress-bar"></div>
+        <div class="overlay-progress-main">
+          <div class="overlay-progress-track" aria-hidden="true">
+            <div id="progressBar" class="overlay-progress-bar"></div>
+          </div>
+          <div class="overlay-status-row">
+            <span id="elapsedLabel">00:00</span>
+            <span id="speedLabel">36 px/s</span>
+            <span id="feedbackLabel"></span>
+          </div>
         </div>
         <span id="progressLabel" class="overlay-progress-label">0%</span>
       </footer>

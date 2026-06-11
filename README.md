@@ -6,7 +6,7 @@ Windows-first desktop teleprompter app.
 
 UI/UX refactor: professional teleprompter experience.
 
-The project currently includes the Electron + TypeScript foundation, polished editor mode, floating glass teleprompter overlay, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, shortcut support, and highlighting:
+The project currently includes the Electron + TypeScript foundation, polished editor mode, floating glass teleprompter overlay, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, shortcut support, highlighting, countdown, and manual/voice scroll modes:
 
 - Main process
 - Editor window
@@ -43,9 +43,14 @@ The project currently includes the Electron + TypeScript foundation, polished ed
 - Keyboard shortcuts remain active but are no longer configured in the main UI
 - Optional sentence/current-line highlighting
 - Optional word highlighting experiment
-- Highlighting is based on scroll progress, not microphone or voice tracking
+- Highlighting remains based on scroll progress and stays visually subtle
+- Manual scroll mode using the configured scroll speed
+- Voice Tracking scroll mode using local microphone activity detection with graceful fallback to Manual when microphone access is unavailable
+- Configurable countdown before scrolling starts
+- Live settings preview for text colour, font size, spacing, and alignment
+- Overlay status for elapsed time, scroll speed, mode, progress, and speed-change feedback
 
-It does not implement voice tracking, code signing, or auto-updates yet.
+It does not implement code signing or auto-updates yet.
 
 ## Screen-share Status
 
@@ -59,6 +64,8 @@ Current safe wording:
 
 ## Keyboard Shortcuts
 
+Global shortcuts:
+
 - Show overlay: `Ctrl+Alt+O`
 - Hide overlay: `Ctrl+Alt+H`
 - Start / pause: `Ctrl+Alt+Space`
@@ -67,6 +74,30 @@ Current safe wording:
 - Slow down: `Ctrl+Alt+Down`
 
 Shortcut registration and persistence remain implemented in the app, but shortcut configuration is intentionally hidden from the main interface to keep the editor clean.
+
+Overlay keyboard controls:
+
+- `Up Arrow`: increase scroll speed
+- `Down Arrow`: decrease scroll speed
+- `Space`: start or pause
+- `R`: restart
+- `Escape`: hide overlay
+
+Overlay keyboard controls are ignored when focus is inside an input, textarea, select, or contenteditable field.
+
+## Scroll Modes
+
+Manual mode uses the manual scroll speed configured in Settings. Speed can also be adjusted live from the overlay controls or overlay keyboard controls.
+
+Voice Tracking mode uses local microphone audio activity detection in the overlay. It does not send audio to a backend and does not require speech-to-text. When speech is detected, scrolling resumes and adapts speed based on voice activity. When speech stops, scrolling pauses. If microphone access is unavailable or fails, the overlay shows a short message and falls back to Manual mode.
+
+## Countdown Timer
+
+The countdown appears inside the overlay before scrolling begins. Countdown duration and enable/disable state are configurable in Settings.
+
+## Settings
+
+Settings include text colour, font size, spacing, alignment, countdown duration, scroll mode, manual scroll speed, highlight mode, background colour, and overlay opacity. Appearance settings include a live preview panel so changes can be evaluated before starting the teleprompter.
 
 ## Development
 

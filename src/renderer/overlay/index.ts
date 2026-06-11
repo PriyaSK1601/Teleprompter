@@ -3,6 +3,10 @@ const promptViewport = document.querySelector<HTMLElement>("#promptViewport");
 const promptText = document.querySelector<HTMLElement>("#promptText");
 const progressBar = document.querySelector<HTMLElement>("#progressBar");
 const progressLabel = document.querySelector<HTMLElement>("#progressLabel");
+const elapsedLabel = document.querySelector<HTMLElement>("#elapsedLabel");
+const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
+const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
+const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
 const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
 const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
@@ -21,7 +25,20 @@ let countdownRemaining = 0;
 let countdownEnabled = true;
 let countdownSeconds = 3;
 let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
+let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
+let elapsedMilliseconds = 0;
+let feedbackTimerId: number | null = null;
+let voiceAudioContext: AudioContext | null = null;
+let voiceAnalyser: AnalyserNode | null = null;
+let voiceMediaStream: MediaStream | null = null;
+let voiceAnimationFrameId: number | null = null;
+let voiceSupported = false;
+let voiceSpeaking = false;
+let voiceLevel = 0;
+let voiceNoiseFloor = 0.018;
+let voiceLastSpokeAt = 0;
+let voiceStartedAt = 0;
 
 function hexToRgb(hexColor: string): { red: number; green: number; blue: number } {
   const normalized = hexColor.replace("#", "");
@@ -37,6 +54,42 @@ function updateControls(): void {
   if (playPauseButton) {
     playPauseButton.textContent = state === "running" || state === "countdown" ? "Pause" : "Play";
   }
+
+  if (speedLabel) {
+    speedLabel.textContent = `${speedPixelsPerSecond} px/s`;
+  }
+
+  if (modeLabel) {
+    modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
+  }
+
+  if (elapsedLabel) {
+    elapsedLabel.textContent = formatElapsed(elapsedMilliseconds);
+  }
+}
+
+function formatElapsed(milliseconds: number): string {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function showFeedback(message: string): void {
+  if (!feedbackLabel) {
+    return;
+  }
+
+  feedbackLabel.textContent = message;
+
+  if (feedbackTimerId !== null) {
+    window.clearTimeout(feedbackTimerId);
+  }
+
+  feedbackTimerId = window.setTimeout(() => {
+    feedbackLabel.textContent = "";
+    feedbackTimerId = null;
+  }, 1400);
 }
 
 function setState(nextState: ScrollState): void {
@@ -115,6 +168,7 @@ function updateHighlight(): void {
 
 function applySettings(settings: AppSettings): void {
   speedPixelsPerSecond = settings.behavior.scrollSpeed;
+  scrollMode = settings.behavior.scrollMode;
   countdownEnabled = settings.countdown.enabled;
   countdownSeconds = settings.countdown.seconds;
   highlightMode = settings.experimental.highlightMode;
@@ -132,6 +186,119 @@ function applySettings(settings: AppSettings): void {
   updateControls();
   updateProgress();
   updateHighlight();
+}
+
+function stopVoiceTracking(): void {
+  voiceSpeaking = false;
+  voiceSupported = false;
+  voiceLevel = 0;
+
+  if (voiceAnimationFrameId !== null) {
+    window.cancelAnimationFrame(voiceAnimationFrameId);
+    voiceAnimationFrameId = null;
+  }
+
+  if (voiceMediaStream) {
+    for (const track of voiceMediaStream.getTracks()) {
+      track.stop();
+    }
+  }
+
+  voiceMediaStream = null;
+  voiceAnalyser = null;
+
+  if (voiceAudioContext) {
+    void voiceAudioContext.close();
+  }
+
+  voiceAudioContext = null;
+}
+
+function measureVoiceLevel(data: Uint8Array): number {
+  let sum = 0;
+
+  for (const sample of data) {
+    const normalized = (sample - 128) / 128;
+    sum += normalized * normalized;
+  }
+
+  return Math.sqrt(sum / data.length);
+}
+
+function updateVoiceTracking(): void {
+  if (!voiceAnalyser || scrollMode !== "voice" || state !== "running") {
+    voiceAnimationFrameId = null;
+    return;
+  }
+
+  const data = new Uint8Array(voiceAnalyser.fftSize);
+  voiceAnalyser.getByteTimeDomainData(data);
+  voiceLevel = measureVoiceLevel(data);
+
+  if (Date.now() - voiceStartedAt < 1200) {
+    voiceNoiseFloor = voiceNoiseFloor * 0.92 + voiceLevel * 0.08;
+  }
+
+  const speechThreshold = Math.max(0.026, voiceNoiseFloor * 2.2);
+  const speakingNow = voiceLevel > speechThreshold;
+
+  if (speakingNow) {
+    voiceLastSpokeAt = Date.now();
+    const levelBoost = Math.min(56, Math.round((voiceLevel - speechThreshold) * 900));
+    const targetSpeed = Math.max(18, Math.min(150, 28 + levelBoost));
+    speedPixelsPerSecond = Math.round(speedPixelsPerSecond * 0.84 + targetSpeed * 0.16);
+  }
+
+  const wasSpeaking = voiceSpeaking;
+  voiceSpeaking = Date.now() - voiceLastSpokeAt < 900;
+
+  if (wasSpeaking && !voiceSpeaking) {
+    showFeedback("Paused until speech resumes");
+  } else if (!wasSpeaking && voiceSpeaking) {
+    showFeedback("Speech detected");
+  }
+
+  updateControls();
+  voiceAnimationFrameId = window.requestAnimationFrame(updateVoiceTracking);
+}
+
+async function startVoiceTracking(): Promise<boolean> {
+  if (!navigator.mediaDevices?.getUserMedia || typeof AudioContext === "undefined") {
+    scrollMode = "manual";
+    showFeedback("Microphone tracking unavailable. Manual mode active.");
+    updateControls();
+    return false;
+  }
+
+  try {
+    stopVoiceTracking();
+    voiceMediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    voiceAudioContext = new AudioContext();
+    const source = voiceAudioContext.createMediaStreamSource(voiceMediaStream);
+    voiceAnalyser = voiceAudioContext.createAnalyser();
+    voiceAnalyser.fftSize = 1024;
+    voiceAnalyser.smoothingTimeConstant = 0.35;
+    source.connect(voiceAnalyser);
+    voiceSupported = true;
+    voiceSpeaking = false;
+    voiceStartedAt = Date.now();
+    voiceLastSpokeAt = 0;
+    voiceNoiseFloor = 0.018;
+    showFeedback("Listening for speech");
+    voiceAnimationFrameId = window.requestAnimationFrame(updateVoiceTracking);
+    return true;
+  } catch {
+    scrollMode = "manual";
+    showFeedback("Microphone unavailable. Manual mode active.");
+    updateControls();
+    return false;
+  }
 }
 
 function clearCountdown(): void {
@@ -158,9 +325,15 @@ function scrollFrame(timestamp: number): void {
 
   const deltaSeconds = (timestamp - lastFrameTime) / 1000;
   lastFrameTime = timestamp;
-  promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
+
+  if (scrollMode !== "voice" || voiceSpeaking || !voiceSupported) {
+    promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
+    elapsedMilliseconds += deltaSeconds * 1000;
+  }
+
   updateProgress();
   updateHighlight();
+  updateControls();
 
   const maxScrollTop = promptViewport.scrollHeight - promptViewport.clientHeight;
 
@@ -187,6 +360,11 @@ function startAnimation(): void {
 
 function startRunning(): void {
   clearCountdown();
+  if (scrollMode === "voice") {
+    void startVoiceTracking();
+  } else {
+    stopVoiceTracking();
+  }
   setState("running");
   startAnimation();
 }
@@ -223,6 +401,7 @@ function startCountdown(): void {
 
 function pause(): void {
   clearCountdown();
+  stopVoiceTracking();
   setState("paused");
 }
 
@@ -247,6 +426,7 @@ function restart(): void {
 
   if (promptViewport) {
     promptViewport.scrollTop = 0;
+    elapsedMilliseconds = 0;
     updateProgress();
     updateHighlight();
   }
@@ -256,10 +436,14 @@ function restart(): void {
 
 function speedUp(): void {
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
+  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
+  updateControls();
 }
 
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
+  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
+  updateControls();
 }
 
 function splitSentences(text: string): string[] {
@@ -344,6 +528,15 @@ function handleCommand(command: string): void {
   }
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
+}
+
 const teleprompterApi = window.teleprompter;
 
 hideOverlayButton?.addEventListener("click", () => {
@@ -357,6 +550,41 @@ slowDownButton?.addEventListener("click", slowDown);
 
 closeOverlayButton?.addEventListener("click", () => {
   void teleprompterApi?.closeOverlay();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (isTypingTarget(event.target)) {
+    return;
+  }
+
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    speedUp();
+    return;
+  }
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    slowDown();
+    return;
+  }
+
+  if (event.key === " ") {
+    event.preventDefault();
+    startPause();
+    return;
+  }
+
+  if (event.key.toLowerCase() === "r") {
+    event.preventDefault();
+    restart();
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    void teleprompterApi?.hideOverlay();
+  }
 });
 
 if (teleprompterApi) {
