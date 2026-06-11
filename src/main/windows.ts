@@ -14,8 +14,8 @@ import { getScriptsState, loadAppSettings, loadOverlaySettings, saveOverlaySetti
 
 const rootPath = join(__dirname, "..", "..");
 const overlayDefaultSize = {
-  width: 760,
-  height: 220
+  width: 900,
+  height: 340
 };
 
 let editorWindow: BrowserWindow | null = null;
@@ -175,8 +175,8 @@ export function createOverlayWindow(): BrowserWindow {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    minWidth: 420,
-    minHeight: 140,
+    minWidth: 560,
+    minHeight: 220,
     title: "Teleprompter Overlay",
     frame: false,
     transparent: true,

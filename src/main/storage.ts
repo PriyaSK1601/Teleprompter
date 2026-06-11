@@ -60,7 +60,7 @@ const defaultAppSettings: AppSettings = {
     scrollSpeed: 36
   },
   experimental: {
-    highlightMode: "none"
+    highlightMode: "sentence"
   }
 };
 

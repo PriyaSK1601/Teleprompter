@@ -4,9 +4,9 @@ Windows-first desktop teleprompter app.
 
 ## Current Stage
 
-Stage 8: experimental highlighting.
+UI/UX refactor: professional teleprompter experience.
 
-The project currently includes the Electron + TypeScript foundation, floating overlay spike, basic teleprompter controls, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, shortcut customisation, and experimental highlighting:
+The project currently includes the Electron + TypeScript foundation, polished editor mode, floating glass teleprompter overlay, local script persistence, overlay customisation, screen-share capture test plan, Windows packaging configuration, shortcut support, and highlighting:
 
 - Main process
 - Editor window
@@ -40,11 +40,8 @@ The project currently includes the Electron + TypeScript foundation, floating ov
 - Recovery reset for overlay position and settings
 - Basic local startup and shortcut-failure logging
 - Private beta release notes
-- Editable global shortcut bindings
-- Per-shortcut enable toggles
-- Persisted shortcut settings in local user data
-- Shortcut reset-to-default action
-- Optional sentence highlighting experiment
+- Keyboard shortcuts remain active but are no longer configured in the main UI
+- Optional sentence/current-line highlighting
 - Optional word highlighting experiment
 - Highlighting is based on scroll progress, not microphone or voice tracking
 
@@ -60,7 +57,7 @@ Current safe wording:
 
 > The overlay is designed to be discreet and controllable. Screen-share visibility depends on the app and share mode.
 
-## Default Shortcuts
+## Keyboard Shortcuts
 
 - Show overlay: `Ctrl+Alt+O`
 - Hide overlay: `Ctrl+Alt+H`
@@ -68,6 +65,8 @@ Current safe wording:
 - Restart: `Ctrl+Alt+R`
 - Speed up: `Ctrl+Alt+Up`
 - Slow down: `Ctrl+Alt+Down`
+
+Shortcut registration and persistence remain implemented in the app, but shortcut configuration is intentionally hidden from the main interface to keep the editor clean.
 
 ## Development
 

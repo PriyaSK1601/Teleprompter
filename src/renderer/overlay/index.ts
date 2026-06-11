@@ -1,9 +1,14 @@
-const overlayStatus = document.querySelector<HTMLParagraphElement>("#overlayStatus");
 const countdownElement = document.querySelector<HTMLElement>("#countdown");
 const promptViewport = document.querySelector<HTMLElement>("#promptViewport");
 const promptText = document.querySelector<HTMLElement>("#promptText");
-const stateLabel = document.querySelector<HTMLElement>("#stateLabel");
-const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
+const progressBar = document.querySelector<HTMLElement>("#progressBar");
+const progressLabel = document.querySelector<HTMLElement>("#progressLabel");
+const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
+const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
+const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
+const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
+const slowDownButton = document.querySelector<HTMLButtonElement>("#slowDownButton");
+const closeOverlayButton = document.querySelector<HTMLButtonElement>("#closeOverlayButton");
 
 type ScrollState = "idle" | "countdown" | "running" | "paused" | "completed";
 
@@ -15,7 +20,7 @@ let countdownTimerId: number | null = null;
 let countdownRemaining = 0;
 let countdownEnabled = true;
 let countdownSeconds = 3;
-let highlightMode: AppSettings["experimental"]["highlightMode"] = "none";
+let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let currentHighlightIndex = -1;
 
 function hexToRgb(hexColor: string): { red: number; green: number; blue: number } {
@@ -28,17 +33,35 @@ function hexToRgb(hexColor: string): { red: number; green: number; blue: number 
   };
 }
 
-function updateLabels(): void {
-  if (overlayStatus) {
-    overlayStatus.textContent = state;
+function updateControls(): void {
+  if (playPauseButton) {
+    playPauseButton.textContent = state === "running" || state === "countdown" ? "Pause" : "Play";
+  }
+}
+
+function setState(nextState: ScrollState): void {
+  state = nextState;
+  updateControls();
+}
+
+function getProgress(): number {
+  if (!promptViewport) {
+    return 0;
   }
 
-  if (stateLabel) {
-    stateLabel.textContent = `State: ${state}`;
+  const maxScrollTop = Math.max(1, promptViewport.scrollHeight - promptViewport.clientHeight);
+  return Math.min(1, Math.max(0, promptViewport.scrollTop / maxScrollTop));
+}
+
+function updateProgress(): void {
+  const progress = getProgress();
+
+  if (progressBar) {
+    progressBar.style.width = `${Math.round(progress * 100)}%`;
   }
 
-  if (speedLabel) {
-    speedLabel.textContent = `Speed: ${speedPixelsPerSecond} px/s`;
+  if (progressLabel) {
+    progressLabel.textContent = `${Math.round(progress * 100)}%`;
   }
 }
 
@@ -50,21 +73,22 @@ function getActiveHighlightElements(): HTMLElement[] {
   return Array.from(promptText.querySelectorAll<HTMLElement>(`[data-highlight-kind="${highlightMode}"]`));
 }
 
-function clearActiveHighlight(): void {
+function clearHighlightClasses(): void {
   if (!promptText) {
     return;
   }
 
-  for (const element of Array.from(promptText.querySelectorAll(".prompt-highlight-active"))) {
-    element.classList.remove("prompt-highlight-active");
+  for (const element of Array.from(promptText.querySelectorAll(".prompt-focus-active, .prompt-focus-past"))) {
+    element.classList.remove("prompt-focus-active", "prompt-focus-past");
   }
 
+  promptText.classList.remove("focus-mode");
   currentHighlightIndex = -1;
 }
 
 function updateHighlight(): void {
-  if (!promptViewport || highlightMode === "none") {
-    clearActiveHighlight();
+  if (!promptViewport || !promptText || highlightMode === "none") {
+    clearHighlightClasses();
     return;
   }
 
@@ -74,19 +98,18 @@ function updateHighlight(): void {
     return;
   }
 
-  const maxScrollTop = Math.max(1, promptViewport.scrollHeight - promptViewport.clientHeight);
-  const progress = Math.min(1, Math.max(0, promptViewport.scrollTop / maxScrollTop));
-  const nextIndex = Math.min(elements.length - 1, Math.floor(progress * elements.length));
+  promptText.classList.add("focus-mode");
+  const nextIndex = Math.min(elements.length - 1, Math.floor(getProgress() * elements.length));
 
   if (nextIndex === currentHighlightIndex) {
     return;
   }
 
-  if (currentHighlightIndex >= 0) {
-    elements[currentHighlightIndex]?.classList.remove("prompt-highlight-active");
+  for (let index = 0; index < elements.length; index += 1) {
+    elements[index].classList.toggle("prompt-focus-past", index < nextIndex);
+    elements[index].classList.toggle("prompt-focus-active", index === nextIndex);
   }
 
-  elements[nextIndex]?.classList.add("prompt-highlight-active");
   currentHighlightIndex = nextIndex;
 }
 
@@ -106,7 +129,8 @@ function applySettings(settings: AppSettings): void {
   document.documentElement.style.setProperty("--prompt-line-height", String(settings.text.lineHeight));
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 
-  updateLabels();
+  updateControls();
+  updateProgress();
   updateHighlight();
 }
 
@@ -122,11 +146,6 @@ function clearCountdown(): void {
   }
 }
 
-function setState(nextState: ScrollState): void {
-  state = nextState;
-  updateLabels();
-}
-
 function scrollFrame(timestamp: number): void {
   if (state !== "running" || !promptViewport) {
     animationFrameId = null;
@@ -140,12 +159,14 @@ function scrollFrame(timestamp: number): void {
   const deltaSeconds = (timestamp - lastFrameTime) / 1000;
   lastFrameTime = timestamp;
   promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
+  updateProgress();
   updateHighlight();
 
   const maxScrollTop = promptViewport.scrollHeight - promptViewport.clientHeight;
 
   if (promptViewport.scrollTop >= maxScrollTop) {
     promptViewport.scrollTop = maxScrollTop;
+    updateProgress();
     updateHighlight();
     setState("completed");
     animationFrameId = null;
@@ -226,6 +247,7 @@ function restart(): void {
 
   if (promptViewport) {
     promptViewport.scrollTop = 0;
+    updateProgress();
     updateHighlight();
   }
 
@@ -234,12 +256,10 @@ function restart(): void {
 
 function speedUp(): void {
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
-  updateLabels();
 }
 
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
-  updateLabels();
 }
 
 function splitSentences(text: string): string[] {
@@ -293,7 +313,8 @@ function renderScript(body?: string): void {
   }
 
   promptViewport.scrollTop = 0;
-  clearActiveHighlight();
+  clearHighlightClasses();
+  updateProgress();
   updateHighlight();
 
   if (state !== "idle") {
@@ -325,6 +346,19 @@ function handleCommand(command: string): void {
 
 const teleprompterApi = window.teleprompter;
 
+hideOverlayButton?.addEventListener("click", () => {
+  void teleprompterApi?.hideOverlay();
+});
+
+playPauseButton?.addEventListener("click", startPause);
+restartButton?.addEventListener("click", restart);
+speedUpButton?.addEventListener("click", speedUp);
+slowDownButton?.addEventListener("click", slowDown);
+
+closeOverlayButton?.addEventListener("click", () => {
+  void teleprompterApi?.closeOverlay();
+});
+
 if (teleprompterApi) {
   teleprompterApi.onTeleprompterCommand((event) => {
     handleCommand(event.command);
@@ -338,22 +372,19 @@ if (teleprompterApi) {
     applySettings(event.settings);
   });
 
-  teleprompterApi.getScriptsState().then((state) => {
-    renderScript(state.activeScript?.body);
+  teleprompterApi.getScriptsState().then((scriptState) => {
+    renderScript(scriptState.activeScript?.body);
   }).catch(() => {
     renderScript();
   });
 
   teleprompterApi.getSettings().then(applySettings).catch(() => {
-    updateLabels();
+    updateControls();
   });
 } else {
-  if (overlayStatus) {
-    overlayStatus.textContent = "preload unavailable";
-  }
-
   renderScript();
-  updateLabels();
+  updateControls();
 }
 
-updateLabels();
+updateControls();
+updateProgress();

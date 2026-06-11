@@ -8,19 +8,31 @@
   </head>
   <body class="overlay-body">
     <main class="overlay-shell">
-      <div class="drag-region">
-        <span>Drag to position</span>
-        <span id="overlayStatus">Idle</span>
-      </div>
+      <header class="overlay-topbar">
+        <div class="overlay-drag-handle">Teleprompter</div>
+        <nav class="overlay-control-bar" aria-label="Teleprompter controls">
+          <button id="hideOverlayButton" class="overlay-control" type="button">Hide</button>
+          <button id="slowDownButton" class="overlay-control" type="button">−</button>
+          <button id="playPauseButton" class="overlay-control primary" type="button">Play</button>
+          <button id="restartButton" class="overlay-control" type="button">Restart</button>
+          <button id="speedUpButton" class="overlay-control" type="button">+</button>
+          <button id="closeOverlayButton" class="overlay-control" type="button">Close</button>
+        </nav>
+      </header>
+
       <section class="countdown" id="countdown" hidden></section>
+
       <section class="prompt-viewport" id="promptViewport">
         <article class="prompt-text" id="promptText">
           <p>No active script loaded yet.</p>
         </article>
       </section>
-      <footer class="overlay-controls">
-        <span id="stateLabel">State: idle</span>
-        <span id="speedLabel">Speed: 36 px/s</span>
+
+      <footer class="overlay-progress-wrap">
+        <div class="overlay-progress-track" aria-hidden="true">
+          <div id="progressBar" class="overlay-progress-bar"></div>
+        </div>
+        <span id="progressLabel" class="overlay-progress-label">0%</span>
       </footer>
     </main>
     <script src="../../../dist/renderer/overlay/index.js"></script>
