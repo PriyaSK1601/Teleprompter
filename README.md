@@ -27,7 +27,8 @@ The project currently includes the Electron + TypeScript foundation, polished ed
 - Global shortcut registration with visible registration status
 - Plain-text script editor
 - Local saved scripts in the Electron user data directory
-- Save, open, rename, delete, and clear-editor actions
+- Save, open, rename, multi-select delete, and clear-editor actions
+- Editor word count, character count, and estimated reading-time metadata
 - Active script sync to the overlay
 - Persisted text settings for font size, colour, line spacing, and alignment
 - Persisted overlay appearance settings for opacity and background colour
@@ -45,10 +46,11 @@ The project currently includes the Electron + TypeScript foundation, polished ed
 - Optional word highlighting experiment
 - Highlighting remains based on scroll progress and stays visually subtle
 - Manual scroll mode using the configured scroll speed
-- Voice Tracking scroll mode using local microphone activity detection with graceful fallback to Manual when microphone access is unavailable
+- Voice Tracking scroll mode with script-aware speech matching when browser speech recognition is available
+- Local microphone activity fallback when speech recognition is unavailable
 - Configurable countdown before scrolling starts
 - Live settings preview for text colour, font size, spacing, and alignment
-- Overlay status for elapsed time, scroll speed, mode, progress, and speed-change feedback
+- Overlay status for elapsed time, estimated remaining time, scroll speed, mode, progress, and speed-change feedback
 
 It does not implement code signing or auto-updates yet.
 
@@ -89,7 +91,15 @@ Overlay keyboard controls are ignored when focus is inside an input, textarea, s
 
 Manual mode uses the manual scroll speed configured in Settings. Speed can also be adjusted live from the overlay controls or overlay keyboard controls.
 
-Voice Tracking mode uses local microphone audio activity detection in the overlay. It does not send audio to a backend and does not require speech-to-text. When speech is detected, scrolling resumes and adapts speed based on voice activity. When speech stops, scrolling pauses. If microphone access is unavailable or fails, the overlay shows a short message and falls back to Manual mode.
+Voice Tracking mode uses the overlay microphone stream locally. When Electron exposes browser speech recognition, the overlay compares recognised words against the active script with fuzzy matching and advances based on script progress. This keeps the prompt paused if the user goes off-script and resumes when the user returns to the script.
+
+If browser speech recognition is unavailable, the overlay stays in Voice Tracking mode and falls back to local microphone activity detection. In fallback mode, scrolling resumes when speech is detected and pauses when speech stops. If microphone access itself is unavailable or fails, the overlay shows a short message and falls back to Manual mode.
+
+Voice tracking does not send audio to this app’s backend because the MVP has no backend. Speech-recognition availability depends on the Electron/Chromium runtime and operating system support.
+
+## Reading Estimates
+
+The editor shows word count, character count, and estimated reading time for the active script. Estimates use the configured manual scroll speed as a practical reading-speed proxy and fall back to a sensible default when no speed is available.
 
 ## Countdown Timer
 

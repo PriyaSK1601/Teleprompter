@@ -550,9 +550,16 @@ export function renameScript(id: string, title: string): ScriptsState {
 }
 
 export function deleteScript(id: string): ScriptsState {
+  return deleteScripts([id]);
+}
+
+export function deleteScripts(ids: string[]): ScriptsState {
   const file = loadScriptsFile();
-  const scripts = file.scripts.filter((script) => script.id !== id);
-  const activeScriptId = file.activeScriptId === id ? scripts[0]?.id : file.activeScriptId;
+  const deletedIds = new Set(ids);
+  const scripts = file.scripts.filter((script) => !deletedIds.has(script.id));
+  const activeScriptId = file.activeScriptId && deletedIds.has(file.activeScriptId)
+    ? scripts[0]?.id
+    : file.activeScriptId;
 
   saveScriptsFile({
     version: 1,

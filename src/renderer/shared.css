@@ -170,19 +170,58 @@ h3 {
   padding: 10px 2px;
 }
 
+.script-bulk-actions {
+  align-items: center;
+  color: #8f9bad;
+  display: flex;
+  font-size: 12px;
+  font-weight: 680;
+  justify-content: space-between;
+  min-height: 32px;
+}
+
+.quiet-danger-button {
+  background: rgb(248 113 113 / 0.1);
+  border: 1px solid rgb(248 113 113 / 0.16);
+  border-radius: 999px;
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 760;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.quiet-danger-button:not(:disabled):hover {
+  background: rgb(248 113 113 / 0.18);
+}
+
 .script-list-item {
+  align-items: center;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 16px;
   color: #e5eaf3;
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 10px;
   padding: 12px;
   text-align: left;
   width: 100%;
 }
 
-.script-list-item span {
+.script-select-checkbox {
+  accent-color: #f8fafc;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+.script-list-item-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.script-list-item-content > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -226,6 +265,13 @@ h3 {
 
 .title-input:focus {
   box-shadow: none;
+}
+
+.script-stats {
+  color: #8f9bad;
+  font-size: 13px;
+  font-weight: 680;
+  margin-top: -8px;
 }
 
 .script-body {

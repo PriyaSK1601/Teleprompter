@@ -16,6 +16,7 @@ export const ipcChannels = {
   scriptsSetActive: "scripts:setActive",
   scriptsRename: "scripts:rename",
   scriptsDelete: "scripts:delete",
+  scriptsDeleteMany: "scripts:deleteMany",
   scriptsClearActive: "scripts:clearActive",
   scriptChangedEvent: "scripts:changed",
   settingsGet: "settings:get",
@@ -192,6 +193,7 @@ export type TeleprompterApi = {
   setActiveScript: (id: string) => Promise<ScriptsState>;
   renameScript: (id: string, title: string) => Promise<ScriptsState>;
   deleteScript: (id: string) => Promise<ScriptsState>;
+  deleteScripts: (ids: string[]) => Promise<ScriptsState>;
   clearActiveScript: () => Promise<ScriptsState>;
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => () => void;
   getSettings: () => Promise<AppSettings>;

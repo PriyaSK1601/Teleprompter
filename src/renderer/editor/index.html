@@ -17,6 +17,10 @@
           <button id="newScriptButton" class="icon-button" type="button" aria-label="Create new script">+</button>
         </div>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
+        <div class="script-bulk-actions">
+          <span id="selectedScriptsLabel">No scripts selected</span>
+          <button id="deleteSelectedScriptsButton" class="quiet-danger-button" type="button" disabled>Delete</button>
+        </div>
         <ul id="scriptList" class="script-list"></ul>
       </aside>
 
@@ -31,6 +35,7 @@
 
         <section class="script-card">
           <input id="scriptTitle" class="title-input" type="text" placeholder="Untitled script" />
+          <div id="scriptStats" class="script-stats">0 words • 0 characters • ~00:00 read</div>
           <textarea id="scriptBody" class="script-body" placeholder="Paste your script here..."></textarea>
         </section>
 

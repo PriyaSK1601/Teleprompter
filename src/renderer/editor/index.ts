@@ -5,8 +5,11 @@ const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScrip
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
+const selectedScriptsLabel = document.querySelector<HTMLElement>("#selectedScriptsLabel");
+const deleteSelectedScriptsButton = document.querySelector<HTMLButtonElement>("#deleteSelectedScriptsButton");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
+const scriptStats = document.querySelector<HTMLElement>("#scriptStats");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settingsButton");
 const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
@@ -34,9 +37,11 @@ let currentScriptsState: ScriptsState = {
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
+let selectedScriptIds = new Set<string>();
 
 const ipcBackedControls = [
   newScriptButton,
+  deleteSelectedScriptsButton,
   saveScriptButton,
   clearScriptButton,
   startTeleprompterButton,
@@ -132,6 +137,45 @@ function setEditorFromScript(script?: ScriptRecord): void {
   if (scriptBody) {
     scriptBody.value = script?.body ?? "";
   }
+
+  renderScriptStats();
+}
+
+function formatDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function getWordCount(text: string): number {
+  const matches = text.trim().match(/\b[\p{L}\p{N}'’-]+\b/gu);
+  return matches?.length ?? 0;
+}
+
+function getEstimatedWordsPerMinute(): number {
+  const speed = Number(scrollSpeedInput?.value);
+
+  if (!Number.isFinite(speed) || speed <= 0) {
+    return 150;
+  }
+
+  return Math.round(Math.min(240, Math.max(90, 150 * (speed / 36))));
+}
+
+function renderScriptStats(): void {
+  if (!scriptStats) {
+    return;
+  }
+
+  const body = getEditorBody();
+  const wordCount = getWordCount(body);
+  const characterCount = body.length;
+  const estimatedSeconds = wordCount > 0 ? (wordCount / getEstimatedWordsPerMinute()) * 60 : 0;
+  scriptStats.textContent =
+    `${wordCount} ${wordCount === 1 ? "word" : "words"} • ` +
+    `${characterCount} ${characterCount === 1 ? "character" : "characters"} • ` +
+    `~${formatDuration(estimatedSeconds)} read`;
 }
 
 function getFilteredScripts(): ScriptRecord[] {
@@ -159,20 +203,40 @@ function renderScriptsList(): void {
     emptyItem.className = "script-list-empty";
     emptyItem.textContent = currentScriptsState.scripts.length === 0 ? "No scripts yet" : "No matching scripts";
     scriptList.append(emptyItem);
+    renderScriptSelectionState();
     return;
   }
 
   for (const script of scripts) {
     const item = document.createElement("li");
     const button = document.createElement("button");
+    const checkbox = document.createElement("input");
+    const content = document.createElement("span");
     const date = new Date(script.updatedAt).toLocaleDateString();
+    checkbox.type = "checkbox";
+    checkbox.className = "script-select-checkbox";
+    checkbox.checked = selectedScriptIds.has(script.id);
+    checkbox.setAttribute("aria-label", `Select ${script.title}`);
     button.type = "button";
     button.className = script.id === activeScriptId ? "script-list-item active" : "script-list-item";
     const title = document.createElement("span");
     const updatedAt = document.createElement("small");
+    content.className = "script-list-item-content";
     title.textContent = script.title;
     updatedAt.textContent = date;
-    button.append(title, updatedAt);
+    content.append(title, updatedAt);
+    button.append(checkbox, content);
+    checkbox.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      if (checkbox.checked) {
+        selectedScriptIds.add(script.id);
+      } else {
+        selectedScriptIds.delete(script.id);
+      }
+
+      renderScriptSelectionState();
+    });
     button.addEventListener("click", () => {
       void runEditorAction("Open script", async () => {
         const state = await requireTeleprompterApi().setActiveScript(script.id);
@@ -182,15 +246,34 @@ function renderScriptsList(): void {
     item.append(button);
     scriptList.append(item);
   }
+
+  renderScriptSelectionState();
 }
 
 function renderScriptsState(state: ScriptsState, status?: string): void {
   currentScriptsState = state;
+  selectedScriptIds = new Set(
+    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
+  );
   setEditorFromScript(state.activeScript);
   renderScriptsList();
 
   if (status) {
     setStatus(status);
+  }
+}
+
+function renderScriptSelectionState(): void {
+  const selectedCount = selectedScriptIds.size;
+
+  if (selectedScriptsLabel) {
+    selectedScriptsLabel.textContent = selectedCount === 0
+      ? "No scripts selected"
+      : `${selectedCount} selected`;
+  }
+
+  if (deleteSelectedScriptsButton) {
+    deleteSelectedScriptsButton.disabled = selectedCount === 0;
   }
 }
 
@@ -281,6 +364,7 @@ function renderSettings(settings: AppSettings): void {
   }
 
   renderSettingsPreview(settings);
+  renderScriptStats();
 
   settingsRenderLocked = false;
 }
@@ -342,6 +426,7 @@ async function saveSettingsFromControls(): Promise<void> {
   });
 
   renderSettings(settings);
+  renderScriptStats();
   setStatus("Settings saved");
 }
 
@@ -376,6 +461,8 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
+scriptBody?.addEventListener("input", renderScriptStats);
+scriptTitle?.addEventListener("input", renderScriptStats);
 
 newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
@@ -394,6 +481,30 @@ clearScriptButton?.addEventListener("click", () => {
   void runEditorAction("Clear editor", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
     renderScriptsState(state, "Editor cleared");
+  });
+});
+
+deleteSelectedScriptsButton?.addEventListener("click", () => {
+  void runEditorAction("Delete scripts", async () => {
+    const ids = Array.from(selectedScriptIds);
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      ids.length === 1
+        ? "Delete this saved script? This cannot be undone."
+        : `Delete ${ids.length} saved scripts? This cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const state = await requireTeleprompterApi().deleteScripts(ids);
+    selectedScriptIds = new Set();
+    renderScriptsState(state, ids.length === 1 ? "Script deleted" : "Scripts deleted");
   });
 });
 
@@ -427,11 +538,13 @@ for (const control of [
 ]) {
   control?.addEventListener("input", () => {
     renderSettingsPreviewFromControls();
+    renderScriptStats();
     void runEditorAction("Save settings", saveSettingsFromControls);
   });
 
   control?.addEventListener("change", () => {
     renderSettingsPreviewFromControls();
+    renderScriptStats();
     void runEditorAction("Save settings", saveSettingsFromControls);
   });
 }

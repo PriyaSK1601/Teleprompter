@@ -23,6 +23,7 @@ import {
 import {
   clearActiveScript,
   deleteScript,
+  deleteScripts,
   loadAppSettings,
   getScriptsState,
   getStorageInfo,
@@ -139,6 +140,12 @@ export function registerIpcHandlers(): void {
 
   registerLoggedHandler(ipcChannels.scriptsDelete, async (_event, id: string) => {
     const state = deleteScript(id);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsDeleteMany, async (_event, ids: string[]) => {
+    const state = deleteScripts(ids);
     broadcastScriptChanged();
     return state;
   });

@@ -4,6 +4,7 @@ const promptText = document.querySelector<HTMLElement>("#promptText");
 const progressBar = document.querySelector<HTMLElement>("#progressBar");
 const progressLabel = document.querySelector<HTMLElement>("#progressLabel");
 const elapsedLabel = document.querySelector<HTMLElement>("#elapsedLabel");
+const remainingLabel = document.querySelector<HTMLElement>("#remainingLabel");
 const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
 const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
 const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
@@ -39,6 +40,27 @@ let voiceLevel = 0;
 let voiceNoiseFloor = 0.018;
 let voiceLastSpokeAt = 0;
 let voiceStartedAt = 0;
+let voiceRecognition: {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: { results: ArrayLike<{ 0?: { transcript: string }; isFinal?: boolean }> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+} | null = null;
+let voiceRecognitionAvailable = false;
+let voiceRecognitionShouldRun = false;
+let scriptWords: string[] = [];
+let scriptWordElements: HTMLElement[] = [];
+let scriptSentences: { start: number; end: number; element: HTMLElement }[] = [];
+let currentScriptWordIndex = 0;
+let targetScrollTop = 0;
+let lastScriptMatchAt = 0;
+let scriptTrackingFeedbackShown = false;
+let lastOffScriptFeedbackAt = 0;
 
 function hexToRgb(hexColor: string): { red: number; green: number; blue: number } {
   const normalized = hexColor.replace("#", "");
@@ -75,6 +97,28 @@ function formatElapsed(milliseconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatSeconds(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function normalizeWord(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}'’-]+/gu, "")
+    .replace(/^[’'-]+|[’'-]+$/g, "");
+}
+
+function normalizeWords(value: string): string[] {
+  const fillerWords = new Set(["um", "uh", "erm", "ah", "like"]);
+  const matches = value.match(/[\p{L}\p{N}'’-]+/gu) ?? [];
+  return matches
+    .map(normalizeWord)
+    .filter((word) => word.length > 0 && !fillerWords.has(word));
+}
+
 function showFeedback(message: string): void {
   if (!feedbackLabel) {
     return;
@@ -102,6 +146,10 @@ function getProgress(): number {
     return 0;
   }
 
+  if (scrollMode === "voice" && scriptWords.length > 0 && currentScriptWordIndex > 0) {
+    return Math.min(1, Math.max(0, currentScriptWordIndex / scriptWords.length));
+  }
+
   const maxScrollTop = Math.max(1, promptViewport.scrollHeight - promptViewport.clientHeight);
   return Math.min(1, Math.max(0, promptViewport.scrollTop / maxScrollTop));
 }
@@ -115,6 +163,17 @@ function updateProgress(): void {
 
   if (progressLabel) {
     progressLabel.textContent = `${Math.round(progress * 100)}%`;
+  }
+
+  if (remainingLabel) {
+    const elapsedSeconds = elapsedMilliseconds / 1000;
+    const scriptRemainingSeconds = scriptWords.length > 0
+      ? ((scriptWords.length * (1 - progress)) / 150) * 60
+      : 0;
+    const pacedRemainingSeconds = progress > 0.03 && elapsedSeconds > 5
+      ? (elapsedSeconds / progress) * (1 - progress)
+      : scriptRemainingSeconds;
+    remainingLabel.textContent = `Remaining ${formatSeconds(pacedRemainingSeconds)}`;
   }
 }
 
@@ -152,7 +211,7 @@ function updateHighlight(): void {
   }
 
   promptText.classList.add("focus-mode");
-  const nextIndex = Math.min(elements.length - 1, Math.floor(getProgress() * elements.length));
+  const nextIndex = getHighlightIndex(elements.length);
 
   if (nextIndex === currentHighlightIndex) {
     return;
@@ -164,6 +223,24 @@ function updateHighlight(): void {
   }
 
   currentHighlightIndex = nextIndex;
+}
+
+function getHighlightIndex(elementCount: number): number {
+  if (scrollMode === "voice" && scriptWords.length > 0 && currentScriptWordIndex > 0) {
+    if (highlightMode === "word") {
+      return Math.min(elementCount - 1, currentScriptWordIndex);
+    }
+
+    const sentenceIndex = scriptSentences.findIndex((sentence) => {
+      return currentScriptWordIndex >= sentence.start && currentScriptWordIndex <= sentence.end;
+    });
+
+    if (sentenceIndex >= 0) {
+      return Math.min(elementCount - 1, sentenceIndex);
+    }
+  }
+
+  return Math.min(elementCount - 1, Math.floor(getProgress() * elementCount));
 }
 
 function applySettings(settings: AppSettings): void {
@@ -192,11 +269,31 @@ function stopVoiceTracking(): void {
   voiceSpeaking = false;
   voiceSupported = false;
   voiceLevel = 0;
+  voiceRecognitionShouldRun = false;
+  voiceRecognitionAvailable = false;
 
   if (voiceAnimationFrameId !== null) {
     window.cancelAnimationFrame(voiceAnimationFrameId);
     voiceAnimationFrameId = null;
   }
+
+  if (voiceRecognition) {
+    voiceRecognition.onend = null;
+    voiceRecognition.onerror = null;
+    voiceRecognition.onresult = null;
+
+    try {
+      voiceRecognition.stop();
+    } catch {
+      try {
+        voiceRecognition.abort();
+      } catch {
+        voiceRecognition = null;
+      }
+    }
+  }
+
+  voiceRecognition = null;
 
   if (voiceMediaStream) {
     for (const track of voiceMediaStream.getTracks()) {
@@ -223,6 +320,133 @@ function measureVoiceLevel(data: Uint8Array): number {
   }
 
   return Math.sqrt(sum / data.length);
+}
+
+function scoreScriptWindow(inputWords: string[], startIndex: number): { score: number; endIndex: number } {
+  let inputIndex = 0;
+  let matches = 0;
+  let endIndex = startIndex;
+  const windowEnd = Math.min(scriptWords.length, startIndex + inputWords.length + 8);
+
+  for (let scriptIndex = startIndex; scriptIndex < windowEnd && inputIndex < inputWords.length; scriptIndex += 1) {
+    const inputWord = inputWords[inputIndex];
+    const scriptWord = scriptWords[scriptIndex];
+
+    if (
+      scriptWord === inputWord ||
+      scriptWord.includes(inputWord) ||
+      inputWord.includes(scriptWord)
+    ) {
+      matches += 1;
+      inputIndex += 1;
+      endIndex = scriptIndex + 1;
+    }
+  }
+
+  return {
+    score: matches / Math.max(1, inputWords.length),
+    endIndex
+  };
+}
+
+function alignTranscriptToScript(transcript: string): void {
+  const inputWords = normalizeWords(transcript).slice(-18);
+
+  if (inputWords.length < 2 || scriptWords.length === 0) {
+    return;
+  }
+
+  const searchStart = Math.max(0, currentScriptWordIndex - 14);
+  const searchEnd = Math.min(scriptWords.length - 1, currentScriptWordIndex + 100);
+  let bestScore = 0;
+  let bestEndIndex = currentScriptWordIndex;
+
+  for (let startIndex = searchStart; startIndex <= searchEnd; startIndex += 1) {
+    const result = scoreScriptWindow(inputWords, startIndex);
+
+    if (result.score > bestScore || (result.score === bestScore && result.endIndex > bestEndIndex)) {
+      bestScore = result.score;
+      bestEndIndex = result.endIndex;
+    }
+  }
+
+  if (bestScore < 0.44 || bestEndIndex <= currentScriptWordIndex) {
+    return;
+  }
+
+  const maxAdvance = currentScriptWordIndex + 24;
+  currentScriptWordIndex = Math.min(bestEndIndex, maxAdvance, scriptWords.length - 1);
+  const activeWord = scriptWordElements[currentScriptWordIndex];
+
+  if (activeWord && promptViewport && promptText) {
+    const wordCenter = activeWord.offsetTop - promptViewport.clientHeight * 0.42;
+    targetScrollTop = Math.max(0, wordCenter);
+  }
+
+  lastScriptMatchAt = Date.now();
+
+  if (!scriptTrackingFeedbackShown) {
+    showFeedback("Script tracking active");
+    scriptTrackingFeedbackShown = true;
+  }
+
+  updateProgress();
+  updateHighlight();
+}
+
+function startSpeechRecognition(): void {
+  const SpeechRecognitionConstructor = (
+    (window as unknown as { SpeechRecognition?: new () => typeof voiceRecognition }).SpeechRecognition ??
+    (window as unknown as { webkitSpeechRecognition?: new () => typeof voiceRecognition }).webkitSpeechRecognition
+  );
+
+  if (!SpeechRecognitionConstructor) {
+    voiceRecognitionAvailable = false;
+    showFeedback("Speech-to-text unavailable. Voice activity mode active.");
+    return;
+  }
+
+  try {
+    voiceRecognitionShouldRun = true;
+    voiceRecognition = new SpeechRecognitionConstructor();
+
+    if (!voiceRecognition) {
+      return;
+    }
+
+    voiceRecognition.continuous = true;
+    voiceRecognition.interimResults = true;
+    voiceRecognition.lang = "en-US";
+    voiceRecognition.onresult = (event) => {
+      let transcript = "";
+
+      for (let index = 0; index < event.results.length; index += 1) {
+        transcript += ` ${event.results[index][0]?.transcript ?? ""}`;
+      }
+
+      alignTranscriptToScript(transcript);
+    };
+    voiceRecognition.onerror = () => {
+      voiceRecognitionAvailable = false;
+    };
+    voiceRecognition.onend = () => {
+      if (voiceRecognitionShouldRun && scrollMode === "voice" && state === "running") {
+        window.setTimeout(() => {
+          try {
+            voiceRecognition?.start();
+            voiceRecognitionAvailable = true;
+          } catch {
+            voiceRecognitionAvailable = false;
+          }
+        }, 250);
+      }
+    };
+    voiceRecognition.start();
+    voiceRecognitionAvailable = true;
+  } catch {
+    voiceRecognitionAvailable = false;
+    showFeedback("Speech-to-text unavailable. Voice activity mode active.");
+  }
 }
 
 function updateVoiceTracking(): void {
@@ -254,7 +478,7 @@ function updateVoiceTracking(): void {
 
   if (wasSpeaking && !voiceSpeaking) {
     showFeedback("Paused until speech resumes");
-  } else if (!wasSpeaking && voiceSpeaking) {
+  } else if (!wasSpeaking && voiceSpeaking && !voiceRecognitionAvailable) {
     showFeedback("Speech detected");
   }
 
@@ -290,7 +514,10 @@ async function startVoiceTracking(): Promise<boolean> {
     voiceStartedAt = Date.now();
     voiceLastSpokeAt = 0;
     voiceNoiseFloor = 0.018;
+    lastScriptMatchAt = 0;
+    scriptTrackingFeedbackShown = false;
     showFeedback("Listening for speech");
+    startSpeechRecognition();
     voiceAnimationFrameId = window.requestAnimationFrame(updateVoiceTracking);
     return true;
   } catch {
@@ -326,7 +553,23 @@ function scrollFrame(timestamp: number): void {
   const deltaSeconds = (timestamp - lastFrameTime) / 1000;
   lastFrameTime = timestamp;
 
-  if (scrollMode !== "voice" || voiceSpeaking || !voiceSupported) {
+  const hasRecentScriptMatch = voiceRecognitionAvailable && Date.now() - lastScriptMatchAt < 1800;
+
+  if (scrollMode !== "voice" || !voiceSupported) {
+    promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
+    elapsedMilliseconds += deltaSeconds * 1000;
+  } else if (voiceRecognitionAvailable) {
+    if (hasRecentScriptMatch) {
+      const distance = targetScrollTop - promptViewport.scrollTop;
+      const maxStep = Math.max(speedPixelsPerSecond * deltaSeconds * 2.4, 2);
+      const step = Math.max(-maxStep, Math.min(maxStep, distance * 0.14));
+      promptViewport.scrollTop += step;
+      elapsedMilliseconds += deltaSeconds * 1000;
+    } else if (voiceSpeaking && Date.now() - lastOffScriptFeedbackAt > 1800) {
+      lastOffScriptFeedbackAt = Date.now();
+      showFeedback("Paused until script resumes");
+    }
+  } else if (voiceSpeaking) {
     promptViewport.scrollTop += speedPixelsPerSecond * deltaSeconds;
     elapsedMilliseconds += deltaSeconds * 1000;
   }
@@ -341,6 +584,7 @@ function scrollFrame(timestamp: number): void {
     promptViewport.scrollTop = maxScrollTop;
     updateProgress();
     updateHighlight();
+    stopVoiceTracking();
     setState("completed");
     animationFrameId = null;
     return;
@@ -427,6 +671,10 @@ function restart(): void {
   if (promptViewport) {
     promptViewport.scrollTop = 0;
     elapsedMilliseconds = 0;
+    currentScriptWordIndex = 0;
+    targetScrollTop = 0;
+    lastScriptMatchAt = 0;
+    lastOffScriptFeedbackAt = 0;
     updateProgress();
     updateHighlight();
   }
@@ -465,8 +713,12 @@ function appendWordSpans(parent: HTMLElement, sentence: string): void {
     }
 
     const word = document.createElement("span");
+    const normalizedWord = normalizeWord(part);
     word.dataset.highlightKind = "word";
+    word.dataset.wordIndex = String(scriptWords.length);
     word.textContent = part;
+    scriptWords.push(normalizedWord);
+    scriptWordElements.push(word);
     parent.append(word);
   }
 }
@@ -482,14 +734,26 @@ function renderScript(body?: string): void {
   const blocks = text.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
 
   promptText.textContent = "";
+  scriptWords = [];
+  scriptWordElements = [];
+  scriptSentences = [];
+  currentScriptWordIndex = 0;
+  targetScrollTop = 0;
+  lastScriptMatchAt = 0;
 
   for (const block of blocks) {
     const paragraph = document.createElement("p");
 
     for (const sentence of splitSentences(block)) {
       const sentenceElement = document.createElement("span");
+      const sentenceStart = scriptWords.length;
       sentenceElement.dataset.highlightKind = "sentence";
       appendWordSpans(sentenceElement, sentence);
+      scriptSentences.push({
+        start: sentenceStart,
+        end: Math.max(sentenceStart, scriptWords.length - 1),
+        element: sentenceElement
+      });
       paragraph.append(sentenceElement, " ");
     }
 

@@ -36,6 +36,7 @@ const teleprompterApi: TeleprompterApi = {
   setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),
   renameScript: (id, title) => ipcRenderer.invoke(ipcChannels.scriptsRename, id, title),
   deleteScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsDelete, id),
+  deleteScripts: (ids) => ipcRenderer.invoke(ipcChannels.scriptsDeleteMany, ids),
   clearActiveScript: () => ipcRenderer.invoke(ipcChannels.scriptsClearActive),
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, scriptEvent: ScriptChangedEvent) => {
