@@ -1,5 +1,5 @@
 :root {
-  --overlay-bg: rgb(15 18 28 / 0.55);
+  --overlay-bg: #111827;
   --prompt-font-size: 32px;
   --prompt-line-height: 1.5;
   --prompt-text-align: center;
@@ -445,6 +445,13 @@ h3 {
   overflow: hidden;
 }
 
+.overlay-document,
+.overlay-document .overlay-body {
+  background: transparent;
+  height: 100%;
+  overflow: hidden;
+}
+
 .overlay-shell {
   -webkit-app-region: drag;
   background: var(--overlay-bg);
@@ -453,6 +460,7 @@ h3 {
   border: 1px solid rgb(255 255 255 / 0.15);
   border-radius: 28px;
   box-shadow: 0 24px 80px rgb(0 0 0 / 0.45);
+  clip-path: inset(0 round 28px);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -510,11 +518,62 @@ h3 {
   font-weight: 720;
   min-height: 30px;
   padding: 0 10px;
+  position: relative;
 }
 
 .overlay-control:hover {
   background: rgb(255 255 255 / 0.12);
   color: #ffffff;
+}
+
+.overlay-control::after {
+  background: rgb(9 11 16 / 0.94);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.28);
+  color: #f8fafc;
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 700;
+  left: 50%;
+  line-height: 1.2;
+  opacity: 0;
+  padding: 7px 9px;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + 9px);
+  transform: translate(-50%, -2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.overlay-control:first-child::after {
+  left: 0;
+  transform: translate(0, -2px);
+}
+
+.overlay-control:last-child::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -2px);
+}
+
+.overlay-control:hover::after,
+.overlay-control:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+
+.overlay-control:first-child:hover::after,
+.overlay-control:first-child:focus-visible::after,
+.overlay-control:last-child:hover::after,
+.overlay-control:last-child:focus-visible::after {
+  transform: translate(0, 0);
 }
 
 .overlay-control.primary {

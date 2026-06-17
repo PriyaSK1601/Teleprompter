@@ -84,6 +84,17 @@ function hexToRgb(hexColor: string): { red: number; green: number; blue: number 
   };
 }
 
+function getOpaqueOverlayBackground(hexColor: string, opacity: number): string {
+  const background = hexToRgb(hexColor);
+  const alpha = Math.min(1, Math.max(0, opacity));
+
+  const red = Math.round(background.red * alpha);
+  const green = Math.round(background.green * alpha);
+  const blue = Math.round(background.blue * alpha);
+
+  return `rgb(${red} ${green} ${blue})`;
+}
+
 function updateControls(): void {
   if (playPauseButton) {
     playPauseButton.textContent = state === "running" || state === "countdown" ? "Pause" : "Play";
@@ -412,11 +423,10 @@ function applySettings(settings: AppSettings): void {
   countdownEnabled = settings.countdown.enabled;
   countdownSeconds = settings.countdown.seconds;
   highlightMode = settings.experimental.highlightMode;
-  const background = hexToRgb(settings.overlayAppearance.backgroundColor);
 
   document.documentElement.style.setProperty(
     "--overlay-bg",
-    `rgb(${background.red} ${background.green} ${background.blue} / ${settings.overlayAppearance.opacity})`
+    getOpaqueOverlayBackground(settings.overlayAppearance.backgroundColor, settings.overlayAppearance.opacity)
   );
   document.documentElement.style.setProperty("--prompt-font-size", `${settings.text.fontSize}px`);
   document.documentElement.style.setProperty("--prompt-text-color", settings.text.textColor);
@@ -968,7 +978,70 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
+type OverlayTooltip = {
+  element: HTMLButtonElement | null;
+  label: string;
+  shortcut?: string;
+  ariaShortcut?: string;
+};
+
+const overlayTooltips: OverlayTooltip[] = [
+  {
+    element: hideOverlayButton,
+    label: "Hide overlay",
+    shortcut: "Esc"
+  },
+  {
+    element: slowDownButton,
+    label: "Slower",
+    shortcut: "↓",
+    ariaShortcut: "Down Arrow"
+  },
+  {
+    element: playPauseButton,
+    label: "Play/Pause",
+    shortcut: "Space"
+  },
+  {
+    element: restartButton,
+    label: "Restart",
+    shortcut: "R"
+  },
+  {
+    element: speedUpButton,
+    label: "Faster",
+    shortcut: "↑",
+    ariaShortcut: "Up Arrow"
+  },
+  {
+    element: closeOverlayButton,
+    label: "Close window"
+  }
+];
+
+function buildTooltipText(tooltip: OverlayTooltip): string {
+  return tooltip.shortcut ? `${tooltip.label}: ${tooltip.shortcut}` : tooltip.label;
+}
+
+function buildTooltipAriaLabel(tooltip: OverlayTooltip): string {
+  return tooltip.ariaShortcut ? `${tooltip.label}: ${tooltip.ariaShortcut}` : buildTooltipText(tooltip);
+}
+
+function applyOverlayTooltips(): void {
+  for (const tooltip of overlayTooltips) {
+    if (!tooltip.element) {
+      continue;
+    }
+
+    const tooltipText = buildTooltipText(tooltip);
+    tooltip.element.dataset.tooltip = tooltipText;
+    tooltip.element.setAttribute("aria-label", buildTooltipAriaLabel(tooltip));
+  }
+}
+
 const teleprompterApi = window.teleprompter;
+
+applyOverlayTooltips();
 
 hideOverlayButton?.addEventListener("click", () => {
   void teleprompterApi?.hideOverlay();

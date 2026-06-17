@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html class="overlay-document" lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,12 +14,12 @@
           <span id="modeLabel" class="overlay-mode-pill">Manual</span>
         </div>
         <nav class="overlay-control-bar" aria-label="Teleprompter controls">
-          <button id="hideOverlayButton" class="overlay-control" type="button">Hide</button>
-          <button id="slowDownButton" class="overlay-control" type="button">−</button>
-          <button id="playPauseButton" class="overlay-control primary" type="button">Play</button>
-          <button id="restartButton" class="overlay-control" type="button">Restart</button>
-          <button id="speedUpButton" class="overlay-control" type="button">+</button>
-          <button id="closeOverlayButton" class="overlay-control" type="button">Close</button>
+          <button id="hideOverlayButton" class="overlay-control" type="button" data-tooltip="Hide overlay: Esc">Hide</button>
+          <button id="slowDownButton" class="overlay-control" type="button" aria-label="Slower: Down Arrow" data-tooltip="Slower: ↓">&minus;</button>
+          <button id="playPauseButton" class="overlay-control primary" type="button" data-tooltip="Play/Pause: Space">Play</button>
+          <button id="restartButton" class="overlay-control" type="button" data-tooltip="Restart: R">Restart</button>
+          <button id="speedUpButton" class="overlay-control" type="button" aria-label="Faster: Up Arrow" data-tooltip="Faster: ↑">+</button>
+          <button id="closeOverlayButton" class="overlay-control" type="button" data-tooltip="Close window">Close</button>
         </nav>
       </header>
 
