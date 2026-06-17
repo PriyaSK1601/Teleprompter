@@ -8,7 +8,6 @@ const remainingLabel = document.querySelector<HTMLElement>("#remainingLabel");
 const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
 const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
 const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
-const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
 const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
@@ -987,14 +986,9 @@ type OverlayTooltip = {
 
 const overlayTooltips: OverlayTooltip[] = [
   {
-    element: hideOverlayButton,
-    label: "Hide overlay",
-    shortcut: "Esc"
-  },
-  {
     element: slowDownButton,
     label: "Slower",
-    shortcut: "↓",
+    shortcut: "\u2193",
     ariaShortcut: "Down Arrow"
   },
   {
@@ -1010,21 +1004,22 @@ const overlayTooltips: OverlayTooltip[] = [
   {
     element: speedUpButton,
     label: "Faster",
-    shortcut: "↑",
+    shortcut: "\u2191",
     ariaShortcut: "Up Arrow"
   },
   {
     element: closeOverlayButton,
-    label: "Close window"
+    label: "Exit overlay",
+    shortcut: "Esc"
   }
 ];
 
 function buildTooltipText(tooltip: OverlayTooltip): string {
-  return tooltip.shortcut ? `${tooltip.label}: ${tooltip.shortcut}` : tooltip.label;
+  return tooltip.shortcut ? `${tooltip.label} (${tooltip.shortcut})` : tooltip.label;
 }
 
 function buildTooltipAriaLabel(tooltip: OverlayTooltip): string {
-  return tooltip.ariaShortcut ? `${tooltip.label}: ${tooltip.ariaShortcut}` : buildTooltipText(tooltip);
+  return tooltip.ariaShortcut ? `${tooltip.label} (${tooltip.ariaShortcut})` : buildTooltipText(tooltip);
 }
 
 function applyOverlayTooltips(): void {
@@ -1042,10 +1037,6 @@ function applyOverlayTooltips(): void {
 const teleprompterApi = window.teleprompter;
 
 applyOverlayTooltips();
-
-hideOverlayButton?.addEventListener("click", () => {
-  void teleprompterApi?.hideOverlay();
-});
 
 playPauseButton?.addEventListener("click", startPause);
 restartButton?.addEventListener("click", restart);
@@ -1087,7 +1078,7 @@ window.addEventListener("keydown", (event) => {
 
   if (event.key === "Escape") {
     event.preventDefault();
-    void teleprompterApi?.hideOverlay();
+    void teleprompterApi?.closeOverlay();
   }
 });
 
