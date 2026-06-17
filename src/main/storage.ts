@@ -57,7 +57,7 @@ const defaultAppSettings: AppSettings = {
     seconds: 3
   },
   behavior: {
-    scrollSpeed: 36,
+    scrollSpeed: 21,
     scrollMode: "manual"
   },
   experimental: {
