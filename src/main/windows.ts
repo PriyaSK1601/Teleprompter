@@ -31,15 +31,21 @@ function rendererPath(name: "editor" | "overlay"): string {
 }
 
 function getDefaultOverlayBounds(): OverlayBounds {
+  return getTopCenteredOverlayBounds(overlayDefaultSize.width, overlayDefaultSize.height);
+}
+
+function getTopCenteredOverlayBounds(width: number, height: number): OverlayBounds {
   const display = screen.getPrimaryDisplay();
-  const x = Math.round(display.workArea.x + (display.workArea.width - overlayDefaultSize.width) / 2);
-  const y = Math.round(display.workArea.y + 48);
+  const area = display.bounds;
+  const centeredX = area.x + Math.round((area.width - width) / 2);
+  const maxX = area.x + Math.max(0, area.width - width);
+  const x = Math.min(Math.max(centeredX, area.x), maxX);
 
   return {
     x,
-    y,
-    width: overlayDefaultSize.width,
-    height: overlayDefaultSize.height
+    y: area.y,
+    width,
+    height
   };
 }
 
@@ -47,7 +53,7 @@ function isBoundsVisible(bounds: OverlayBounds): boolean {
   const displays = screen.getAllDisplays();
 
   return displays.some((display) => {
-    const area = display.workArea;
+    const area = display.bounds;
     const horizontalOverlap = bounds.x < area.x + area.width && bounds.x + bounds.width > area.x;
     const verticalOverlap = bounds.y < area.y + area.height && bounds.y + bounds.height > area.y;
 
@@ -59,7 +65,7 @@ function getInitialOverlayBounds(): OverlayBounds {
   const settings = loadOverlaySettings();
 
   if (settings.bounds && isBoundsVisible(settings.bounds)) {
-    return settings.bounds;
+    return getTopCenteredOverlayBounds(settings.bounds.width, settings.bounds.height);
   }
 
   return getDefaultOverlayBounds();
@@ -161,6 +167,11 @@ export function createEditorWindow(): BrowserWindow {
 
 export function createOverlayWindow(): BrowserWindow {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
+    if (!overlayWindow.isVisible()) {
+      const currentBounds = getWindowBounds(overlayWindow);
+      overlayWindow.setBounds(getTopCenteredOverlayBounds(currentBounds.width, currentBounds.height));
+    }
+
     overlayWindow.show();
     applyClickThrough(loadOverlaySettings().clickThroughEnabled);
     sendScriptChangedEvent();
