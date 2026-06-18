@@ -29,6 +29,7 @@ let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
 let elapsedMilliseconds = 0;
+let totalDurationSeconds = 0;
 let feedbackTimerId: number | null = null;
 let voiceAudioContext: AudioContext | null = null;
 let voiceAnalyser: AnalyserNode | null = null;
@@ -106,7 +107,6 @@ function updateControls(): void {
   if (modeLabel) {
     modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
   }
-
 }
 
 function formatSeconds(seconds: number): string {
@@ -116,20 +116,23 @@ function formatSeconds(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function getEstimatedTotalSeconds(progress: number, elapsedSeconds: number): number {
-  if (progress > 0.03 && elapsedSeconds > 5) {
-    return elapsedSeconds / progress;
+function getRemainingScrollSeconds(): number {
+  if (speedPixelsPerSecond <= 0) {
+    return 0;
   }
 
-  return scriptWords.length > 0
-    ? (scriptWords.length / 150) * 60
-    : 0;
+  const remainingScrollDistance = Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
+  return Math.ceil(remainingScrollDistance / speedPixelsPerSecond);
 }
 
-function updateTimerLabels(progress: number): void {
+function syncTotalDurationWithPlaybackPosition(): void {
   const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  const totalSeconds = Math.max(elapsedSeconds, Math.ceil(getEstimatedTotalSeconds(progress, elapsedSeconds)));
-  const remainingSeconds = totalSeconds - elapsedSeconds;
+  totalDurationSeconds = elapsedSeconds + getRemainingScrollSeconds();
+}
+
+function updateTimerLabels(): void {
+  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
 
   if (elapsedLabel) {
     elapsedLabel.textContent = formatSeconds(elapsedSeconds);
@@ -243,7 +246,7 @@ function updateProgress(): void {
     progressLabel.textContent = `${Math.round(progress * 100)}%`;
   }
 
-  updateTimerLabels(progress);
+  updateTimerLabels();
 }
 
 function getActiveHighlightElements(): HTMLElement[] {
@@ -457,6 +460,7 @@ function applySettings(settings: AppSettings): void {
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 
   setPromptScrollPosition(scrollPositionY);
+  syncTotalDurationWithPlaybackPosition();
   if (highlightMode !== previousHighlightMode) {
     clearHighlightClasses();
   }
@@ -782,6 +786,7 @@ function scrollFrame(timestamp: number): void {
 
   if (getPromptScrollPosition() >= maxScrollTop) {
     setPromptScrollPosition(maxScrollTop);
+    syncTotalDurationWithPlaybackPosition();
     updateProgress();
     updateHighlight();
     stopVoiceTracking();
@@ -793,12 +798,17 @@ function scrollFrame(timestamp: number): void {
   animationFrameId = window.requestAnimationFrame(scrollFrame);
 }
 
-function startAnimation(): void {
+function stopAnimation(): void {
   if (animationFrameId !== null) {
     window.cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 
   lastFrameTime = 0;
+}
+
+function startAnimation(): void {
+  stopAnimation();
   animationFrameId = window.requestAnimationFrame(scrollFrame);
 }
 
@@ -845,6 +855,7 @@ function startCountdown(): void {
 
 function pause(): void {
   clearCountdown();
+  stopAnimation();
   stopVoiceTracking();
   setState("paused");
 }
@@ -867,6 +878,7 @@ function startPause(): void {
 
 function restart(): void {
   clearCountdown();
+  stopAnimation();
 
   if (promptViewport) {
     setPromptScrollPosition(0);
@@ -875,6 +887,7 @@ function restart(): void {
     targetScrollTop = 0;
     lastScriptMatchAt = 0;
     lastOffScriptFeedbackAt = 0;
+    syncTotalDurationWithPlaybackPosition();
     updateProgress();
     updateHighlight();
   }
@@ -884,14 +897,18 @@ function restart(): void {
 
 function speedUp(): void {
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
+  syncTotalDurationWithPlaybackPosition();
   showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  updateProgress();
 }
 
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
+  syncTotalDurationWithPlaybackPosition();
   showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  updateProgress();
 }
 
 function splitSentences(text: string): string[] {
@@ -961,6 +978,8 @@ function renderScript(body?: string): void {
   }
 
   setPromptScrollPosition(0);
+  elapsedMilliseconds = 0;
+  syncTotalDurationWithPlaybackPosition();
   clearHighlightClasses();
   updateProgress();
   updateHighlight();
