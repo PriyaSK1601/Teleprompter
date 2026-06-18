@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html class="overlay-document" lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,21 +8,6 @@
   </head>
   <body class="overlay-body">
     <main class="overlay-shell">
-      <header class="overlay-topbar">
-        <div class="overlay-drag-handle">
-          <span>Teleprompter</span>
-          <span id="modeLabel" class="overlay-mode-pill">Manual</span>
-        </div>
-        <nav class="overlay-control-bar" aria-label="Teleprompter controls">
-          <button id="hideOverlayButton" class="overlay-control" type="button">Hide</button>
-          <button id="slowDownButton" class="overlay-control" type="button">−</button>
-          <button id="playPauseButton" class="overlay-control primary" type="button">Play</button>
-          <button id="restartButton" class="overlay-control" type="button">Restart</button>
-          <button id="speedUpButton" class="overlay-control" type="button">+</button>
-          <button id="closeOverlayButton" class="overlay-control" type="button">Close</button>
-        </nav>
-      </header>
-
       <section class="countdown" id="countdown" hidden></section>
 
       <section class="prompt-viewport" id="promptViewport">
@@ -31,19 +16,58 @@
         </article>
       </section>
 
-      <footer class="overlay-progress-wrap">
-        <div class="overlay-progress-main">
-          <div class="overlay-progress-track" aria-hidden="true">
-            <div id="progressBar" class="overlay-progress-bar"></div>
-          </div>
+      <footer class="overlay-footer">
+        <div class="overlay-progress-track" aria-hidden="true">
+          <div id="progressBar" class="overlay-progress-bar"></div>
+        </div>
+        <div class="overlay-bottom-row">
           <div class="overlay-status-row">
             <span id="elapsedLabel">00:00</span>
-            <span id="remainingLabel">Remaining --:--</span>
+            <span id="remainingLabel">-00:00</span>
             <span id="speedLabel">21 px/s</span>
             <span id="feedbackLabel"></span>
           </div>
+          <nav class="overlay-control-bar" aria-label="Teleprompter controls">
+            <button id="restartButton" class="overlay-control" type="button" data-tooltip="Restart (R)">
+              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <path d="M3 3v6h6" />
+              </svg>
+            </button>
+            <button id="slowDownButton" class="overlay-control" type="button" aria-label="Slower (Left Arrow)" data-tooltip="Slower (&larr;)">
+              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+            <button id="playPauseButton" class="overlay-control primary is-showing-play" type="button" data-tooltip="Play/Pause (Space)">
+              <span id="playPauseIcon" class="overlay-play-pause-icons" aria-hidden="true">
+                <svg class="overlay-control-icon overlay-play-icon" viewBox="0 0 24 24">
+                  <path d="m8 5 11 7-11 7z" />
+                </svg>
+                <svg class="overlay-control-icon overlay-pause-icon" viewBox="0 0 24 24">
+                  <path d="M9 6v12" />
+                  <path d="M15 6v12" />
+                </svg>
+              </span>
+            </button>
+            <button id="speedUpButton" class="overlay-control" type="button" aria-label="Faster (Right Arrow)" data-tooltip="Faster (&rarr;)">
+              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+            <button id="closeOverlayButton" class="overlay-control" type="button" data-tooltip="Exit overlay (Esc)">
+              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </nav>
+          <div class="overlay-progress-side">
+            <span id="modeLabel" class="overlay-mode-pill">Manual</span>
+            <span id="progressLabel" class="overlay-progress-label">0%</span>
+          </div>
         </div>
-        <span id="progressLabel" class="overlay-progress-label">0%</span>
       </footer>
     </main>
     <script src="../../../dist/renderer/overlay/index.js"></script>

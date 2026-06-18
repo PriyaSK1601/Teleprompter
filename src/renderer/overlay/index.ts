@@ -8,7 +8,6 @@ const remainingLabel = document.querySelector<HTMLElement>("#remainingLabel");
 const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
 const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
 const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
-const hideOverlayButton = document.querySelector<HTMLButtonElement>("#hideOverlayButton");
 const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
@@ -63,6 +62,11 @@ let lastScriptMatchAt = 0;
 let scriptTrackingFeedbackShown = false;
 let lastOffScriptFeedbackAt = 0;
 let currentHighlightEndIndex = -1;
+let endHoldElapsedMilliseconds = 0;
+let closeFeedbackTimerId: number | null = null;
+
+const endHoldDurationMilliseconds = 500;
+const closeFeedbackDelayMilliseconds = 120;
 
 type HighlightLineRange = {
   start: number;
@@ -84,9 +88,22 @@ function hexToRgb(hexColor: string): { red: number; green: number; blue: number 
   };
 }
 
+function getOpaqueOverlayBackground(hexColor: string, opacity: number): string {
+  const background = hexToRgb(hexColor);
+  const alpha = Math.min(1, Math.max(0, opacity));
+
+  const red = Math.round(background.red * alpha);
+  const green = Math.round(background.green * alpha);
+  const blue = Math.round(background.blue * alpha);
+
+  return `rgb(${red} ${green} ${blue})`;
+}
+
 function updateControls(): void {
   if (playPauseButton) {
-    playPauseButton.textContent = state === "running" || state === "countdown" ? "Pause" : "Play";
+    const isPlaying = state === "running" || state === "countdown";
+    playPauseButton.classList.toggle("is-showing-pause", isPlaying);
+    playPauseButton.classList.toggle("is-showing-play", !isPlaying);
   }
 
   if (speedLabel) {
@@ -96,24 +113,36 @@ function updateControls(): void {
   if (modeLabel) {
     modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
   }
-
-  if (elapsedLabel) {
-    elapsedLabel.textContent = formatElapsed(elapsedMilliseconds);
-  }
-}
-
-function formatElapsed(milliseconds: number): string {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function formatSeconds(seconds: number): string {
-  const safeSeconds = Math.max(0, Math.round(seconds));
+  const safeSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(safeSeconds / 60);
   const remainingSeconds = safeSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function getRemainingScrollSeconds(): number {
+  if (speedPixelsPerSecond <= 0) {
+    return 0;
+  }
+
+  const remainingScrollDistance = Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
+  const remainingSeconds = remainingScrollDistance / speedPixelsPerSecond;
+  return remainingSeconds <= 0 ? 0 : Math.ceil(remainingSeconds);
+}
+
+function updateTimerLabels(): void {
+  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+  const remainingSeconds = getRemainingScrollSeconds();
+
+  if (elapsedLabel) {
+    elapsedLabel.textContent = formatSeconds(elapsedSeconds);
+  }
+
+  if (remainingLabel) {
+    remainingLabel.textContent = `-${formatSeconds(remainingSeconds)}`;
+  }
 }
 
 function normalizeWord(value: string): string {
@@ -148,17 +177,112 @@ function showFeedback(message: string): void {
   }, 1400);
 }
 
+function flashSpeedLabel(): void {
+  if (!speedLabel) {
+    return;
+  }
+
+  speedLabel.classList.remove("is-speed-feedback");
+  void speedLabel.offsetWidth;
+  speedLabel.classList.add("is-speed-feedback");
+}
+
+function flashControl(button: HTMLButtonElement | null): void {
+  if (!button) {
+    return;
+  }
+
+  button.classList.remove("is-control-feedback");
+  void button.offsetWidth;
+  button.classList.add("is-control-feedback");
+}
+
 function setState(nextState: ScrollState): void {
   state = nextState;
   updateControls();
 }
 
-function getMaxPromptScrollTop(): number {
+function getNaturalPromptScrollTop(): number {
   if (!promptViewport) {
     return 0;
   }
 
   return Math.max(0, promptViewport.scrollHeight - promptViewport.clientHeight);
+}
+
+function getViewportReadingFocusOffset(): number {
+  if (!promptViewport) {
+    return 0;
+  }
+
+  const viewportStyle = window.getComputedStyle(promptViewport);
+  const viewportPaddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
+  const focusOffset = Math.max(getPromptLineHeight() * 0.5, viewportPaddingTop);
+  return viewportPaddingTop + focusOffset;
+}
+
+function getContentLineCandidates(): HighlightLineCandidate[] {
+  if (!promptViewport || scriptWordElements.length === 0) {
+    return [];
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const currentScrollPosition = Math.max(0, scrollPositionY);
+  const lineMergeTolerance = 2;
+  const lines: HighlightLineCandidate[] = [];
+  let currentLine: HighlightLineCandidate | null = null;
+
+  for (let index = 0; index < scriptWordElements.length; index += 1) {
+    const word = scriptWordElements[index];
+    const rect = word.getBoundingClientRect();
+
+    if (rect.height <= 0 || rect.width <= 0) {
+      continue;
+    }
+
+    const top = rect.top - viewportRect.top + currentScrollPosition;
+    const bottom = rect.bottom - viewportRect.top + currentScrollPosition;
+
+    if (!currentLine || Math.abs(top - currentLine.top) > lineMergeTolerance) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      currentLine = {
+        start: index,
+        end: index,
+        top,
+        bottom
+      };
+      continue;
+    }
+
+    currentLine.end = index;
+    currentLine.top = Math.min(currentLine.top, top);
+    currentLine.bottom = Math.max(currentLine.bottom, bottom);
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function getFinalHighlightScrollTop(): number {
+  const lines = getContentLineCandidates();
+  const finalLine = lines[lines.length - 1];
+
+  if (!finalLine) {
+    return 0;
+  }
+
+  const finalLineCenter = finalLine.top + (finalLine.bottom - finalLine.top) / 2;
+  return Math.max(0, finalLineCenter - getViewportReadingFocusOffset());
+}
+
+function getMaxPromptScrollTop(): number {
+  return Math.max(getNaturalPromptScrollTop(), getFinalHighlightScrollTop());
 }
 
 function getPromptScrollPosition(): number {
@@ -179,13 +303,39 @@ function setPromptScrollPosition(nextScrollPositionY: number): void {
   }
 }
 
-function getProgress(): number {
-  if (!promptViewport) {
+function advancePromptScroll(deltaPixels: number): number {
+  const previousScrollPosition = getPromptScrollPosition();
+  setPromptScrollPosition(previousScrollPosition + deltaPixels);
+  return getPromptScrollPosition() - previousScrollPosition;
+}
+
+function addElapsedForScrollDistance(scrollDistance: number, pixelsPerSecond = speedPixelsPerSecond): void {
+  if (pixelsPerSecond <= 0 || scrollDistance <= 0) {
+    return;
+  }
+
+  elapsedMilliseconds += (scrollDistance / pixelsPerSecond) * 1000;
+}
+
+function getPromptLineHeight(): number {
+  if (!promptText) {
     return 0;
   }
 
-  if (scrollMode === "voice" && scriptWords.length > 0 && currentScriptWordIndex > 0) {
-    return Math.min(1, Math.max(0, currentScriptWordIndex / scriptWords.length));
+  const computedStyle = window.getComputedStyle(promptText);
+  const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+  if (Number.isFinite(lineHeight)) {
+    return lineHeight;
+  }
+
+  const fontSize = Number.parseFloat(computedStyle.fontSize);
+  return Number.isFinite(fontSize) ? fontSize * 1.5 : 0;
+}
+
+function getProgress(): number {
+  if (!promptViewport) {
+    return 0;
   }
 
   const maxScrollTop = Math.max(1, getMaxPromptScrollTop());
@@ -194,25 +344,17 @@ function getProgress(): number {
 
 function updateProgress(): void {
   const progress = getProgress();
+  const progressPercent = progress >= 1 ? 100 : Math.floor(progress * 100);
 
   if (progressBar) {
-    progressBar.style.width = `${Math.round(progress * 100)}%`;
+    progressBar.style.width = `${progress * 100}%`;
   }
 
   if (progressLabel) {
-    progressLabel.textContent = `${Math.round(progress * 100)}%`;
+    progressLabel.textContent = `${progressPercent}%`;
   }
 
-  if (remainingLabel) {
-    const elapsedSeconds = elapsedMilliseconds / 1000;
-    const scriptRemainingSeconds = scriptWords.length > 0
-      ? ((scriptWords.length * (1 - progress)) / 150) * 60
-      : 0;
-    const pacedRemainingSeconds = progress > 0.03 && elapsedSeconds > 5
-      ? (elapsedSeconds / progress) * (1 - progress)
-      : scriptRemainingSeconds;
-    remainingLabel.textContent = `Remaining ${formatSeconds(pacedRemainingSeconds)}`;
-  }
+  updateTimerLabels();
 }
 
 function getActiveHighlightElements(): HTMLElement[] {
@@ -329,16 +471,17 @@ function selectBetterHighlightLine(
   return isBetterHighlightLine(candidate, best, focusY) ? candidate : best;
 }
 
-function getCurrentLineHighlightRange(): HighlightLineRange | null {
-  if (!promptViewport || scriptWordElements.length === 0) {
-    return null;
-  }
+function toHighlightLineRange(line: HighlightLineCandidate): HighlightLineRange {
+  return {
+    start: line.start,
+    end: line.end
+  };
+}
 
-  const viewportRect = promptViewport.getBoundingClientRect();
-  const focusY = viewportRect.top + viewportRect.height * 0.5;
+function getHighlightLineCandidates(): HighlightLineCandidate[] {
   const lineMergeTolerance = 2;
+  const lines: HighlightLineCandidate[] = [];
   let currentLine: HighlightLineCandidate | null = null;
-  let bestLine: HighlightLineCandidate | null = null;
 
   for (let index = 0; index < scriptWordElements.length; index += 1) {
     const word = scriptWordElements[index];
@@ -349,7 +492,10 @@ function getCurrentLineHighlightRange(): HighlightLineRange | null {
     }
 
     if (!currentLine || Math.abs(rect.top - currentLine.top) > lineMergeTolerance) {
-      bestLine = selectBetterHighlightLine(currentLine, bestLine, focusY);
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
       currentLine = {
         start: index,
         end: index,
@@ -364,14 +510,40 @@ function getCurrentLineHighlightRange(): HighlightLineRange | null {
     currentLine.bottom = Math.max(currentLine.bottom, rect.bottom);
   }
 
-  bestLine = selectBetterHighlightLine(currentLine, bestLine, focusY);
+  if (currentLine) {
+    lines.push(currentLine);
+  }
 
-  return bestLine
-    ? {
-      start: bestLine.start,
-      end: bestLine.end
-    }
-    : null;
+  return lines;
+}
+
+function getCurrentLineHighlightRange(): HighlightLineRange | null {
+  if (!promptViewport || scriptWordElements.length === 0) {
+    return null;
+  }
+
+  const lineCandidates = getHighlightLineCandidates();
+
+  if (lineCandidates.length === 0) {
+    return null;
+  }
+
+  const scrollPosition = getPromptScrollPosition();
+  const scrollBoundaryTolerance = 1;
+
+  if (scrollPosition <= scrollBoundaryTolerance) {
+    return toHighlightLineRange(lineCandidates[0]);
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const focusY = viewportRect.top + getViewportReadingFocusOffset();
+  let bestLine: HighlightLineCandidate | null = null;
+
+  for (const lineCandidate of lineCandidates) {
+    bestLine = selectBetterHighlightLine(lineCandidate, bestLine, focusY);
+  }
+
+  return bestLine ? toHighlightLineRange(bestLine) : null;
 }
 
 function updateCurrentLineHighlight(): void {
@@ -412,11 +584,10 @@ function applySettings(settings: AppSettings): void {
   countdownEnabled = settings.countdown.enabled;
   countdownSeconds = settings.countdown.seconds;
   highlightMode = settings.experimental.highlightMode;
-  const background = hexToRgb(settings.overlayAppearance.backgroundColor);
 
   document.documentElement.style.setProperty(
     "--overlay-bg",
-    `rgb(${background.red} ${background.green} ${background.blue} / ${settings.overlayAppearance.opacity})`
+    getOpaqueOverlayBackground(settings.overlayAppearance.backgroundColor, settings.overlayAppearance.opacity)
   );
   document.documentElement.style.setProperty("--prompt-font-size", `${settings.text.fontSize}px`);
   document.documentElement.style.setProperty("--prompt-text-color", settings.text.textColor);
@@ -723,8 +894,8 @@ function scrollFrame(timestamp: number): void {
   const hasRecentScriptMatch = voiceRecognitionAvailable && Date.now() - lastScriptMatchAt < 1800;
 
   if (scrollMode !== "voice" || !voiceSupported) {
-    setPromptScrollPosition(scrollPositionY + speedPixelsPerSecond * deltaSeconds);
-    elapsedMilliseconds += deltaSeconds * 1000;
+    const scrolledDistance = advancePromptScroll(speedPixelsPerSecond * deltaSeconds);
+    addElapsedForScrollDistance(scrolledDistance);
   } else if (voiceRecognitionAvailable) {
     if (hasRecentScriptMatch) {
       const distance = targetScrollTop - getPromptScrollPosition();
@@ -737,8 +908,8 @@ function scrollFrame(timestamp: number): void {
       showFeedback("Paused until script resumes");
     }
   } else if (voiceSpeaking) {
-    setPromptScrollPosition(scrollPositionY + speedPixelsPerSecond * deltaSeconds);
-    elapsedMilliseconds += deltaSeconds * 1000;
+    const scrolledDistance = advancePromptScroll(speedPixelsPerSecond * deltaSeconds);
+    addElapsedForScrollDistance(scrolledDistance);
   }
 
   updateProgress();
@@ -746,26 +917,40 @@ function scrollFrame(timestamp: number): void {
   updateControls();
 
   const maxScrollTop = getMaxPromptScrollTop();
+  const isAtEnd = maxScrollTop <= 0 || getPromptScrollPosition() >= maxScrollTop - 0.5;
 
-  if (getPromptScrollPosition() >= maxScrollTop) {
+  if (isAtEnd) {
     setPromptScrollPosition(maxScrollTop);
     updateProgress();
     updateHighlight();
-    stopVoiceTracking();
-    setState("completed");
-    animationFrameId = null;
+    endHoldElapsedMilliseconds += deltaSeconds * 1000;
+
+    if (endHoldElapsedMilliseconds >= endHoldDurationMilliseconds) {
+      stopVoiceTracking();
+      setState("completed");
+      animationFrameId = null;
+      return;
+    }
+
+    animationFrameId = window.requestAnimationFrame(scrollFrame);
     return;
   }
 
+  endHoldElapsedMilliseconds = 0;
   animationFrameId = window.requestAnimationFrame(scrollFrame);
 }
 
-function startAnimation(): void {
+function stopAnimation(): void {
   if (animationFrameId !== null) {
     window.cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 
   lastFrameTime = 0;
+}
+
+function startAnimation(): void {
+  stopAnimation();
   animationFrameId = window.requestAnimationFrame(scrollFrame);
 }
 
@@ -812,11 +997,14 @@ function startCountdown(): void {
 
 function pause(): void {
   clearCountdown();
+  stopAnimation();
   stopVoiceTracking();
   setState("paused");
 }
 
 function startPause(): void {
+  flashControl(playPauseButton);
+
   if (state === "idle" || state === "completed") {
     startCountdown();
     return;
@@ -833,11 +1021,14 @@ function startPause(): void {
 }
 
 function restart(): void {
+  flashControl(restartButton);
   clearCountdown();
+  stopAnimation();
 
   if (promptViewport) {
     setPromptScrollPosition(0);
     elapsedMilliseconds = 0;
+    endHoldElapsedMilliseconds = 0;
     currentScriptWordIndex = 0;
     targetScrollTop = 0;
     lastScriptMatchAt = 0;
@@ -850,15 +1041,32 @@ function restart(): void {
 }
 
 function speedUp(): void {
+  flashControl(speedUpButton);
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
-  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  flashSpeedLabel();
+  updateProgress();
 }
 
 function slowDown(): void {
+  flashControl(slowDownButton);
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
-  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  flashSpeedLabel();
+  updateProgress();
+}
+
+function closeOverlayWithFeedback(): void {
+  flashControl(closeOverlayButton);
+
+  if (closeFeedbackTimerId !== null) {
+    window.clearTimeout(closeFeedbackTimerId);
+  }
+
+  closeFeedbackTimerId = window.setTimeout(() => {
+    closeFeedbackTimerId = null;
+    void teleprompterApi?.closeOverlay();
+  }, closeFeedbackDelayMilliseconds);
 }
 
 function splitSentences(text: string): string[] {
@@ -928,6 +1136,8 @@ function renderScript(body?: string): void {
   }
 
   setPromptScrollPosition(0);
+  elapsedMilliseconds = 0;
+  endHoldElapsedMilliseconds = 0;
   clearHighlightClasses();
   updateProgress();
   updateHighlight();
@@ -968,11 +1178,66 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
+type OverlayTooltip = {
+  element: HTMLButtonElement | null;
+  label: string;
+  shortcut?: string;
+  ariaShortcut?: string;
+};
+
+const overlayTooltips: OverlayTooltip[] = [
+  {
+    element: slowDownButton,
+    label: "Slower",
+    shortcut: "\u2190",
+    ariaShortcut: "Left Arrow"
+  },
+  {
+    element: playPauseButton,
+    label: "Play/Pause",
+    shortcut: "Space"
+  },
+  {
+    element: restartButton,
+    label: "Restart",
+    shortcut: "R"
+  },
+  {
+    element: speedUpButton,
+    label: "Faster",
+    shortcut: "\u2192",
+    ariaShortcut: "Right Arrow"
+  },
+  {
+    element: closeOverlayButton,
+    label: "Exit overlay",
+    shortcut: "Esc"
+  }
+];
+
+function buildTooltipText(tooltip: OverlayTooltip): string {
+  return tooltip.shortcut ? `${tooltip.label} (${tooltip.shortcut})` : tooltip.label;
+}
+
+function buildTooltipAriaLabel(tooltip: OverlayTooltip): string {
+  return tooltip.ariaShortcut ? `${tooltip.label} (${tooltip.ariaShortcut})` : buildTooltipText(tooltip);
+}
+
+function applyOverlayTooltips(): void {
+  for (const tooltip of overlayTooltips) {
+    if (!tooltip.element) {
+      continue;
+    }
+
+    const tooltipText = buildTooltipText(tooltip);
+    tooltip.element.dataset.tooltip = tooltipText;
+    tooltip.element.setAttribute("aria-label", buildTooltipAriaLabel(tooltip));
+  }
+}
+
 const teleprompterApi = window.teleprompter;
 
-hideOverlayButton?.addEventListener("click", () => {
-  void teleprompterApi?.hideOverlay();
-});
+applyOverlayTooltips();
 
 playPauseButton?.addEventListener("click", startPause);
 restartButton?.addEventListener("click", restart);
@@ -980,7 +1245,7 @@ speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
 
 closeOverlayButton?.addEventListener("click", () => {
-  void teleprompterApi?.closeOverlay();
+  closeOverlayWithFeedback();
 });
 
 window.addEventListener("keydown", (event) => {
@@ -988,13 +1253,13 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "ArrowUp") {
+  if (event.key === "ArrowRight") {
     event.preventDefault();
     speedUp();
     return;
   }
 
-  if (event.key === "ArrowDown") {
+  if (event.key === "ArrowLeft") {
     event.preventDefault();
     slowDown();
     return;
@@ -1014,7 +1279,7 @@ window.addEventListener("keydown", (event) => {
 
   if (event.key === "Escape") {
     event.preventDefault();
-    void teleprompterApi?.hideOverlay();
+    closeOverlayWithFeedback();
   }
 });
 

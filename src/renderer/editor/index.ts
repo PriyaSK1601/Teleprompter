@@ -30,6 +30,7 @@ const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeS
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
+const settingsPreviewCard = document.querySelector<HTMLElement>(".settings-preview-card");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 
 let currentScriptsState: ScriptsState = {
@@ -176,6 +177,26 @@ function renderScriptStats(): void {
     `${wordCount} ${wordCount === 1 ? "word" : "words"} • ` +
     `${characterCount} ${characterCount === 1 ? "character" : "characters"} • ` +
     `~${formatDuration(estimatedSeconds)} read`;
+}
+
+function hexToPreviewRgb(hexColor: string): { red: number; green: number; blue: number } {
+  const normalized = hexColor.replace("#", "");
+
+  return {
+    red: Number.parseInt(normalized.slice(0, 2), 16),
+    green: Number.parseInt(normalized.slice(2, 4), 16),
+    blue: Number.parseInt(normalized.slice(4, 6), 16)
+  };
+}
+
+function getOpaquePreviewBackground(hexColor: string, opacity: number): string {
+  const background = hexToPreviewRgb(hexColor);
+  const alpha = Math.min(1, Math.max(0, opacity));
+  const red = Math.round(background.red * alpha);
+  const green = Math.round(background.green * alpha);
+  const blue = Math.round(background.blue * alpha);
+
+  return `rgb(${red} ${green} ${blue})`;
 }
 
 function getFilteredScripts(): ScriptRecord[] {
@@ -374,6 +395,13 @@ function renderSettingsPreview(settings: AppSettings): void {
     return;
   }
 
+  if (settingsPreviewCard) {
+    settingsPreviewCard.style.background = getOpaquePreviewBackground(
+      settings.overlayAppearance.backgroundColor,
+      settings.overlayAppearance.opacity
+    );
+  }
+
   settingsPreview.style.color = settings.text.textColor;
   settingsPreview.style.fontSize = `${settings.text.fontSize}px`;
   settingsPreview.style.lineHeight = String(settings.text.lineHeight);
@@ -383,6 +411,13 @@ function renderSettingsPreview(settings: AppSettings): void {
 function renderSettingsPreviewFromControls(): void {
   if (!settingsPreview) {
     return;
+  }
+
+  if (settingsPreviewCard) {
+    settingsPreviewCard.style.background = getOpaquePreviewBackground(
+      backgroundColorInput?.value ?? "#111827",
+      Number(opacityInput?.value) || 0.82
+    );
   }
 
   settingsPreview.style.color = textColorInput?.value ?? "";
