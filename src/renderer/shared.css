@@ -465,27 +465,8 @@ h3 {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  padding: 16px 18px 14px;
+  padding: 8px 18px 12px;
   position: relative;
-}
-
-.overlay-topbar {
-  align-items: center;
-  display: flex;
-  gap: 14px;
-  justify-content: space-between;
-  padding-bottom: 10px;
-}
-
-.overlay-drag-handle {
-  align-items: center;
-  color: rgb(248 250 252 / 0.72);
-  display: flex;
-  font-size: 12px;
-  font-weight: 760;
-  gap: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .overlay-mode-pill {
@@ -501,11 +482,13 @@ h3 {
 .overlay-control-bar {
   -webkit-app-region: no-drag;
   align-items: center;
+  align-self: center;
   background: rgb(255 255 255 / 0.08);
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 999px;
   display: flex;
   gap: 4px;
+  justify-self: center;
   padding: 4px;
 }
 
@@ -589,7 +572,7 @@ h3 {
   -webkit-app-region: no-drag;
   flex: 1;
   overflow: hidden;
-  padding: 10px 18px 16px;
+  padding: 4px 18px 10px;
   scroll-behavior: auto;
 }
 
@@ -651,18 +634,12 @@ h3 {
   display: none;
 }
 
-.overlay-progress-wrap {
+.overlay-footer {
   -webkit-app-region: no-drag;
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  padding: 6px 4px 0;
-}
-
-.overlay-progress-main {
   display: grid;
-  flex: 1;
-  gap: 7px;
+  flex: 0 0 auto;
+  gap: 5px;
+  padding: 0 4px;
 }
 
 .overlay-progress-track {
@@ -680,12 +657,28 @@ h3 {
   width: 0;
 }
 
+.overlay-bottom-row {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-height: 38px;
+}
+
 .overlay-progress-label {
   color: rgb(248 250 252 / 0.58);
   font-size: 11px;
   font-weight: 700;
-  min-width: 34px;
+  min-width: 28px;
   text-align: right;
+}
+
+.overlay-progress-side {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .overlay-status-row {
@@ -696,10 +689,34 @@ h3 {
   font-weight: 700;
   gap: 12px;
   min-height: 14px;
+  min-width: 0;
 }
 
 #feedbackLabel {
   color: rgb(255 255 255 / 0.82);
+}
+
+.overlay-footer .overlay-control::after {
+  bottom: calc(100% + 9px);
+  top: auto;
+  transform: translate(-50%, 2px);
+}
+
+.overlay-footer .overlay-control:first-child::after,
+.overlay-footer .overlay-control:last-child::after {
+  transform: translate(0, 2px);
+}
+
+.overlay-footer .overlay-control:hover::after,
+.overlay-footer .overlay-control:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.overlay-footer .overlay-control:first-child:hover::after,
+.overlay-footer .overlay-control:first-child:focus-visible::after,
+.overlay-footer .overlay-control:last-child:hover::after,
+.overlay-footer .overlay-control:last-child:focus-visible::after {
+  transform: translate(0, 0);
 }
 
 @media (max-width: 860px) {
