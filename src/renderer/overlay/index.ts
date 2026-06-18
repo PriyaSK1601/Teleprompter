@@ -107,23 +107,37 @@ function updateControls(): void {
     modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
   }
 
-  if (elapsedLabel) {
-    elapsedLabel.textContent = formatElapsed(elapsedMilliseconds);
-  }
-}
-
-function formatElapsed(milliseconds: number): string {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function formatSeconds(seconds: number): string {
-  const safeSeconds = Math.max(0, Math.round(seconds));
+  const safeSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(safeSeconds / 60);
   const remainingSeconds = safeSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function getEstimatedTotalSeconds(progress: number, elapsedSeconds: number): number {
+  if (progress > 0.03 && elapsedSeconds > 5) {
+    return elapsedSeconds / progress;
+  }
+
+  return scriptWords.length > 0
+    ? (scriptWords.length / 150) * 60
+    : 0;
+}
+
+function updateTimerLabels(progress: number): void {
+  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+  const totalSeconds = Math.max(elapsedSeconds, Math.ceil(getEstimatedTotalSeconds(progress, elapsedSeconds)));
+  const remainingSeconds = totalSeconds - elapsedSeconds;
+
+  if (elapsedLabel) {
+    elapsedLabel.textContent = formatSeconds(elapsedSeconds);
+  }
+
+  if (remainingLabel) {
+    remainingLabel.textContent = `-${formatSeconds(remainingSeconds)}`;
+  }
 }
 
 function normalizeWord(value: string): string {
@@ -229,16 +243,7 @@ function updateProgress(): void {
     progressLabel.textContent = `${Math.round(progress * 100)}%`;
   }
 
-  if (remainingLabel) {
-    const elapsedSeconds = elapsedMilliseconds / 1000;
-    const scriptRemainingSeconds = scriptWords.length > 0
-      ? ((scriptWords.length * (1 - progress)) / 150) * 60
-      : 0;
-    const pacedRemainingSeconds = progress > 0.03 && elapsedSeconds > 5
-      ? (elapsedSeconds / progress) * (1 - progress)
-      : scriptRemainingSeconds;
-    remainingLabel.textContent = `-${formatSeconds(pacedRemainingSeconds)}`;
-  }
+  updateTimerLabels(progress);
 }
 
 function getActiveHighlightElements(): HTMLElement[] {
