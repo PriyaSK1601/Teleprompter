@@ -581,6 +581,10 @@ h3 {
   color: #0b0d12;
 }
 
+#playPauseButton {
+  width: 58px;
+}
+
 .prompt-viewport {
   -webkit-app-region: no-drag;
   flex: 1;
