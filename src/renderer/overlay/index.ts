@@ -1007,8 +1007,8 @@ const overlayTooltips: OverlayTooltip[] = [
   {
     element: slowDownButton,
     label: "Slower",
-    shortcut: "\u2193",
-    ariaShortcut: "Down Arrow"
+    shortcut: "\u2190",
+    ariaShortcut: "Left Arrow"
   },
   {
     element: playPauseButton,
@@ -1023,8 +1023,8 @@ const overlayTooltips: OverlayTooltip[] = [
   {
     element: speedUpButton,
     label: "Faster",
-    shortcut: "\u2191",
-    ariaShortcut: "Up Arrow"
+    shortcut: "\u2192",
+    ariaShortcut: "Right Arrow"
   },
   {
     element: closeOverlayButton,
@@ -1071,13 +1071,13 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "ArrowUp") {
+  if (event.key === "ArrowRight") {
     event.preventDefault();
     speedUp();
     return;
   }
 
-  if (event.key === "ArrowDown") {
+  if (event.key === "ArrowLeft") {
     event.preventDefault();
     slowDown();
     return;

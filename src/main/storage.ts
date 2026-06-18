@@ -31,9 +31,14 @@ export const defaultShortcutBindings: ShortcutBinding[] = [
   { action: "hideOverlay", accelerator: "CommandOrControl+Alt+H", enabled: true },
   { action: "startPause", accelerator: "CommandOrControl+Alt+Space", enabled: true },
   { action: "restart", accelerator: "CommandOrControl+Alt+R", enabled: true },
-  { action: "speedUp", accelerator: "CommandOrControl+Alt+Up", enabled: true },
-  { action: "slowDown", accelerator: "CommandOrControl+Alt+Down", enabled: true }
+  { action: "speedUp", accelerator: "CommandOrControl+Alt+Right", enabled: true },
+  { action: "slowDown", accelerator: "CommandOrControl+Alt+Left", enabled: true }
 ];
+
+const legacyDefaultShortcutAccelerators: Partial<Record<ShortcutBinding["action"], string>> = {
+  speedUp: "CommandOrControl+Alt+Up",
+  slowDown: "CommandOrControl+Alt+Down"
+};
 
 const defaultShortcutsFile: ShortcutsFile = {
   version: 1,
@@ -327,7 +332,10 @@ function isShortcutsFile(value: unknown): value is ShortcutsFile {
 function normalizeShortcutBindings(bindings: ShortcutBinding[]): ShortcutBinding[] {
   return defaultShortcutBindings.map((defaultBinding) => {
     const override = bindings.find((binding) => binding.action === defaultBinding.action);
-    const accelerator = override?.accelerator.trim() || defaultBinding.accelerator;
+    const overrideAccelerator = override?.accelerator.trim();
+    const accelerator = overrideAccelerator === legacyDefaultShortcutAccelerators[defaultBinding.action]
+      ? defaultBinding.accelerator
+      : overrideAccelerator || defaultBinding.accelerator;
 
     return {
       action: defaultBinding.action,
