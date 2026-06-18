@@ -189,6 +189,22 @@ function setPromptScrollPosition(nextScrollPositionY: number): void {
   }
 }
 
+function getPromptLineHeight(): number {
+  if (!promptText) {
+    return 0;
+  }
+
+  const computedStyle = window.getComputedStyle(promptText);
+  const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+
+  if (Number.isFinite(lineHeight)) {
+    return lineHeight;
+  }
+
+  const fontSize = Number.parseFloat(computedStyle.fontSize);
+  return Number.isFinite(fontSize) ? fontSize * 1.5 : 0;
+}
+
 function getProgress(): number {
   if (!promptViewport) {
     return 0;
@@ -345,7 +361,10 @@ function getCurrentLineHighlightRange(): HighlightLineRange | null {
   }
 
   const viewportRect = promptViewport.getBoundingClientRect();
-  const focusY = viewportRect.top + viewportRect.height * 0.5;
+  const viewportStyle = window.getComputedStyle(promptViewport);
+  const viewportPaddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
+  const focusOffset = Math.max(getPromptLineHeight() * 0.5, viewportPaddingTop);
+  const focusY = viewportRect.top + viewportPaddingTop + focusOffset;
   const lineMergeTolerance = 2;
   let currentLine: HighlightLineCandidate | null = null;
   let bestLine: HighlightLineCandidate | null = null;
