@@ -237,7 +237,7 @@ function updateProgress(): void {
     const pacedRemainingSeconds = progress > 0.03 && elapsedSeconds > 5
       ? (elapsedSeconds / progress) * (1 - progress)
       : scriptRemainingSeconds;
-    remainingLabel.textContent = `Remaining ${formatSeconds(pacedRemainingSeconds)}`;
+    remainingLabel.textContent = `-${formatSeconds(pacedRemainingSeconds)}`;
   }
 }
 
