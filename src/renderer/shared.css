@@ -692,6 +692,23 @@ h3 {
   min-width: 0;
 }
 
+#speedLabel.is-speed-feedback {
+  animation: speed-label-feedback 520ms ease-out;
+}
+
+@keyframes speed-label-feedback {
+  0%,
+  45% {
+    color: rgb(255 255 255 / 0.98);
+    text-shadow: 0 0 10px rgb(255 255 255 / 0.34);
+  }
+
+  100% {
+    color: rgb(248 250 252 / 0.58);
+    text-shadow: none;
+  }
+}
+
 #feedbackLabel {
   color: rgb(255 255 255 / 0.82);
 }

@@ -173,6 +173,16 @@ function showFeedback(message: string): void {
   }, 1400);
 }
 
+function flashSpeedLabel(): void {
+  if (!speedLabel) {
+    return;
+  }
+
+  speedLabel.classList.remove("is-speed-feedback");
+  void speedLabel.offsetWidth;
+  speedLabel.classList.add("is-speed-feedback");
+}
+
 function setState(nextState: ScrollState): void {
   state = nextState;
   updateControls();
@@ -1015,15 +1025,15 @@ function restart(): void {
 
 function speedUp(): void {
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
-  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  flashSpeedLabel();
   updateProgress();
 }
 
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
-  showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
+  flashSpeedLabel();
   updateProgress();
 }
 
