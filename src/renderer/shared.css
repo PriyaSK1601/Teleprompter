@@ -487,26 +487,58 @@ h3 {
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 999px;
   display: flex;
-  gap: 4px;
+  gap: 3px;
   justify-self: center;
   padding: 4px;
 }
 
 .overlay-control {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 999px;
   color: rgb(248 250 252 / 0.82);
-  font-size: 12px;
+  display: inline-flex;
+  font-size: 0;
   font-weight: 720;
+  height: 30px;
+  justify-content: center;
+  line-height: 1;
   min-height: 30px;
-  padding: 0 10px;
+  min-width: 30px;
+  padding: 0;
   position: relative;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+  width: 30px;
 }
 
 .overlay-control:hover {
   background: rgb(255 255 255 / 0.12);
   color: #ffffff;
+}
+
+.overlay-control:active {
+  transform: scale(0.96);
+}
+
+.overlay-control-icon {
+  display: block;
+  fill: none;
+  height: 18px;
+  overflow: visible;
+  pointer-events: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  width: 18px;
 }
 
 .overlay-control::after {
@@ -565,7 +597,95 @@ h3 {
 }
 
 #playPauseButton {
-  width: 58px;
+  width: 34px;
+}
+
+.overlay-play-pause-icons {
+  display: block;
+  height: 18px;
+  pointer-events: none;
+  position: relative;
+  width: 18px;
+}
+
+.overlay-play-pause-icons .overlay-control-icon {
+  inset: 0;
+  position: absolute;
+}
+
+.overlay-play-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overlay-pause-icon {
+  opacity: 0;
+  transform: scale(0.76);
+}
+
+.is-showing-pause .overlay-play-icon {
+  opacity: 0;
+  transform: scale(0.76) rotate(8deg);
+}
+
+.is-showing-pause .overlay-pause-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.is-showing-play .overlay-play-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.is-showing-play .overlay-pause-icon {
+  opacity: 0;
+  transform: scale(0.76) rotate(-8deg);
+}
+
+.overlay-control:not(.primary).is-control-feedback {
+  animation: overlay-control-feedback 170ms ease-out;
+}
+
+.overlay-control.primary.is-control-feedback {
+  animation: overlay-primary-control-feedback 170ms ease-out;
+}
+
+@keyframes overlay-control-feedback {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    background: rgb(255 255 255 / 0.2);
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.1);
+    color: #ffffff;
+    transform: scale(0.92);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes overlay-primary-control-feedback {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.12);
+    filter: brightness(1.08);
+    transform: scale(0.94);
+  }
+
+  100% {
+    background: rgb(255 255 255 / 0.92);
+    box-shadow: none;
+    filter: none;
+    transform: scale(1);
+  }
 }
 
 .prompt-viewport {

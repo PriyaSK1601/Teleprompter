@@ -63,8 +63,10 @@ let scriptTrackingFeedbackShown = false;
 let lastOffScriptFeedbackAt = 0;
 let currentHighlightEndIndex = -1;
 let endHoldElapsedMilliseconds = 0;
+let closeFeedbackTimerId: number | null = null;
 
 const endHoldDurationMilliseconds = 500;
+const closeFeedbackDelayMilliseconds = 120;
 
 type HighlightLineRange = {
   start: number;
@@ -99,7 +101,9 @@ function getOpaqueOverlayBackground(hexColor: string, opacity: number): string {
 
 function updateControls(): void {
   if (playPauseButton) {
-    playPauseButton.textContent = state === "running" || state === "countdown" ? "Pause" : "Play";
+    const isPlaying = state === "running" || state === "countdown";
+    playPauseButton.classList.toggle("is-showing-pause", isPlaying);
+    playPauseButton.classList.toggle("is-showing-play", !isPlaying);
   }
 
   if (speedLabel) {
@@ -181,6 +185,16 @@ function flashSpeedLabel(): void {
   speedLabel.classList.remove("is-speed-feedback");
   void speedLabel.offsetWidth;
   speedLabel.classList.add("is-speed-feedback");
+}
+
+function flashControl(button: HTMLButtonElement | null): void {
+  if (!button) {
+    return;
+  }
+
+  button.classList.remove("is-control-feedback");
+  void button.offsetWidth;
+  button.classList.add("is-control-feedback");
 }
 
 function setState(nextState: ScrollState): void {
@@ -989,6 +1003,8 @@ function pause(): void {
 }
 
 function startPause(): void {
+  flashControl(playPauseButton);
+
   if (state === "idle" || state === "completed") {
     startCountdown();
     return;
@@ -1005,6 +1021,7 @@ function startPause(): void {
 }
 
 function restart(): void {
+  flashControl(restartButton);
   clearCountdown();
   stopAnimation();
 
@@ -1024,6 +1041,7 @@ function restart(): void {
 }
 
 function speedUp(): void {
+  flashControl(speedUpButton);
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
   updateControls();
   flashSpeedLabel();
@@ -1031,10 +1049,24 @@ function speedUp(): void {
 }
 
 function slowDown(): void {
+  flashControl(slowDownButton);
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
   updateControls();
   flashSpeedLabel();
   updateProgress();
+}
+
+function closeOverlayWithFeedback(): void {
+  flashControl(closeOverlayButton);
+
+  if (closeFeedbackTimerId !== null) {
+    window.clearTimeout(closeFeedbackTimerId);
+  }
+
+  closeFeedbackTimerId = window.setTimeout(() => {
+    closeFeedbackTimerId = null;
+    void teleprompterApi?.closeOverlay();
+  }, closeFeedbackDelayMilliseconds);
 }
 
 function splitSentences(text: string): string[] {
@@ -1213,7 +1245,7 @@ speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
 
 closeOverlayButton?.addEventListener("click", () => {
-  void teleprompterApi?.closeOverlay();
+  closeOverlayWithFeedback();
 });
 
 window.addEventListener("keydown", (event) => {
@@ -1247,7 +1279,7 @@ window.addEventListener("keydown", (event) => {
 
   if (event.key === "Escape") {
     event.preventDefault();
-    void teleprompterApi?.closeOverlay();
+    closeOverlayWithFeedback();
   }
 });
 
