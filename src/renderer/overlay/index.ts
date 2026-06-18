@@ -29,7 +29,6 @@ let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
 let elapsedMilliseconds = 0;
-let totalDurationSeconds = 0;
 let feedbackTimerId: number | null = null;
 let voiceAudioContext: AudioContext | null = null;
 let voiceAnalyser: AnalyserNode | null = null;
@@ -63,6 +62,9 @@ let lastScriptMatchAt = 0;
 let scriptTrackingFeedbackShown = false;
 let lastOffScriptFeedbackAt = 0;
 let currentHighlightEndIndex = -1;
+let endHoldElapsedMilliseconds = 0;
+
+const endHoldDurationMilliseconds = 500;
 
 type HighlightLineRange = {
   start: number;
@@ -122,17 +124,13 @@ function getRemainingScrollSeconds(): number {
   }
 
   const remainingScrollDistance = Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
-  return Math.ceil(remainingScrollDistance / speedPixelsPerSecond);
-}
-
-function syncTotalDurationWithPlaybackPosition(): void {
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  totalDurationSeconds = elapsedSeconds + getRemainingScrollSeconds();
+  const remainingSeconds = remainingScrollDistance / speedPixelsPerSecond;
+  return remainingSeconds <= 0 ? 0 : Math.ceil(remainingSeconds);
 }
 
 function updateTimerLabels(): void {
   const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
+  const remainingSeconds = getRemainingScrollSeconds();
 
   if (elapsedLabel) {
     elapsedLabel.textContent = formatSeconds(elapsedSeconds);
@@ -180,12 +178,87 @@ function setState(nextState: ScrollState): void {
   updateControls();
 }
 
-function getMaxPromptScrollTop(): number {
+function getNaturalPromptScrollTop(): number {
   if (!promptViewport) {
     return 0;
   }
 
   return Math.max(0, promptViewport.scrollHeight - promptViewport.clientHeight);
+}
+
+function getViewportReadingFocusOffset(): number {
+  if (!promptViewport) {
+    return 0;
+  }
+
+  const viewportStyle = window.getComputedStyle(promptViewport);
+  const viewportPaddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
+  const focusOffset = Math.max(getPromptLineHeight() * 0.5, viewportPaddingTop);
+  return viewportPaddingTop + focusOffset;
+}
+
+function getContentLineCandidates(): HighlightLineCandidate[] {
+  if (!promptViewport || scriptWordElements.length === 0) {
+    return [];
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const currentScrollPosition = Math.max(0, scrollPositionY);
+  const lineMergeTolerance = 2;
+  const lines: HighlightLineCandidate[] = [];
+  let currentLine: HighlightLineCandidate | null = null;
+
+  for (let index = 0; index < scriptWordElements.length; index += 1) {
+    const word = scriptWordElements[index];
+    const rect = word.getBoundingClientRect();
+
+    if (rect.height <= 0 || rect.width <= 0) {
+      continue;
+    }
+
+    const top = rect.top - viewportRect.top + currentScrollPosition;
+    const bottom = rect.bottom - viewportRect.top + currentScrollPosition;
+
+    if (!currentLine || Math.abs(top - currentLine.top) > lineMergeTolerance) {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      currentLine = {
+        start: index,
+        end: index,
+        top,
+        bottom
+      };
+      continue;
+    }
+
+    currentLine.end = index;
+    currentLine.top = Math.min(currentLine.top, top);
+    currentLine.bottom = Math.max(currentLine.bottom, bottom);
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+function getFinalHighlightScrollTop(): number {
+  const lines = getContentLineCandidates();
+  const finalLine = lines[lines.length - 1];
+
+  if (!finalLine) {
+    return 0;
+  }
+
+  const finalLineCenter = finalLine.top + (finalLine.bottom - finalLine.top) / 2;
+  return Math.max(0, finalLineCenter - getViewportReadingFocusOffset());
+}
+
+function getMaxPromptScrollTop(): number {
+  return Math.max(getNaturalPromptScrollTop(), getFinalHighlightScrollTop());
 }
 
 function getPromptScrollPosition(): number {
@@ -204,6 +277,20 @@ function setPromptScrollPosition(nextScrollPositionY: number): void {
   if (promptViewport) {
     promptViewport.scrollTop = 0;
   }
+}
+
+function advancePromptScroll(deltaPixels: number): number {
+  const previousScrollPosition = getPromptScrollPosition();
+  setPromptScrollPosition(previousScrollPosition + deltaPixels);
+  return getPromptScrollPosition() - previousScrollPosition;
+}
+
+function addElapsedForScrollDistance(scrollDistance: number, pixelsPerSecond = speedPixelsPerSecond): void {
+  if (pixelsPerSecond <= 0 || scrollDistance <= 0) {
+    return;
+  }
+
+  elapsedMilliseconds += (scrollDistance / pixelsPerSecond) * 1000;
 }
 
 function getPromptLineHeight(): number {
@@ -227,23 +314,20 @@ function getProgress(): number {
     return 0;
   }
 
-  if (scrollMode === "voice" && scriptWords.length > 0 && currentScriptWordIndex > 0) {
-    return Math.min(1, Math.max(0, currentScriptWordIndex / scriptWords.length));
-  }
-
   const maxScrollTop = Math.max(1, getMaxPromptScrollTop());
   return Math.min(1, Math.max(0, getPromptScrollPosition() / maxScrollTop));
 }
 
 function updateProgress(): void {
   const progress = getProgress();
+  const progressPercent = progress >= 1 ? 100 : Math.floor(progress * 100);
 
   if (progressBar) {
-    progressBar.style.width = `${Math.round(progress * 100)}%`;
+    progressBar.style.width = `${progress * 100}%`;
   }
 
   if (progressLabel) {
-    progressLabel.textContent = `${Math.round(progress * 100)}%`;
+    progressLabel.textContent = `${progressPercent}%`;
   }
 
   updateTimerLabels();
@@ -363,19 +447,17 @@ function selectBetterHighlightLine(
   return isBetterHighlightLine(candidate, best, focusY) ? candidate : best;
 }
 
-function getCurrentLineHighlightRange(): HighlightLineRange | null {
-  if (!promptViewport || scriptWordElements.length === 0) {
-    return null;
-  }
+function toHighlightLineRange(line: HighlightLineCandidate): HighlightLineRange {
+  return {
+    start: line.start,
+    end: line.end
+  };
+}
 
-  const viewportRect = promptViewport.getBoundingClientRect();
-  const viewportStyle = window.getComputedStyle(promptViewport);
-  const viewportPaddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
-  const focusOffset = Math.max(getPromptLineHeight() * 0.5, viewportPaddingTop);
-  const focusY = viewportRect.top + viewportPaddingTop + focusOffset;
+function getHighlightLineCandidates(): HighlightLineCandidate[] {
   const lineMergeTolerance = 2;
+  const lines: HighlightLineCandidate[] = [];
   let currentLine: HighlightLineCandidate | null = null;
-  let bestLine: HighlightLineCandidate | null = null;
 
   for (let index = 0; index < scriptWordElements.length; index += 1) {
     const word = scriptWordElements[index];
@@ -386,7 +468,10 @@ function getCurrentLineHighlightRange(): HighlightLineRange | null {
     }
 
     if (!currentLine || Math.abs(rect.top - currentLine.top) > lineMergeTolerance) {
-      bestLine = selectBetterHighlightLine(currentLine, bestLine, focusY);
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
       currentLine = {
         start: index,
         end: index,
@@ -401,14 +486,40 @@ function getCurrentLineHighlightRange(): HighlightLineRange | null {
     currentLine.bottom = Math.max(currentLine.bottom, rect.bottom);
   }
 
-  bestLine = selectBetterHighlightLine(currentLine, bestLine, focusY);
+  if (currentLine) {
+    lines.push(currentLine);
+  }
 
-  return bestLine
-    ? {
-      start: bestLine.start,
-      end: bestLine.end
-    }
-    : null;
+  return lines;
+}
+
+function getCurrentLineHighlightRange(): HighlightLineRange | null {
+  if (!promptViewport || scriptWordElements.length === 0) {
+    return null;
+  }
+
+  const lineCandidates = getHighlightLineCandidates();
+
+  if (lineCandidates.length === 0) {
+    return null;
+  }
+
+  const scrollPosition = getPromptScrollPosition();
+  const scrollBoundaryTolerance = 1;
+
+  if (scrollPosition <= scrollBoundaryTolerance) {
+    return toHighlightLineRange(lineCandidates[0]);
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const focusY = viewportRect.top + getViewportReadingFocusOffset();
+  let bestLine: HighlightLineCandidate | null = null;
+
+  for (const lineCandidate of lineCandidates) {
+    bestLine = selectBetterHighlightLine(lineCandidate, bestLine, focusY);
+  }
+
+  return bestLine ? toHighlightLineRange(bestLine) : null;
 }
 
 function updateCurrentLineHighlight(): void {
@@ -460,7 +571,6 @@ function applySettings(settings: AppSettings): void {
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 
   setPromptScrollPosition(scrollPositionY);
-  syncTotalDurationWithPlaybackPosition();
   if (highlightMode !== previousHighlightMode) {
     clearHighlightClasses();
   }
@@ -760,8 +870,8 @@ function scrollFrame(timestamp: number): void {
   const hasRecentScriptMatch = voiceRecognitionAvailable && Date.now() - lastScriptMatchAt < 1800;
 
   if (scrollMode !== "voice" || !voiceSupported) {
-    setPromptScrollPosition(scrollPositionY + speedPixelsPerSecond * deltaSeconds);
-    elapsedMilliseconds += deltaSeconds * 1000;
+    const scrolledDistance = advancePromptScroll(speedPixelsPerSecond * deltaSeconds);
+    addElapsedForScrollDistance(scrolledDistance);
   } else if (voiceRecognitionAvailable) {
     if (hasRecentScriptMatch) {
       const distance = targetScrollTop - getPromptScrollPosition();
@@ -774,8 +884,8 @@ function scrollFrame(timestamp: number): void {
       showFeedback("Paused until script resumes");
     }
   } else if (voiceSpeaking) {
-    setPromptScrollPosition(scrollPositionY + speedPixelsPerSecond * deltaSeconds);
-    elapsedMilliseconds += deltaSeconds * 1000;
+    const scrolledDistance = advancePromptScroll(speedPixelsPerSecond * deltaSeconds);
+    addElapsedForScrollDistance(scrolledDistance);
   }
 
   updateProgress();
@@ -783,18 +893,26 @@ function scrollFrame(timestamp: number): void {
   updateControls();
 
   const maxScrollTop = getMaxPromptScrollTop();
+  const isAtEnd = maxScrollTop <= 0 || getPromptScrollPosition() >= maxScrollTop - 0.5;
 
-  if (getPromptScrollPosition() >= maxScrollTop) {
+  if (isAtEnd) {
     setPromptScrollPosition(maxScrollTop);
-    syncTotalDurationWithPlaybackPosition();
     updateProgress();
     updateHighlight();
-    stopVoiceTracking();
-    setState("completed");
-    animationFrameId = null;
+    endHoldElapsedMilliseconds += deltaSeconds * 1000;
+
+    if (endHoldElapsedMilliseconds >= endHoldDurationMilliseconds) {
+      stopVoiceTracking();
+      setState("completed");
+      animationFrameId = null;
+      return;
+    }
+
+    animationFrameId = window.requestAnimationFrame(scrollFrame);
     return;
   }
 
+  endHoldElapsedMilliseconds = 0;
   animationFrameId = window.requestAnimationFrame(scrollFrame);
 }
 
@@ -883,11 +1001,11 @@ function restart(): void {
   if (promptViewport) {
     setPromptScrollPosition(0);
     elapsedMilliseconds = 0;
+    endHoldElapsedMilliseconds = 0;
     currentScriptWordIndex = 0;
     targetScrollTop = 0;
     lastScriptMatchAt = 0;
     lastOffScriptFeedbackAt = 0;
-    syncTotalDurationWithPlaybackPosition();
     updateProgress();
     updateHighlight();
   }
@@ -897,7 +1015,6 @@ function restart(): void {
 
 function speedUp(): void {
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
-  syncTotalDurationWithPlaybackPosition();
   showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
   updateProgress();
@@ -905,7 +1022,6 @@ function speedUp(): void {
 
 function slowDown(): void {
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
-  syncTotalDurationWithPlaybackPosition();
   showFeedback(`Speed ${speedPixelsPerSecond} px/s`);
   updateControls();
   updateProgress();
@@ -979,7 +1095,7 @@ function renderScript(body?: string): void {
 
   setPromptScrollPosition(0);
   elapsedMilliseconds = 0;
-  syncTotalDurationWithPlaybackPosition();
+  endHoldElapsedMilliseconds = 0;
   clearHighlightClasses();
   updateProgress();
   updateHighlight();
