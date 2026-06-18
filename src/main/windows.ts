@@ -1,4 +1,4 @@
-import { BrowserWindow, screen } from "electron";
+import { app, BrowserWindow, screen } from "electron";
 import { join } from "node:path";
 import {
   ipcChannels,
@@ -21,6 +21,11 @@ const overlayDefaultSize = {
 let editorWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let saveOverlayBoundsTimer: NodeJS.Timeout | null = null;
+let isAppQuitting = false;
+
+app.on("before-quit", () => {
+  isAppQuitting = true;
+});
 
 function preloadPath(name: "editor" | "overlay"): string {
   return join(rootPath, "dist", "preload", `${name}Preload.js`);
@@ -137,6 +142,27 @@ function sendSettingsChangedEvent(settings: AppSettings = loadAppSettings()): vo
   overlayWindow.webContents.send(ipcChannels.settingsChangedEvent, event);
 }
 
+function hideEditorWindow(): void {
+  if (!editorWindow || editorWindow.isDestroyed()) {
+    return;
+  }
+
+  editorWindow.hide();
+}
+
+function restoreEditorWindow(): void {
+  if (isAppQuitting || !editorWindow || editorWindow.isDestroyed()) {
+    return;
+  }
+
+  if (editorWindow.isMinimized()) {
+    editorWindow.restore();
+  }
+
+  editorWindow.show();
+  editorWindow.focus();
+}
+
 export function createEditorWindow(): BrowserWindow {
   if (editorWindow && !editorWindow.isDestroyed()) {
     editorWindow.focus();
@@ -173,6 +199,7 @@ export function createOverlayWindow(): BrowserWindow {
     }
 
     overlayWindow.show();
+    hideEditorWindow();
     applyClickThrough(loadOverlaySettings().clickThroughEnabled);
     sendScriptChangedEvent();
     sendSettingsChangedEvent();
@@ -206,6 +233,7 @@ export function createOverlayWindow(): BrowserWindow {
   overlayWindow.setAlwaysOnTop(true, "screen-saver");
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   applyClickThrough(loadOverlaySettings().clickThroughEnabled);
+  hideEditorWindow();
   overlayWindow.loadFile(rendererPath("overlay"));
   overlayWindow.webContents.once("did-finish-load", () => {
     sendScriptChangedEvent();
@@ -220,6 +248,7 @@ export function createOverlayWindow(): BrowserWindow {
     }
 
     overlayWindow = null;
+    restoreEditorWindow();
   });
 
   return overlayWindow;
@@ -228,6 +257,7 @@ export function createOverlayWindow(): BrowserWindow {
 export function hideOverlayWindow(): void {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.hide();
+    restoreEditorWindow();
   }
 }
 
