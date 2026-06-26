@@ -81,6 +81,34 @@ select:disabled {
   gap: 16px;
 }
 
+.sidebar-header-lead {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.editor-app.sidebar-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.sidebar-collapsed .scripts-sidebar {
+  align-items: center;
+  padding: 14px 12px;
+}
+
+.sidebar-collapsed .sidebar-header {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-collapsed .sidebar-header-lead > div,
+.sidebar-collapsed .search-input,
+.sidebar-collapsed .script-bulk-actions,
+.sidebar-collapsed .script-list {
+  display: none;
+}
+
 .eyebrow {
   color: #a8b3c7;
   font-size: 12px;

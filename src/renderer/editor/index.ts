@@ -1,4 +1,6 @@
 const statusElement = document.querySelector<HTMLElement>("#status");
+const editorApp = document.querySelector<HTMLElement>(".editor-app");
+const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
 const saveScriptButton = document.querySelector<HTMLButtonElement>("#saveScriptButton");
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
@@ -662,6 +664,33 @@ async function saveSettingsFromControls(): Promise<void> {
   setStatus("Settings saved");
 }
 
+const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
+
+function setSidebarCollapsed(collapsed: boolean): void {
+  editorApp?.classList.toggle("sidebar-collapsed", collapsed);
+
+  if (toggleSidebarButton) {
+    toggleSidebarButton.textContent = collapsed ? "»" : "«";
+    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    toggleSidebarButton.setAttribute("aria-label", label);
+    toggleSidebarButton.title = label;
+  }
+
+  try {
+    localStorage.setItem(sidebarCollapsedStorageKey, collapsed ? "1" : "0");
+  } catch {
+    // Ignore storage failures; collapse state simply won't persist.
+  }
+}
+
+function loadSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(sidebarCollapsedStorageKey) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function openSettings(): void {
   if (!settingsModal) {
     return;
@@ -691,6 +720,11 @@ window.addEventListener("unhandledrejection", (event) => {
 settingsButton?.addEventListener("click", openSettings);
 settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
+
+setSidebarCollapsed(loadSidebarCollapsed());
+toggleSidebarButton?.addEventListener("click", () => {
+  setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
+});
 
 applyMockPlatform();
 sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
