@@ -385,20 +385,240 @@ h3 {
   grid-template-columns: 1fr 1fr;
 }
 
-.settings-preview-card {
-  background: rgb(6 8 12 / 0.44);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: 18px;
-  margin-top: 16px;
-  padding: 16px;
-}
-
 .settings-preview-text {
   color: var(--prompt-text-color);
   font-size: var(--prompt-font-size);
   line-height: var(--prompt-line-height);
-  margin-top: 10px;
+  margin: 0;
+  max-height: 100%;
+  overflow: hidden;
+  padding: 6px 8px;
+  pointer-events: none;
   text-align: var(--prompt-text-align);
+  width: 100%;
+}
+
+.settings-hint {
+  color: #8f9bad;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.size-screen {
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(circle at 28% 22%, rgb(255 255 255 / 0.12), transparent 38%),
+    linear-gradient(160deg, #1f3a5f 0%, #2c5a86 45%, #4a7ba6 100%);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.size-screen.is-macos {
+  background:
+    radial-gradient(circle at 72% 18%, rgb(255 255 255 / 0.14), transparent 40%),
+    linear-gradient(160deg, #3a2d5f 0%, #6d4a86 45%, #c47a8f 100%);
+}
+
+.size-window {
+  align-items: center;
+  background: rgb(17 24 39 / 0.82);
+  border: 1.5px solid rgb(125 184 255 / 0.95);
+  border-radius: 5px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  cursor: move;
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  z-index: 3;
+}
+
+.size-chrome {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.size-windows-taskbar {
+  background: rgb(12 16 26 / 0.78);
+  bottom: 0;
+  color: rgb(255 255 255 / 0.82);
+  display: none;
+  height: 7%;
+  left: 0;
+  right: 0;
+}
+
+.size-screen.is-windows .size-windows-taskbar {
+  display: block;
+}
+
+.size-windows-taskbar::after {
+  background: currentColor;
+  border-radius: 1.5px;
+  box-shadow:
+    -20px 0 0 currentColor,
+    -10px 0 0 currentColor,
+    10px 0 0 currentColor,
+    20px 0 0 currentColor;
+  content: "";
+  height: 5px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 5px;
+}
+
+.size-macos-menubar {
+  background: rgb(0 0 0 / 0.28);
+  color: rgb(255 255 255 / 0.85);
+  display: none;
+  height: 4%;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+
+.size-macos-menubar::after {
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+  height: 4px;
+  left: 9px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+}
+
+.size-macos-dock {
+  background: rgb(255 255 255 / 0.16);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 8px;
+  bottom: 3%;
+  color: rgb(255 255 255 / 0.9);
+  display: none;
+  height: 7%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42%;
+}
+
+.size-screen.is-macos .size-macos-menubar,
+.size-screen.is-macos .size-macos-dock {
+  display: block;
+}
+
+.size-macos-dock::after {
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow:
+    -24px 0 0 currentColor,
+    -14px 0 0 currentColor,
+    14px 0 0 currentColor,
+    24px 0 0 currentColor;
+  content: "";
+  height: 6px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+}
+
+.size-handle {
+  position: absolute;
+}
+
+.size-handle-n,
+.size-handle-s {
+  cursor: ns-resize;
+  height: 11px;
+  left: 10px;
+  right: 10px;
+}
+
+.size-handle-n {
+  top: -6px;
+}
+
+.size-handle-s {
+  bottom: -6px;
+}
+
+.size-handle-e,
+.size-handle-w {
+  bottom: 10px;
+  cursor: ew-resize;
+  top: 10px;
+  width: 11px;
+}
+
+.size-handle-e {
+  right: -6px;
+}
+
+.size-handle-w {
+  left: -6px;
+}
+
+.size-handle-nw,
+.size-handle-ne,
+.size-handle-sw,
+.size-handle-se {
+  height: 16px;
+  width: 16px;
+}
+
+.size-handle-nw {
+  cursor: nwse-resize;
+  left: -7px;
+  top: -7px;
+}
+
+.size-handle-se {
+  bottom: -7px;
+  cursor: nwse-resize;
+  right: -7px;
+}
+
+.size-handle-ne {
+  cursor: nesw-resize;
+  right: -7px;
+  top: -7px;
+}
+
+.size-handle-sw {
+  bottom: -7px;
+  cursor: nesw-resize;
+  left: -7px;
+}
+
+.size-handle-nw::after,
+.size-handle-ne::after,
+.size-handle-sw::after,
+.size-handle-se::after {
+  background: #cfe2ff;
+  border-radius: 2px;
+  content: "";
+  height: 8px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+}
+
+.size-readout {
+  color: #8f9bad;
+  font-size: 12px;
+  font-weight: 680;
 }
 
 .field-label {

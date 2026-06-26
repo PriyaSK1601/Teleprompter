@@ -13,9 +13,9 @@ import {
 import { getScriptsState, loadAppSettings, loadOverlaySettings, saveOverlaySettings } from "./storage";
 
 const rootPath = join(__dirname, "..", "..");
-const overlayDefaultSize = {
-  width: 900,
-  height: 340
+const overlayMinSize = {
+  width: 560,
+  height: 220
 };
 
 let editorWindow: BrowserWindow | null = null;
@@ -35,45 +35,26 @@ function rendererPath(name: "editor" | "overlay"): string {
   return join(rootPath, "src", "renderer", name, "index.html");
 }
 
+function getConfiguredOverlayBounds(): OverlayBounds {
+  const { overlaySize } = loadAppSettings();
+  const area = screen.getPrimaryDisplay().bounds;
+  const width = Math.max(overlayMinSize.width, Math.min(Math.round(area.width * overlaySize.widthRatio), area.width));
+  const height = Math.max(
+    overlayMinSize.height,
+    Math.min(Math.round(area.height * overlaySize.heightRatio), area.height)
+  );
+  const x = area.x + Math.round(Math.min(Math.max(area.width * overlaySize.xRatio, 0), area.width - width));
+  const y = area.y + Math.round(Math.min(Math.max(area.height * overlaySize.yRatio, 0), area.height - height));
+
+  return { x, y, width, height };
+}
+
 function getDefaultOverlayBounds(): OverlayBounds {
-  return getTopCenteredOverlayBounds(overlayDefaultSize.width, overlayDefaultSize.height);
-}
-
-function getTopCenteredOverlayBounds(width: number, height: number): OverlayBounds {
-  const display = screen.getPrimaryDisplay();
-  const area = display.bounds;
-  const centeredX = area.x + Math.round((area.width - width) / 2);
-  const maxX = area.x + Math.max(0, area.width - width);
-  const x = Math.min(Math.max(centeredX, area.x), maxX);
-
-  return {
-    x,
-    y: area.y,
-    width,
-    height
-  };
-}
-
-function isBoundsVisible(bounds: OverlayBounds): boolean {
-  const displays = screen.getAllDisplays();
-
-  return displays.some((display) => {
-    const area = display.bounds;
-    const horizontalOverlap = bounds.x < area.x + area.width && bounds.x + bounds.width > area.x;
-    const verticalOverlap = bounds.y < area.y + area.height && bounds.y + bounds.height > area.y;
-
-    return horizontalOverlap && verticalOverlap;
-  });
+  return getConfiguredOverlayBounds();
 }
 
 function getInitialOverlayBounds(): OverlayBounds {
-  const settings = loadOverlaySettings();
-
-  if (settings.bounds && isBoundsVisible(settings.bounds)) {
-    return getTopCenteredOverlayBounds(settings.bounds.width, settings.bounds.height);
-  }
-
-  return getDefaultOverlayBounds();
+  return getConfiguredOverlayBounds();
 }
 
 function getWindowBounds(window: BrowserWindow): OverlayBounds {
@@ -195,8 +176,7 @@ export function createEditorWindow(): BrowserWindow {
 export function createOverlayWindow(): BrowserWindow {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     if (!overlayWindow.isVisible()) {
-      const currentBounds = getWindowBounds(overlayWindow);
-      overlayWindow.setBounds(getTopCenteredOverlayBounds(currentBounds.width, currentBounds.height));
+      overlayWindow.setBounds(getConfiguredOverlayBounds());
     }
 
     overlayWindow.show();
@@ -214,8 +194,8 @@ export function createOverlayWindow(): BrowserWindow {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    minWidth: 560,
-    minHeight: 220,
+    minWidth: overlayMinSize.width,
+    minHeight: overlayMinSize.height,
     title: "Teleprompter Overlay",
     frame: false,
     transparent: true,

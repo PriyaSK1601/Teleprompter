@@ -96,12 +96,30 @@
               </select>
             </label>
           </div>
-          <div class="settings-preview-card">
-            <p class="eyebrow">Live Preview</p>
-            <div id="settingsPreview" class="settings-preview-text">
-              Your words appear here, styled exactly like the teleprompter overlay.
+        </section>
+
+        <section class="settings-section">
+          <h3>Teleprompter size &amp; position</h3>
+          <p class="settings-hint">Drag the teleprompter to move it, or drag its edges and corners to resize. This is where it appears by default when you start.</p>
+          <div id="sizeScreen" class="size-screen">
+            <div class="size-chrome size-macos-menubar" aria-hidden="true"></div>
+            <div id="sizeWindow" class="size-window">
+              <div id="settingsPreview" class="settings-preview-text">
+                Your words appear here, styled exactly like the teleprompter overlay.
+              </div>
+              <span class="size-handle size-handle-n" data-resize-dir="n"></span>
+              <span class="size-handle size-handle-s" data-resize-dir="s"></span>
+              <span class="size-handle size-handle-e" data-resize-dir="e"></span>
+              <span class="size-handle size-handle-w" data-resize-dir="w"></span>
+              <span class="size-handle size-handle-nw" data-resize-dir="nw"></span>
+              <span class="size-handle size-handle-ne" data-resize-dir="ne"></span>
+              <span class="size-handle size-handle-sw" data-resize-dir="sw"></span>
+              <span class="size-handle size-handle-se" data-resize-dir="se"></span>
             </div>
+            <div class="size-chrome size-macos-dock" aria-hidden="true"></div>
+            <div class="size-chrome size-windows-taskbar" aria-hidden="true"></div>
           </div>
+          <div id="sizeReadout" class="size-readout"></div>
         </section>
 
         <section class="settings-section">

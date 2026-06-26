@@ -30,8 +30,10 @@ const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeS
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
-const settingsPreviewCard = document.querySelector<HTMLElement>(".settings-preview-card");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
+const sizeScreen = document.querySelector<HTMLElement>("#sizeScreen");
+const sizeWindow = document.querySelector<HTMLElement>("#sizeWindow");
+const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -39,6 +41,35 @@ let currentScriptsState: ScriptsState = {
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
 let selectedScriptIds = new Set<string>();
+let overlayWidthRatio = 0.47;
+let overlayHeightRatio = 0.31;
+let overlayXRatio = 0.265;
+let overlayYRatio = 0;
+
+const overlaySizeLimits = {
+  minWidthRatio: 0.25,
+  maxWidthRatio: 1,
+  minHeightRatio: 0.12,
+  maxHeightRatio: 0.9
+};
+
+type OverlayResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+type OverlayDragState = {
+  mode: "move" | "resize";
+  dir: OverlayResizeDir | null;
+  pointerId: number;
+  startPointerX: number;
+  startPointerY: number;
+  screenWidthPx: number;
+  screenHeightPx: number;
+  startLeft: number;
+  startTop: number;
+  startWidth: number;
+  startHeight: number;
+};
+
+let activeOverlayDrag: OverlayDragState | null = null;
 
 const ipcBackedControls = [
   newScriptButton,
@@ -384,46 +415,212 @@ function renderSettings(settings: AppSettings): void {
     highlightModeSelect.value = settings.experimental.highlightMode;
   }
 
+  overlayWidthRatio = settings.overlaySize.widthRatio;
+  overlayHeightRatio = settings.overlaySize.heightRatio;
+  overlayXRatio = settings.overlaySize.xRatio;
+  overlayYRatio = settings.overlaySize.yRatio;
+  renderOverlaySize();
+
   renderSettingsPreview(settings);
   renderScriptStats();
 
   settingsRenderLocked = false;
 }
 
+function getPreviewScale(): number {
+  if (!sizeScreen) {
+    return 1;
+  }
+
+  const mockWidth = sizeScreen.clientWidth;
+  const screenWidth = getScreenDimensions().width;
+
+  if (mockWidth <= 0 || screenWidth <= 0) {
+    return 1;
+  }
+
+  return mockWidth / screenWidth;
+}
+
+function applyPreviewStyles(values: {
+  backgroundColor: string;
+  opacity: number;
+  textColor: string;
+  fontSize: number;
+  lineHeight: number;
+  alignment: string;
+}): void {
+  if (sizeWindow) {
+    sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+  }
+
+  if (settingsPreview) {
+    settingsPreview.style.color = values.textColor;
+    settingsPreview.style.fontSize = `${Math.max(4, values.fontSize * getPreviewScale())}px`;
+    settingsPreview.style.lineHeight = String(values.lineHeight);
+    settingsPreview.style.textAlign = values.alignment;
+  }
+}
+
 function renderSettingsPreview(settings: AppSettings): void {
-  if (!settingsPreview) {
-    return;
-  }
-
-  if (settingsPreviewCard) {
-    settingsPreviewCard.style.background = getOpaquePreviewBackground(
-      settings.overlayAppearance.backgroundColor,
-      settings.overlayAppearance.opacity
-    );
-  }
-
-  settingsPreview.style.color = settings.text.textColor;
-  settingsPreview.style.fontSize = `${settings.text.fontSize}px`;
-  settingsPreview.style.lineHeight = String(settings.text.lineHeight);
-  settingsPreview.style.textAlign = settings.text.alignment;
+  applyPreviewStyles({
+    backgroundColor: settings.overlayAppearance.backgroundColor,
+    opacity: settings.overlayAppearance.opacity,
+    textColor: settings.text.textColor,
+    fontSize: settings.text.fontSize,
+    lineHeight: settings.text.lineHeight,
+    alignment: settings.text.alignment
+  });
 }
 
 function renderSettingsPreviewFromControls(): void {
-  if (!settingsPreview) {
+  applyPreviewStyles({
+    backgroundColor: backgroundColorInput?.value ?? "#111827",
+    opacity: Number(opacityInput?.value) || 0.82,
+    textColor: textColorInput?.value ?? "#f8fafc",
+    fontSize: Number(fontSizeInput?.value) || 32,
+    lineHeight: Number(lineHeightInput?.value) || 1.5,
+    alignment: alignmentSelect?.value ?? "center"
+  });
+}
+
+function clampRatio(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getScreenDimensions(): { width: number; height: number } {
+  return {
+    width: window.screen?.width || 1920,
+    height: window.screen?.height || 1080
+  };
+}
+
+function applyMockPlatform(): void {
+  if (!sizeScreen) {
     return;
   }
 
-  if (settingsPreviewCard) {
-    settingsPreviewCard.style.background = getOpaquePreviewBackground(
-      backgroundColorInput?.value ?? "#111827",
-      Number(opacityInput?.value) || 0.82
-    );
+  const isMac = /Mac/i.test(navigator.userAgent);
+  sizeScreen.classList.toggle("is-macos", isMac);
+  sizeScreen.classList.toggle("is-windows", !isMac);
+}
+
+function renderOverlaySize(): void {
+  const { width: screenWidth, height: screenHeight } = getScreenDimensions();
+
+  if (sizeScreen) {
+    sizeScreen.style.aspectRatio = `${screenWidth} / ${screenHeight}`;
   }
 
-  settingsPreview.style.color = textColorInput?.value ?? "";
-  settingsPreview.style.fontSize = `${Number(fontSizeInput?.value) || 32}px`;
-  settingsPreview.style.lineHeight = String(Number(lineHeightInput?.value) || 1.5);
-  settingsPreview.style.textAlign = alignmentSelect?.value ?? "center";
+  if (sizeWindow) {
+    sizeWindow.style.left = `${(overlayXRatio * 100).toFixed(2)}%`;
+    sizeWindow.style.top = `${(overlayYRatio * 100).toFixed(2)}%`;
+    sizeWindow.style.width = `${(overlayWidthRatio * 100).toFixed(2)}%`;
+    sizeWindow.style.height = `${(overlayHeightRatio * 100).toFixed(2)}%`;
+  }
+
+  if (sizeReadout) {
+    const widthPx = Math.round(screenWidth * overlayWidthRatio);
+    const heightPx = Math.round(screenHeight * overlayHeightRatio);
+    const widthPercent = Math.round(overlayWidthRatio * 100);
+    const heightPercent = Math.round(overlayHeightRatio * 100);
+    sizeReadout.textContent =
+      `${widthPx} × ${heightPx} px • ${widthPercent}% × ${heightPercent}% of screen`;
+  }
+}
+
+async function saveOverlaySize(): Promise<void> {
+  await requireTeleprompterApi().updateSettings({
+    overlaySize: {
+      widthRatio: overlayWidthRatio,
+      heightRatio: overlayHeightRatio,
+      xRatio: overlayXRatio,
+      yRatio: overlayYRatio
+    }
+  });
+}
+
+function applyOverlayResize(drag: OverlayDragState, dxRatio: number, dyRatio: number): void {
+  const { minWidthRatio, maxWidthRatio, minHeightRatio, maxHeightRatio } = overlaySizeLimits;
+  const dir = drag.dir ?? "";
+  let left = drag.startLeft;
+  let top = drag.startTop;
+  let right = drag.startLeft + drag.startWidth;
+  let bottom = drag.startTop + drag.startHeight;
+
+  if (dir.includes("e")) {
+    right = clampRatio(right + dxRatio, left + minWidthRatio, Math.min(1, left + maxWidthRatio));
+  }
+
+  if (dir.includes("w")) {
+    left = clampRatio(left + dxRatio, Math.max(0, right - maxWidthRatio), right - minWidthRatio);
+  }
+
+  if (dir.includes("s")) {
+    bottom = clampRatio(bottom + dyRatio, top + minHeightRatio, Math.min(1, top + maxHeightRatio));
+  }
+
+  if (dir.includes("n")) {
+    top = clampRatio(top + dyRatio, Math.max(0, bottom - maxHeightRatio), bottom - minHeightRatio);
+  }
+
+  overlayXRatio = left;
+  overlayYRatio = top;
+  overlayWidthRatio = right - left;
+  overlayHeightRatio = bottom - top;
+}
+
+function handleOverlayPointerDown(event: PointerEvent): void {
+  if (!sizeScreen || !sizeWindow) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+  const dir = (target?.dataset.resizeDir as OverlayResizeDir | undefined) ?? null;
+  event.preventDefault();
+  const rect = sizeScreen.getBoundingClientRect();
+  activeOverlayDrag = {
+    mode: dir ? "resize" : "move",
+    dir,
+    pointerId: event.pointerId,
+    startPointerX: event.clientX,
+    startPointerY: event.clientY,
+    screenWidthPx: rect.width,
+    screenHeightPx: rect.height,
+    startLeft: overlayXRatio,
+    startTop: overlayYRatio,
+    startWidth: overlayWidthRatio,
+    startHeight: overlayHeightRatio
+  };
+  target?.setPointerCapture(event.pointerId);
+}
+
+function handleOverlayPointerMove(event: PointerEvent): void {
+  if (!activeOverlayDrag || event.pointerId !== activeOverlayDrag.pointerId) {
+    return;
+  }
+
+  const drag = activeOverlayDrag;
+  const dxRatio = drag.screenWidthPx > 0 ? (event.clientX - drag.startPointerX) / drag.screenWidthPx : 0;
+  const dyRatio = drag.screenHeightPx > 0 ? (event.clientY - drag.startPointerY) / drag.screenHeightPx : 0;
+
+  if (drag.mode === "move") {
+    overlayXRatio = clampRatio(drag.startLeft + dxRatio, 0, 1 - drag.startWidth);
+    overlayYRatio = clampRatio(drag.startTop + dyRatio, 0, 1 - drag.startHeight);
+  } else {
+    applyOverlayResize(drag, dxRatio, dyRatio);
+  }
+
+  renderOverlaySize();
+}
+
+function handleOverlayPointerUp(event: PointerEvent): void {
+  if (!activeOverlayDrag || event.pointerId !== activeOverlayDrag.pointerId) {
+    return;
+  }
+
+  activeOverlayDrag = null;
+  void runEditorAction("Save teleprompter size", saveOverlaySize);
 }
 
 async function loadSettings(): Promise<void> {
@@ -466,9 +663,15 @@ async function saveSettingsFromControls(): Promise<void> {
 }
 
 function openSettings(): void {
-  if (settingsModal) {
-    settingsModal.hidden = false;
+  if (!settingsModal) {
+    return;
   }
+
+  settingsModal.hidden = false;
+  requestAnimationFrame(() => {
+    renderOverlaySize();
+    renderSettingsPreviewFromControls();
+  });
 }
 
 function closeSettings(): void {
@@ -488,6 +691,16 @@ window.addEventListener("unhandledrejection", (event) => {
 settingsButton?.addEventListener("click", openSettings);
 settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
+
+applyMockPlatform();
+sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
+window.addEventListener("pointermove", handleOverlayPointerMove);
+window.addEventListener("pointerup", handleOverlayPointerUp);
+window.addEventListener("pointercancel", handleOverlayPointerUp);
+window.addEventListener("resize", () => {
+  renderOverlaySize();
+  renderSettingsPreviewFromControls();
+});
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {

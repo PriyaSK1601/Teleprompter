@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type {
   AppSettings,
   OverlaySettings,
+  OverlaySizeSettings,
   SaveScriptInput,
   ScriptRecord,
   ShortcutBinding,
@@ -56,6 +57,12 @@ const defaultAppSettings: AppSettings = {
   overlayAppearance: {
     opacity: 0.82,
     backgroundColor: "#111827"
+  },
+  overlaySize: {
+    widthRatio: 0.47,
+    heightRatio: 0.31,
+    xRatio: 0.265,
+    yRatio: 0
   },
   countdown: {
     enabled: true,
@@ -109,6 +116,18 @@ function isHexColor(value: unknown): value is string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
+function normalizeOverlaySize(size: OverlaySizeSettings): OverlaySizeSettings {
+  const fallback = defaultAppSettings.overlaySize;
+  const widthRatio = clamp(Number(size?.widthRatio) || fallback.widthRatio, 0.25, 1);
+  const heightRatio = clamp(Number(size?.heightRatio) || fallback.heightRatio, 0.12, 0.9);
+  const rawX = Number(size?.xRatio);
+  const rawY = Number(size?.yRatio);
+  const xRatio = clamp(Number.isFinite(rawX) ? rawX : fallback.xRatio, 0, 1 - widthRatio);
+  const yRatio = clamp(Number.isFinite(rawY) ? rawY : fallback.yRatio, 0, 1 - heightRatio);
+
+  return { widthRatio, heightRatio, xRatio, yRatio };
+}
+
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   const alignmentValues = ["left", "center", "right"] as const;
   const highlightModes = ["none", "sentence", "word"] as const;
@@ -136,6 +155,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
         ? settings.overlayAppearance.backgroundColor
         : defaultAppSettings.overlayAppearance.backgroundColor
     },
+    overlaySize: normalizeOverlaySize(settings.overlaySize),
     countdown: {
       enabled: Boolean(settings.countdown.enabled),
       seconds: Math.round(clamp(Number(settings.countdown.seconds) || defaultAppSettings.countdown.seconds, 0, 10))
@@ -231,6 +251,10 @@ export function loadAppSettings(): AppSettings {
           ...defaultAppSettings.overlayAppearance,
           ...parsed.overlayAppearance
         },
+        overlaySize: {
+          ...defaultAppSettings.overlaySize,
+          ...parsed.overlaySize
+        },
         countdown: {
           ...defaultAppSettings.countdown,
           ...parsed.countdown
@@ -268,6 +292,10 @@ export function updateAppSettings(update: SettingsUpdate): AppSettings {
     overlayAppearance: {
       ...currentSettings.overlayAppearance,
       ...update.overlayAppearance
+    },
+    overlaySize: {
+      ...currentSettings.overlaySize,
+      ...update.overlaySize
     },
     countdown: {
       ...currentSettings.countdown,
