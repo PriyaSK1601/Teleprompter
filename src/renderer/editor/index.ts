@@ -795,6 +795,13 @@ scriptTitle?.addEventListener("input", () => {
   scheduleAutosave();
 });
 
+function blockWheelScroll(event: WheelEvent): void {
+  event.preventDefault();
+}
+
+scriptTitle?.addEventListener("wheel", blockWheelScroll, { passive: false });
+scriptStats?.addEventListener("wheel", blockWheelScroll, { passive: false });
+
 newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
