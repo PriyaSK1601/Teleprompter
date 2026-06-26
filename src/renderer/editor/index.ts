@@ -2,7 +2,6 @@ const statusElement = document.querySelector<HTMLElement>("#status");
 const editorApp = document.querySelector<HTMLElement>(".editor-app");
 const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
-const saveScriptButton = document.querySelector<HTMLButtonElement>("#saveScriptButton");
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
@@ -47,6 +46,9 @@ let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
 let overlayYRatio = 0;
+let autosaveTimer: number | undefined;
+
+const autosaveDelayMs = 600;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -76,7 +78,6 @@ let activeOverlayDrag: OverlayDragState | null = null;
 const ipcBackedControls = [
   newScriptButton,
   deleteSelectedScriptsButton,
-  saveScriptButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -162,6 +163,7 @@ function getEditorBody(): string {
 }
 
 function setEditorFromScript(script?: ScriptRecord): void {
+  cancelAutosave();
   activeScriptId = script?.id;
 
   if (scriptTitle) {
@@ -352,6 +354,47 @@ async function saveCurrentScript(status = "Saved"): Promise<ScriptsState | undef
   });
   renderScriptsState(state, status);
   return state;
+}
+
+function cancelAutosave(): void {
+  if (autosaveTimer !== undefined) {
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = undefined;
+  }
+}
+
+function scheduleAutosave(): void {
+  if (!getTeleprompterApi()) {
+    return;
+  }
+
+  cancelAutosave();
+  autosaveTimer = window.setTimeout(() => {
+    autosaveTimer = undefined;
+    void runEditorAction("Auto-save", autosaveCurrentScript);
+  }, autosaveDelayMs);
+}
+
+async function autosaveCurrentScript(): Promise<void> {
+  const title = getEditorTitle();
+  const body = getEditorBody();
+
+  if (body.trim().length === 0 && title.trim().length === 0) {
+    return;
+  }
+
+  const state = await requireTeleprompterApi().saveScript({
+    id: activeScriptId,
+    title,
+    body
+  });
+
+  currentScriptsState = state;
+  activeScriptId = state.activeScript?.id ?? activeScriptId;
+  selectedScriptIds = new Set(
+    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
+  );
+  renderScriptsList();
 }
 
 function renderSettings(settings: AppSettings): void {
@@ -743,19 +786,19 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
-scriptBody?.addEventListener("input", renderScriptStats);
-scriptTitle?.addEventListener("input", renderScriptStats);
+scriptBody?.addEventListener("input", () => {
+  renderScriptStats();
+  scheduleAutosave();
+});
+scriptTitle?.addEventListener("input", () => {
+  renderScriptStats();
+  scheduleAutosave();
+});
 
 newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
     renderScriptsState(state, "New script");
-  });
-});
-
-saveScriptButton?.addEventListener("click", () => {
-  void runEditorAction("Save script", async () => {
-    await saveCurrentScript();
   });
 });
 
