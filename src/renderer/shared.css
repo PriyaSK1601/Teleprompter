@@ -136,7 +136,10 @@ select:disabled {
   grid-template-columns: 96px minmax(0, 1fr);
 }
 
-.sidebar-collapsed .sidebar-title,
+.sidebar-collapsed .sidebar-title {
+  visibility: hidden;
+}
+
 .sidebar-collapsed .sidebar-action-label {
   display: none;
 }
@@ -201,6 +204,12 @@ h3 {
 
 .icon-button:hover {
   background: rgb(255 255 255 / 0.14);
+}
+
+.icon-button-icon {
+  height: 20px;
+  pointer-events: none;
+  width: 20px;
 }
 
 .search-input,

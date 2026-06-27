@@ -718,7 +718,6 @@ function setSidebarCollapsed(collapsed: boolean): void {
   editorApp?.classList.toggle("sidebar-collapsed", collapsed);
 
   if (toggleSidebarButton) {
-    toggleSidebarButton.textContent = collapsed ? "»" : "«";
     const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
     toggleSidebarButton.setAttribute("aria-label", label);
     toggleSidebarButton.title = label;
