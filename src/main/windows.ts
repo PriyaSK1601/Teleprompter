@@ -157,6 +157,13 @@ export function createEditorWindow(): BrowserWindow {
     minHeight: 430,
     resizable: true,
     title: "Teleprompter",
+    backgroundColor: "#f5f4ed",
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#f5f4ed",
+      symbolColor: "#283029",
+      height: 36
+    },
     webPreferences: {
       preload: preloadPath("editor"),
       contextIsolation: true,

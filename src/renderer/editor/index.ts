@@ -35,6 +35,7 @@ const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 const sizeScreen = document.querySelector<HTMLElement>("#sizeScreen");
 const sizeWindow = document.querySelector<HTMLElement>("#sizeWindow");
 const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
+const previewCountdown = document.querySelector<HTMLElement>("#previewCountdown");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -47,6 +48,7 @@ let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
 let overlayYRatio = 0;
 let autosaveTimer: number | undefined;
+let previewCountdownTimer: number | undefined;
 
 const autosaveDelayMs = 600;
 
@@ -503,6 +505,7 @@ function applyPreviewStyles(values: {
 }): void {
   if (sizeWindow) {
     sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+    sizeWindow.style.setProperty("--preview-scale", String(getPreviewScale()));
   }
 
   if (settingsPreview) {
@@ -578,6 +581,42 @@ function renderOverlaySize(): void {
     sizeReadout.textContent =
       `${widthPx} × ${heightPx} px • ${widthPercent}% × ${heightPercent}% of screen`;
   }
+}
+
+function stopPreviewCountdown(): void {
+  if (previewCountdownTimer !== undefined) {
+    window.clearInterval(previewCountdownTimer);
+    previewCountdownTimer = undefined;
+  }
+
+  if (previewCountdown) {
+    previewCountdown.hidden = true;
+  }
+}
+
+function playPreviewCountdown(): void {
+  stopPreviewCountdown();
+
+  if (!previewCountdown) {
+    return;
+  }
+
+  const seconds = Math.max(1, Math.min(10, Math.round(Number(countdownSecondsInput?.value) || 3)));
+  let remaining = seconds;
+  previewCountdown.hidden = false;
+  previewCountdown.textContent = String(remaining);
+  previewCountdownTimer = window.setInterval(() => {
+    remaining -= 1;
+
+    if (remaining < 1) {
+      stopPreviewCountdown();
+      return;
+    }
+
+    if (previewCountdown) {
+      previewCountdown.textContent = String(remaining);
+    }
+  }, 1000);
 }
 
 async function saveOverlaySize(): Promise<void> {
@@ -752,6 +791,7 @@ function openSettings(): void {
 
 function closeSettings(): void {
   settingsModal?.classList.remove("is-open");
+  stopPreviewCountdown();
 }
 
 window.addEventListener("error", (event) => {
@@ -772,6 +812,14 @@ toggleSidebarButton?.addEventListener("click", () => {
 });
 
 applyMockPlatform();
+countdownEnabledInput?.addEventListener("change", () => {
+  if (countdownEnabledInput?.checked) {
+    playPreviewCountdown();
+  } else {
+    stopPreviewCountdown();
+  }
+});
+
 sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
 window.addEventListener("pointermove", handleOverlayPointerMove);
 window.addEventListener("pointerup", handleOverlayPointerUp);
