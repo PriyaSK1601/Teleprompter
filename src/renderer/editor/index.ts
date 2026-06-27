@@ -744,7 +744,7 @@ function openSettings(): void {
     return;
   }
 
-  settingsModal.hidden = false;
+  settingsModal.classList.add("is-open");
   requestAnimationFrame(() => {
     renderOverlaySize();
     renderSettingsPreviewFromControls();
@@ -752,9 +752,7 @@ function openSettings(): void {
 }
 
 function closeSettings(): void {
-  if (settingsModal) {
-    settingsModal.hidden = true;
-  }
+  settingsModal?.classList.remove("is-open");
 }
 
 window.addEventListener("error", (event) => {

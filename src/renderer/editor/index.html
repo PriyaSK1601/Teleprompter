@@ -12,13 +12,16 @@
         <div class="sidebar-header">
           <div class="sidebar-header-lead">
             <button id="toggleSidebarButton" class="icon-button" type="button" aria-label="Collapse sidebar">«</button>
-            <div>
+            <div class="sidebar-title">
               <p class="eyebrow">Teleprompter</p>
               <h1>Scripts</h1>
             </div>
           </div>
-          <button id="newScriptButton" class="icon-button" type="button" aria-label="Create new script">+</button>
         </div>
+        <button id="newScriptButton" class="sidebar-action" type="button" aria-label="Create new script">
+          <span class="sidebar-action-icon" aria-hidden="true">+</span>
+          <span class="sidebar-action-label">New script</span>
+        </button>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
         <div class="script-bulk-actions">
           <span id="selectedScriptsLabel">No scripts selected</span>
@@ -52,7 +55,7 @@
       </section>
     </main>
 
-    <section id="settingsModal" class="settings-modal" hidden>
+    <section id="settingsModal" class="settings-modal">
       <div id="settingsBackdrop" class="settings-backdrop"></div>
       <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <header class="settings-header">
