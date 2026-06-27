@@ -175,6 +175,17 @@ function setEditorFromScript(script?: ScriptRecord): void {
   }
 
   renderScriptStats();
+  updateStartButtonState();
+}
+
+function updateStartButtonState(): void {
+  if (!startTeleprompterButton) {
+    return;
+  }
+
+  const hasScript = getEditorBody().trim().length > 0;
+  startTeleprompterButton.disabled = !hasScript || !getTeleprompterApi();
+  startTeleprompterButton.title = hasScript ? "" : "Add a script before starting";
 }
 
 function formatDuration(seconds: number): string {
@@ -783,6 +794,7 @@ scriptSearch?.addEventListener("input", renderScriptsList);
 scriptBody?.addEventListener("input", () => {
   renderScriptStats();
   scheduleAutosave();
+  updateStartButtonState();
 });
 scriptTitle?.addEventListener("input", () => {
   renderScriptStats();
