@@ -296,7 +296,7 @@ function renderScriptsList(): void {
     button.addEventListener("click", () => {
       void runEditorAction("Open script", async () => {
         const state = await requireTeleprompterApi().setActiveScript(script.id);
-        renderScriptsState(state, "Script loaded");
+        renderScriptsState(state);
       });
     });
     item.append(button);
@@ -306,17 +306,13 @@ function renderScriptsList(): void {
   renderScriptSelectionState();
 }
 
-function renderScriptsState(state: ScriptsState, status?: string): void {
+function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
   selectedScriptIds = new Set(
     Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
   );
   setEditorFromScript(state.activeScript);
   renderScriptsList();
-
-  if (status) {
-    setStatus(status);
-  }
 }
 
 function renderScriptSelectionState(): void {
@@ -335,15 +331,14 @@ function renderScriptSelectionState(): void {
 
 async function loadScriptsState(): Promise<void> {
   const state = await requireTeleprompterApi().getScriptsState();
-  renderScriptsState(state, "Ready");
+  renderScriptsState(state);
 }
 
-async function saveCurrentScript(status = "Saved"): Promise<ScriptsState | undefined> {
+async function saveCurrentScript(): Promise<ScriptsState | undefined> {
   const body = getEditorBody();
   const title = getEditorTitle();
 
   if (body.trim().length === 0 && title.trim().length === 0) {
-    setStatus("Add a title or script before saving.");
     return undefined;
   }
 
@@ -352,7 +347,7 @@ async function saveCurrentScript(status = "Saved"): Promise<ScriptsState | undef
     title,
     body
   });
-  renderScriptsState(state, status);
+  renderScriptsState(state);
   return state;
 }
 
@@ -704,7 +699,6 @@ async function saveSettingsFromControls(): Promise<void> {
 
   renderSettings(settings);
   renderScriptStats();
-  setStatus("Settings saved");
 }
 
 const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
@@ -805,14 +799,14 @@ scriptStats?.addEventListener("wheel", blockWheelScroll, { passive: false });
 newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
-    renderScriptsState(state, "New script");
+    renderScriptsState(state);
   });
 });
 
 clearScriptButton?.addEventListener("click", () => {
   void runEditorAction("Clear editor", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
-    renderScriptsState(state, "Editor cleared");
+    renderScriptsState(state);
   });
 });
 
@@ -836,13 +830,13 @@ deleteSelectedScriptsButton?.addEventListener("click", () => {
 
     const state = await requireTeleprompterApi().deleteScripts(ids);
     selectedScriptIds = new Set();
-    renderScriptsState(state, ids.length === 1 ? "Script deleted" : "Scripts deleted");
+    renderScriptsState(state);
   });
 });
 
 startTeleprompterButton?.addEventListener("click", () => {
   void runEditorAction("Start teleprompter", async () => {
-    const state = await saveCurrentScript("Script saved");
+    const state = await saveCurrentScript();
 
     if (!state?.activeScript) {
       return;
@@ -851,7 +845,6 @@ startTeleprompterButton?.addEventListener("click", () => {
     const api = requireTeleprompterApi();
     await api.openOverlay();
     await api.sendTeleprompterCommand("restart");
-    setStatus("Teleprompter started");
   });
 });
 
@@ -885,7 +878,6 @@ resetSettingsButton?.addEventListener("click", () => {
   void runEditorAction("Reset settings", async () => {
     const settings = await requireTeleprompterApi().resetSettings();
     renderSettings(settings);
-    setStatus("Settings reset");
   });
 });
 
