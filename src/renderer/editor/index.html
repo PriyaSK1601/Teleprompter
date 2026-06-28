@@ -72,6 +72,7 @@
         <div class="settings-live-preview">
           <span class="live-preview-badge">Live preview</span>
           <div id="livePreviewPane" class="live-preview-pane">
+            <div id="livePreviewCountdown" class="live-preview-countdown" aria-hidden="true" hidden>3</div>
             <div id="livePreviewTrack" class="live-preview-track" aria-hidden="true">
               <p class="live-preview-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
               <p class="live-preview-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
@@ -81,49 +82,69 @@
 
         <section class="settings-section">
           <h3>Reading comfort</h3>
-          <div class="settings-grid">
+          <div class="settings-stack">
             <label class="field-label" for="fontSizeInput">
-              Font size
+              <span class="field-label-text">Font size</span>
               <input id="fontSizeInput" class="range-input" type="range" min="18" max="72" step="1" />
               <span id="fontSizeValue" class="setting-value"></span>
             </label>
-            <label class="field-label" for="alignmentSelect">
-              Alignment
-              <select id="alignmentSelect" class="text-input">
+            <div class="field-label">
+              <span class="field-label-text">Alignment</span>
+              <div class="segmented" role="radiogroup" aria-label="Text alignment" data-choice-for="alignmentSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="left" aria-label="Left">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h12M3 18h15" /></svg>
+                </button>
+                <button type="button" class="segmented-option" role="radio" data-value="center" aria-label="Center">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M6 12h12M5 18h14" /></svg>
+                </button>
+                <button type="button" class="segmented-option" role="radio" data-value="right" aria-label="Right">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 12h12M6 18h15" /></svg>
+                </button>
+              </div>
+              <select id="alignmentSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
                 <option value="left">Left</option>
                 <option value="center">Center</option>
                 <option value="right">Right</option>
               </select>
-            </label>
+            </div>
           </div>
         </section>
 
         <section class="settings-section">
           <h3>Motion</h3>
           <div class="settings-stack">
-            <label class="field-label" for="scrollModeSelect">
-              Scroll mode
-              <select id="scrollModeSelect" class="text-input">
+            <div class="field-label">
+              <span class="field-label-text">Scroll mode</span>
+              <span class="field-hint">Voice tracking follows your speech. Manual scrolls at a steady, adjustable pace.</span>
+              <div class="segmented segmented-text" role="radiogroup" aria-label="Scroll mode" data-choice-for="scrollModeSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="manual">Manual</button>
+                <button type="button" class="segmented-option" role="radio" data-value="voice">Voice tracking</button>
+              </div>
+              <select id="scrollModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
                 <option value="manual">Manual</option>
                 <option value="voice">Voice Tracking</option>
               </select>
-              <span class="field-hint">Voice tracking follows your speech. Manual scrolls at a steady, adjustable pace.</span>
-            </label>
+            </div>
             <label class="field-label" for="scrollSpeedInput">
-              Manual scroll speed
+              <span class="field-label-text">Manual scroll speed</span>
+              <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
               <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
               <span id="scrollSpeedValue" class="setting-value"></span>
-              <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
             </label>
-            <div class="settings-grid">
+            <div class="countdown-block">
               <label class="switch-row">
                 <span>Enable countdown</span>
                 <input id="countdownEnabledInput" class="toggle-switch" type="checkbox" />
               </label>
-              <label class="field-label" for="countdownSecondsInput">
-                Countdown duration
-                <input id="countdownSecondsInput" class="number-input" type="number" min="0" max="10" step="1" />
-              </label>
+              <div class="field-label countdown-duration">
+                <span class="field-label-text">Countdown duration</span>
+                <div class="chip-row" role="radiogroup" aria-label="Countdown duration" data-choice-for="countdownSecondsInput">
+                  <button type="button" class="chip" role="radio" data-value="3">3s</button>
+                  <button type="button" class="chip" role="radio" data-value="5">5s</button>
+                  <button type="button" class="chip" role="radio" data-value="10">10s</button>
+                </div>
+                <input id="countdownSecondsInput" class="visually-hidden-input" type="number" min="0" max="10" step="1" tabindex="-1" aria-hidden="true" />
+              </div>
             </div>
           </div>
         </section>
@@ -185,14 +206,19 @@
                 <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
                 <span id="lineHeightValue" class="setting-value"></span>
               </label>
-              <label class="field-label" for="highlightModeSelect">
-                Highlight mode
-                <select id="highlightModeSelect" class="text-input">
+              <div class="field-label">
+                <span class="field-label-text">Highlight mode</span>
+                <div class="segmented segmented-text" role="radiogroup" aria-label="Highlight mode" data-choice-for="highlightModeSelect">
+                  <button type="button" class="segmented-option" role="radio" data-value="none">Off</button>
+                  <button type="button" class="segmented-option" role="radio" data-value="sentence">Line</button>
+                  <button type="button" class="segmented-option" role="radio" data-value="word">Word</button>
+                </div>
+                <select id="highlightModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
                   <option value="none">Off</option>
                   <option value="sentence">Current line</option>
                   <option value="word">Word focus</option>
                 </select>
-              </label>
+              </div>
               <label class="field-label" for="textColorInput">
                 Text colour
                 <input id="textColorInput" class="color-input" type="color" />

@@ -35,10 +35,13 @@ const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
 const livePreviewTrack = document.querySelector<HTMLElement>("#livePreviewTrack");
 const livePreviewTexts = Array.from(document.querySelectorAll<HTMLElement>(".live-preview-text"));
+const choiceGroups = Array.from(document.querySelectorAll<HTMLElement>("[data-choice-for]"));
 const sizeScreen = document.querySelector<HTMLElement>("#sizeScreen");
 const sizeWindow = document.querySelector<HTMLElement>("#sizeWindow");
 const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
 const previewCountdown = document.querySelector<HTMLElement>("#previewCountdown");
+const livePreviewCountdown = document.querySelector<HTMLElement>("#livePreviewCountdown");
+const countdownBlock = document.querySelector<HTMLElement>(".countdown-block");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -55,6 +58,7 @@ let previewCountdownTimer: number | undefined;
 let previewScrollRaf: number | undefined;
 let previewScrollOffset = 0;
 let previewScrollLastTs = 0;
+let previewScrollPaused = false;
 
 const autosaveDelayMs = 600;
 
@@ -411,6 +415,86 @@ async function autosaveCurrentScript(): Promise<void> {
   renderScriptsList();
 }
 
+function getChoiceBacking(group: HTMLElement): (HTMLSelectElement | HTMLInputElement) | null {
+  const backingId = group.dataset.choiceFor;
+  return backingId ? document.querySelector<HTMLSelectElement | HTMLInputElement>(`#${backingId}`) : null;
+}
+
+function getChoiceOptions(group: HTMLElement): HTMLButtonElement[] {
+  return Array.from(group.querySelectorAll<HTMLButtonElement>("[data-value]"));
+}
+
+function syncChoiceGroup(group: HTMLElement): void {
+  const backing = getChoiceBacking(group);
+
+  if (!backing) {
+    return;
+  }
+
+  for (const option of getChoiceOptions(group)) {
+    const isActive = option.dataset.value === backing.value;
+    option.setAttribute("aria-checked", isActive ? "true" : "false");
+    option.tabIndex = isActive ? 0 : -1;
+  }
+}
+
+function syncChoiceGroups(): void {
+  for (const group of choiceGroups) {
+    syncChoiceGroup(group);
+  }
+}
+
+function selectChoiceValue(group: HTMLElement, value: string): void {
+  const backing = getChoiceBacking(group);
+
+  if (!backing) {
+    return;
+  }
+
+  if (backing.value === value) {
+    syncChoiceGroup(group);
+    return;
+  }
+
+  backing.value = value;
+  syncChoiceGroup(group);
+  // Reuse the existing change handler on the backing control to persist and preview.
+  backing.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function initChoiceGroups(): void {
+  for (const group of choiceGroups) {
+    const options = getChoiceOptions(group);
+
+    group.addEventListener("click", (event) => {
+      const target = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-value]");
+
+      if (target?.dataset.value) {
+        selectChoiceValue(group, target.dataset.value);
+      }
+    });
+
+    group.addEventListener("keydown", (event) => {
+      const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+
+      if (!keys.includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      const currentIndex = options.findIndex((option) => option.getAttribute("aria-checked") === "true");
+      const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (Math.max(0, currentIndex) + delta + options.length) % options.length;
+      const next = options[nextIndex];
+
+      if (next?.dataset.value) {
+        selectChoiceValue(group, next.dataset.value);
+        next.focus();
+      }
+    });
+  }
+}
+
 function renderSettings(settings: AppSettings): void {
   settingsRenderLocked = true;
 
@@ -482,6 +566,8 @@ function renderSettings(settings: AppSettings): void {
 
   renderSettingsPreview(settings);
   renderScriptStats();
+  syncChoiceGroups();
+  syncCountdownDurationState();
 
   settingsRenderLocked = false;
 }
@@ -508,6 +594,7 @@ function applyPreviewStyles(values: {
   fontSize: number;
   lineHeight: number;
   alignment: string;
+  highlightMode: string;
 }): void {
   if (sizeWindow) {
     sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
@@ -523,6 +610,8 @@ function applyPreviewStyles(values: {
 
   if (livePreviewPane) {
     livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+    livePreviewPane.dataset.highlight = values.highlightMode;
+    livePreviewPane.style.setProperty("--highlight-line-height", `${values.fontSize * values.lineHeight}px`);
   }
 
   for (const text of livePreviewTexts) {
@@ -540,7 +629,8 @@ function renderSettingsPreview(settings: AppSettings): void {
     textColor: settings.text.textColor,
     fontSize: settings.text.fontSize,
     lineHeight: settings.text.lineHeight,
-    alignment: settings.text.alignment
+    alignment: settings.text.alignment,
+    highlightMode: settings.experimental.highlightMode
   });
 }
 
@@ -551,7 +641,8 @@ function renderSettingsPreviewFromControls(): void {
     textColor: textColorInput?.value ?? "#f8fafc",
     fontSize: Number(fontSizeInput?.value) || 32,
     lineHeight: Number(lineHeightInput?.value) || 1.5,
-    alignment: alignmentSelect?.value ?? "center"
+    alignment: alignmentSelect?.value ?? "center",
+    highlightMode: highlightModeSelect?.value ?? "none"
   });
 }
 
@@ -606,6 +697,13 @@ function stepPreviewScroll(timestamp: number): void {
     return;
   }
 
+  if (previewScrollPaused) {
+    // Hold position (reset to top) while a countdown plays; keep the loop alive to resume cleanly.
+    previewScrollLastTs = timestamp;
+    previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+    return;
+  }
+
   if (previewScrollLastTs === 0) {
     previewScrollLastTs = timestamp;
   }
@@ -633,6 +731,7 @@ function startPreviewScroll(): void {
 
   previewScrollOffset = 0;
   previewScrollLastTs = 0;
+  previewScrollPaused = false;
   livePreviewTrack.style.transform = "translateY(0)";
   previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
 }
@@ -646,28 +745,51 @@ function stopPreviewScroll(): void {
   previewScrollLastTs = 0;
 }
 
+function getCountdownElements(): HTMLElement[] {
+  return [previewCountdown, livePreviewCountdown].filter((element): element is HTMLElement => element !== null);
+}
+
+function setCountdownText(text: string, hidden: boolean): void {
+  for (const element of getCountdownElements()) {
+    element.textContent = text;
+    element.hidden = hidden;
+  }
+}
+
 function stopPreviewCountdown(): void {
   if (previewCountdownTimer !== undefined) {
     window.clearInterval(previewCountdownTimer);
     previewCountdownTimer = undefined;
   }
 
-  if (previewCountdown) {
-    previewCountdown.hidden = true;
+  for (const element of getCountdownElements()) {
+    element.hidden = true;
   }
+
+  // Resume the preview scroll once the countdown ends (or is cancelled).
+  previewScrollPaused = false;
+  previewScrollLastTs = 0;
 }
 
 function playPreviewCountdown(): void {
   stopPreviewCountdown();
 
-  if (!previewCountdown) {
+  if (getCountdownElements().length === 0) {
     return;
+  }
+
+  // Park the preview scroll at the top and hold it until the countdown finishes.
+  previewScrollPaused = true;
+  previewScrollOffset = 0;
+  previewScrollLastTs = 0;
+
+  if (livePreviewTrack) {
+    livePreviewTrack.style.transform = "translateY(0)";
   }
 
   const seconds = Math.max(1, Math.min(10, Math.round(Number(countdownSecondsInput?.value) || 3)));
   let remaining = seconds;
-  previewCountdown.hidden = false;
-  previewCountdown.textContent = String(remaining);
+  setCountdownText(String(remaining), false);
   previewCountdownTimer = window.setInterval(() => {
     remaining -= 1;
 
@@ -676,10 +798,12 @@ function playPreviewCountdown(): void {
       return;
     }
 
-    if (previewCountdown) {
-      previewCountdown.textContent = String(remaining);
-    }
+    setCountdownText(String(remaining), false);
   }, 1000);
+}
+
+function syncCountdownDurationState(): void {
+  countdownBlock?.classList.toggle("is-duration-disabled", !countdownEnabledInput?.checked);
 }
 
 async function saveOverlaySize(): Promise<void> {
@@ -877,11 +1001,20 @@ toggleSidebarButton?.addEventListener("click", () => {
 });
 
 applyMockPlatform();
+initChoiceGroups();
 countdownEnabledInput?.addEventListener("change", () => {
+  syncCountdownDurationState();
+
   if (countdownEnabledInput?.checked) {
     playPreviewCountdown();
   } else {
     stopPreviewCountdown();
+  }
+});
+
+countdownSecondsInput?.addEventListener("change", () => {
+  if (countdownEnabledInput?.checked) {
+    playPreviewCountdown();
   }
 });
 
