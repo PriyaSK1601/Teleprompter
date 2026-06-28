@@ -32,6 +32,9 @@ const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedI
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
+const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
+const livePreviewTrack = document.querySelector<HTMLElement>("#livePreviewTrack");
+const livePreviewTexts = Array.from(document.querySelectorAll<HTMLElement>(".live-preview-text"));
 const sizeScreen = document.querySelector<HTMLElement>("#sizeScreen");
 const sizeWindow = document.querySelector<HTMLElement>("#sizeWindow");
 const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
@@ -49,6 +52,9 @@ let overlayXRatio = 0.265;
 let overlayYRatio = 0;
 let autosaveTimer: number | undefined;
 let previewCountdownTimer: number | undefined;
+let previewScrollRaf: number | undefined;
+let previewScrollOffset = 0;
+let previewScrollLastTs = 0;
 
 const autosaveDelayMs = 600;
 
@@ -514,6 +520,17 @@ function applyPreviewStyles(values: {
     settingsPreview.style.lineHeight = String(values.lineHeight);
     settingsPreview.style.textAlign = values.alignment;
   }
+
+  if (livePreviewPane) {
+    livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+  }
+
+  for (const text of livePreviewTexts) {
+    text.style.color = values.textColor;
+    text.style.fontSize = `${values.fontSize}px`;
+    text.style.lineHeight = String(values.lineHeight);
+    text.style.textAlign = values.alignment;
+  }
 }
 
 function renderSettingsPreview(settings: AppSettings): void {
@@ -581,6 +598,52 @@ function renderOverlaySize(): void {
     sizeReadout.textContent =
       `${widthPx} × ${heightPx} px • ${widthPercent}% × ${heightPercent}% of screen`;
   }
+}
+
+function stepPreviewScroll(timestamp: number): void {
+  if (!livePreviewTrack) {
+    previewScrollRaf = undefined;
+    return;
+  }
+
+  if (previewScrollLastTs === 0) {
+    previewScrollLastTs = timestamp;
+  }
+
+  const dtSeconds = Math.min(0.05, (timestamp - previewScrollLastTs) / 1000);
+  previewScrollLastTs = timestamp;
+
+  const speed = Number(scrollSpeedInput?.value);
+  const safeSpeed = Number.isFinite(speed) && speed > 0 ? speed : 0;
+  // The track holds two identical copies, so wrapping at half its height loops seamlessly.
+  const loopHeight = livePreviewTrack.scrollHeight / 2;
+
+  if (loopHeight > 0) {
+    previewScrollOffset = (previewScrollOffset + safeSpeed * dtSeconds) % loopHeight;
+    livePreviewTrack.style.transform = `translateY(${-previewScrollOffset}px)`;
+  }
+
+  previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+}
+
+function startPreviewScroll(): void {
+  if (!livePreviewTrack || previewScrollRaf !== undefined) {
+    return;
+  }
+
+  previewScrollOffset = 0;
+  previewScrollLastTs = 0;
+  livePreviewTrack.style.transform = "translateY(0)";
+  previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+}
+
+function stopPreviewScroll(): void {
+  if (previewScrollRaf !== undefined) {
+    cancelAnimationFrame(previewScrollRaf);
+    previewScrollRaf = undefined;
+  }
+
+  previewScrollLastTs = 0;
 }
 
 function stopPreviewCountdown(): void {
@@ -786,12 +849,14 @@ function openSettings(): void {
   requestAnimationFrame(() => {
     renderOverlaySize();
     renderSettingsPreviewFromControls();
+    startPreviewScroll();
   });
 }
 
 function closeSettings(): void {
   settingsModal?.classList.remove("is-open");
   stopPreviewCountdown();
+  stopPreviewScroll();
 }
 
 window.addEventListener("error", (event) => {

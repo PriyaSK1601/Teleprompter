@@ -543,6 +543,47 @@ h3 {
   transform: translateX(0);
 }
 
+.settings-live-preview {
+  background: var(--ed-surface);
+  display: grid;
+  gap: 8px;
+  padding-bottom: 4px;
+  padding-top: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.live-preview-pane {
+  background: var(--overlay-bg);
+  border: 1px solid var(--ed-hairline);
+  border-radius: 16px;
+  height: 96px;
+  overflow: hidden;
+  position: relative;
+}
+
+.live-preview-badge {
+  color: var(--ed-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.live-preview-track {
+  will-change: transform;
+}
+
+.live-preview-text {
+  color: var(--prompt-text-color);
+  font-size: var(--prompt-font-size);
+  line-height: var(--prompt-line-height);
+  margin: 0;
+  padding: 10px 18px;
+  text-align: var(--prompt-text-align);
+}
+
 .settings-section {
   border-top: 1px solid var(--ed-hairline);
   display: grid;
