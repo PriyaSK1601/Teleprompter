@@ -106,7 +106,7 @@ select:disabled {
 
 .settings-header {
   align-items: flex-start;
-  padding: 18px 0 0;
+  padding: 42px 0 0;
 }
 
 .settings-heading {
@@ -530,7 +530,7 @@ h3 {
   gap: 22px;
   max-width: 520px;
   overflow: auto;
-  padding: 24px;
+  padding: 0 24px 24px;
   position: absolute;
   right: 0;
   top: 0;
@@ -545,13 +545,14 @@ h3 {
 
 .settings-live-preview {
   background: var(--ed-surface);
+  box-shadow: 0 10px 14px -10px rgb(40 50 45 / 0.22);
   display: grid;
   gap: 8px;
-  padding-bottom: 4px;
-  padding-top: 24px;
+  padding-bottom: 10px;
+  padding-top: 20px;
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 6;
 }
 
 .live-preview-pane {
