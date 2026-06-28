@@ -564,6 +564,66 @@ h3 {
   grid-template-columns: 1fr 1fr;
 }
 
+.settings-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.field-hint {
+  color: var(--ed-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.settings-advanced {
+  border-top: 1px solid var(--ed-hairline);
+  padding-top: 26px;
+}
+
+.settings-advanced-summary {
+  align-items: center;
+  color: var(--ed-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.12em;
+  list-style: none;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.settings-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-advanced-summary:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--ed-accent-strong);
+  outline-offset: 6px;
+}
+
+.settings-advanced-chevron {
+  fill: none;
+  height: 16px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 180ms ease;
+  width: 16px;
+}
+
+.settings-advanced[open] .settings-advanced-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-advanced-body {
+  padding-top: 18px;
+}
+
 .settings-preview-text {
   color: var(--prompt-text-color);
   font-size: var(--prompt-font-size);

@@ -70,30 +70,12 @@
         </header>
 
         <section class="settings-section">
-          <h3>Appearance</h3>
+          <h3>Reading comfort</h3>
           <div class="settings-grid">
             <label class="field-label" for="fontSizeInput">
               Font size
               <input id="fontSizeInput" class="range-input" type="range" min="18" max="72" step="1" />
               <span id="fontSizeValue" class="setting-value"></span>
-            </label>
-            <label class="field-label" for="lineHeightInput">
-              Line spacing
-              <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
-              <span id="lineHeightValue" class="setting-value"></span>
-            </label>
-            <label class="field-label" for="textColorInput">
-              Text colour
-              <input id="textColorInput" class="color-input" type="color" />
-            </label>
-            <label class="field-label" for="backgroundColorInput">
-              Background colour
-              <input id="backgroundColorInput" class="color-input" type="color" />
-            </label>
-            <label class="field-label" for="opacityInput">
-              Overlay opacity
-              <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
-              <span id="opacityValue" class="setting-value"></span>
             </label>
             <label class="field-label" for="alignmentSelect">
               Alignment
@@ -103,6 +85,36 @@
                 <option value="right">Right</option>
               </select>
             </label>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Motion</h3>
+          <div class="settings-stack">
+            <label class="field-label" for="scrollModeSelect">
+              Scroll mode
+              <select id="scrollModeSelect" class="text-input">
+                <option value="manual">Manual</option>
+                <option value="voice">Voice Tracking</option>
+              </select>
+              <span class="field-hint">Voice tracking follows your speech. Manual scrolls at a steady, adjustable pace.</span>
+            </label>
+            <label class="field-label" for="scrollSpeedInput">
+              Manual scroll speed
+              <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
+              <span id="scrollSpeedValue" class="setting-value"></span>
+              <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
+            </label>
+            <div class="settings-grid">
+              <label class="switch-row">
+                <span>Enable countdown</span>
+                <input id="countdownEnabledInput" class="toggle-switch" type="checkbox" />
+              </label>
+              <label class="field-label" for="countdownSecondsInput">
+                Countdown duration
+                <input id="countdownSecondsInput" class="number-input" type="number" min="0" max="10" step="1" />
+              </label>
+            </div>
           </div>
         </section>
 
@@ -151,39 +163,42 @@
           <div id="sizeReadout" class="size-readout"></div>
         </section>
 
-        <section class="settings-section">
-          <h3>Teleprompter</h3>
-          <div class="settings-grid">
-            <label class="field-label" for="scrollModeSelect">
-              Scroll mode
-              <select id="scrollModeSelect" class="text-input">
-                <option value="manual">Manual</option>
-                <option value="voice">Voice Tracking</option>
-              </select>
-            </label>
-            <label class="field-label" for="scrollSpeedInput">
-              Manual scroll speed
-              <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
-              <span id="scrollSpeedValue" class="setting-value"></span>
-            </label>
-            <label class="field-label" for="highlightModeSelect">
-              Highlight mode
-              <select id="highlightModeSelect" class="text-input">
-                <option value="none">Off</option>
-                <option value="sentence">Current line</option>
-                <option value="word">Word focus</option>
-              </select>
-            </label>
-            <label class="switch-row">
-              <span>Enable countdown</span>
-              <input id="countdownEnabledInput" class="toggle-switch" type="checkbox" />
-            </label>
-            <label class="field-label" for="countdownSecondsInput">
-              Countdown duration
-              <input id="countdownSecondsInput" class="number-input" type="number" min="0" max="10" step="1" />
-            </label>
+        <details class="settings-advanced">
+          <summary class="settings-advanced-summary">
+            <span>Advanced</span>
+            <svg class="settings-advanced-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </summary>
+          <div class="settings-advanced-body">
+            <div class="settings-grid">
+              <label class="field-label" for="lineHeightInput">
+                Line spacing
+                <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
+                <span id="lineHeightValue" class="setting-value"></span>
+              </label>
+              <label class="field-label" for="highlightModeSelect">
+                Highlight mode
+                <select id="highlightModeSelect" class="text-input">
+                  <option value="none">Off</option>
+                  <option value="sentence">Current line</option>
+                  <option value="word">Word focus</option>
+                </select>
+              </label>
+              <label class="field-label" for="textColorInput">
+                Text colour
+                <input id="textColorInput" class="color-input" type="color" />
+              </label>
+              <label class="field-label" for="backgroundColorInput">
+                Background colour
+                <input id="backgroundColorInput" class="color-input" type="color" />
+              </label>
+              <label class="field-label" for="opacityInput">
+                Overlay opacity
+                <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
+                <span id="opacityValue" class="setting-value"></span>
+              </label>
+            </div>
           </div>
-        </section>
+        </details>
 
         <section class="settings-section">
           <div class="settings-actions">
