@@ -694,6 +694,129 @@ h3 {
   grid-template-columns: 1fr 1fr;
 }
 
+.preset-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.preset-card {
+  align-items: stretch;
+  background: var(--ed-surface);
+  border: 1px solid var(--ed-field-border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.preset-card:hover {
+  border-color: var(--ed-accent-strong);
+  transform: translateY(-1px);
+}
+
+.preset-card:focus-visible {
+  outline: 2px solid var(--ed-accent-strong);
+  outline-offset: 2px;
+}
+
+.preset-card[aria-checked="true"] {
+  border-color: var(--ed-accent);
+  box-shadow: 0 0 0 3px rgb(175 200 173 / 0.35);
+}
+
+.preset-swatch {
+  align-items: center;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 9px;
+  display: flex;
+  font-size: 16px;
+  font-weight: 760;
+  height: 38px;
+  justify-content: center;
+}
+
+.preset-name {
+  color: var(--ed-ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.appearance-custom {
+  border-top: 1px dashed var(--ed-hairline);
+  padding-top: 16px;
+}
+
+.appearance-custom-summary {
+  align-items: center;
+  color: var(--ed-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  list-style: none;
+  user-select: none;
+}
+
+.appearance-custom-summary::-webkit-details-marker {
+  display: none;
+}
+
+.appearance-custom-summary:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--ed-accent-strong);
+  outline-offset: 4px;
+}
+
+.appearance-custom-chevron {
+  fill: none;
+  height: 15px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform 180ms ease;
+  width: 15px;
+}
+
+.appearance-custom[open] .appearance-custom-chevron {
+  transform: rotate(180deg);
+}
+
+.appearance-custom-body {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.contrast-hint {
+  align-items: center;
+  color: #b4453e;
+  display: flex;
+  font-size: 12px;
+  font-weight: 680;
+  gap: 7px;
+  margin: 0;
+}
+
+.contrast-hint[hidden] {
+  display: none;
+}
+
+.contrast-hint svg {
+  flex: 0 0 auto;
+  height: 15px;
+  width: 15px;
+}
+
 .settings-stack {
   display: grid;
   gap: 16px;

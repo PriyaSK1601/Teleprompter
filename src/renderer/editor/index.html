@@ -238,21 +238,34 @@
 
         <section class="settings-section">
           <h3>Appearance</h3>
-          <div class="settings-grid">
-            <label class="field-label" for="textColorInput">
-              <span class="field-label-text">Text colour</span>
-              <input id="textColorInput" class="color-input" type="color" />
-            </label>
-            <label class="field-label" for="backgroundColorInput">
-              <span class="field-label-text">Background colour</span>
-              <input id="backgroundColorInput" class="color-input" type="color" />
-            </label>
-          </div>
-          <label class="field-label" for="opacityInput">
-            <span class="field-label-text">Overlay opacity</span>
-            <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
-            <span id="opacityValue" class="setting-value"></span>
-          </label>
+          <div id="appearancePresets" class="preset-grid" role="radiogroup" aria-label="Appearance preset"></div>
+          <details class="appearance-custom">
+            <summary class="appearance-custom-summary">
+              <svg class="appearance-custom-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+              Custom colours
+            </summary>
+            <div class="appearance-custom-body">
+              <div class="settings-grid">
+                <label class="field-label" for="textColorInput">
+                  <span class="field-label-text">Text colour</span>
+                  <input id="textColorInput" class="color-input" type="color" />
+                </label>
+                <label class="field-label" for="backgroundColorInput">
+                  <span class="field-label-text">Background colour</span>
+                  <input id="backgroundColorInput" class="color-input" type="color" />
+                </label>
+              </div>
+              <label class="field-label" for="opacityInput">
+                <span class="field-label-text">Overlay opacity</span>
+                <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
+                <span id="opacityValue" class="setting-value"></span>
+              </label>
+              <p id="contrastHint" class="contrast-hint" role="status" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+                Low contrast — this may be hard to read on camera.
+              </p>
+            </div>
+          </details>
         </section>
 
         <section class="settings-section">

@@ -26,6 +26,8 @@ const alignmentSelect = document.querySelector<HTMLSelectElement>("#alignmentSel
 const opacityInput = document.querySelector<HTMLInputElement>("#opacityInput");
 const opacityValue = document.querySelector<HTMLElement>("#opacityValue");
 const backgroundColorInput = document.querySelector<HTMLInputElement>("#backgroundColorInput");
+const appearancePresets = document.querySelector<HTMLElement>("#appearancePresets");
+const contrastHint = document.querySelector<HTMLElement>("#contrastHint");
 const countdownEnabledInput = document.querySelector<HTMLInputElement>("#countdownEnabledInput");
 const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdownSecondsInput");
 const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
@@ -884,6 +886,8 @@ function renderSettings(settings: AppSettings): void {
   syncChoiceGroups();
   syncCountdownDurationState();
   syncScrollModeState();
+  updateActivePreset();
+  updateContrastHint();
 
   settingsRenderLocked = false;
 }
@@ -960,6 +964,144 @@ function renderSettingsPreviewFromControls(): void {
     lineHeight: Number(lineHeightInput?.value) || 1.5,
     alignment: alignmentSelect?.value ?? "center",
     highlightMode: highlightModeSelect?.value ?? "none"
+  });
+}
+
+type AppearancePreset = {
+  id: string;
+  name: string;
+  textColor: string;
+  backgroundColor: string;
+  opacity: number;
+};
+
+const appearancePresetList: AppearancePreset[] = [
+  { id: "midnight", name: "Midnight", textColor: "#f9fafb", backgroundColor: "#111827", opacity: 0.82 },
+  { id: "contrast", name: "High contrast", textColor: "#ffffff", backgroundColor: "#000000", opacity: 1 },
+  { id: "paper", name: "Paper", textColor: "#26221b", backgroundColor: "#f4efe2", opacity: 0.95 },
+  { id: "sage", name: "Sage", textColor: "#eef4ec", backgroundColor: "#2f4636", opacity: 0.86 }
+];
+
+function relativeLuminance(hexColor: string): number {
+  const { red, green, blue } = hexToPreviewRgb(hexColor);
+  const channels = [red, green, blue].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function getContrastRatio(hexA: string, hexB: string): number {
+  const lighter = Math.max(relativeLuminance(hexA), relativeLuminance(hexB));
+  const darker = Math.min(relativeLuminance(hexA), relativeLuminance(hexB));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function isPresetActive(preset: AppearancePreset): boolean {
+  return (
+    (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
+    (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
+    Math.abs(Number(opacityInput?.value) - preset.opacity) < 0.005
+  );
+}
+
+function updateActivePreset(): void {
+  if (!appearancePresets) {
+    return;
+  }
+
+  const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
+  const anyActive = appearancePresetList.some(isPresetActive);
+
+  cards.forEach((card, index) => {
+    const preset = appearancePresetList.find((entry) => entry.id === card.dataset.preset);
+    const active = preset ? isPresetActive(preset) : false;
+    card.setAttribute("aria-checked", active ? "true" : "false");
+    // Keep one card keyboard-reachable: the active one, or the first when on custom colours.
+    card.tabIndex = active || (!anyActive && index === 0) ? 0 : -1;
+  });
+}
+
+function updateContrastHint(): void {
+  if (!contrastHint) {
+    return;
+  }
+
+  const textColor = textColorInput?.value ?? "#ffffff";
+  const backgroundColor = backgroundColorInput?.value ?? "#000000";
+  contrastHint.hidden = getContrastRatio(textColor, backgroundColor) >= 3;
+}
+
+function applyAppearancePreset(preset: AppearancePreset): void {
+  if (textColorInput) {
+    textColorInput.value = preset.textColor;
+  }
+
+  if (backgroundColorInput) {
+    backgroundColorInput.value = preset.backgroundColor;
+  }
+
+  if (opacityInput) {
+    opacityInput.value = String(preset.opacity);
+  }
+
+  renderSettingsPreviewFromControls();
+  renderControlReadouts();
+  updateActivePreset();
+  updateContrastHint();
+  scheduleSettingsSave();
+}
+
+function buildAppearancePresets(): void {
+  if (!appearancePresets) {
+    return;
+  }
+
+  appearancePresets.textContent = "";
+
+  for (const preset of appearancePresetList) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "preset-card";
+    card.dataset.preset = preset.id;
+    card.setAttribute("role", "radio");
+    card.setAttribute("aria-checked", "false");
+    card.setAttribute("aria-label", preset.name);
+    card.tabIndex = -1;
+
+    const swatch = document.createElement("span");
+    swatch.className = "preset-swatch";
+    swatch.textContent = "Aa";
+    swatch.style.background = getOpaquePreviewBackground(preset.backgroundColor, preset.opacity);
+    swatch.style.color = preset.textColor;
+
+    const name = document.createElement("span");
+    name.className = "preset-name";
+    name.textContent = preset.name;
+
+    card.append(swatch, name);
+    card.addEventListener("click", () => applyAppearancePreset(preset));
+    appearancePresets.append(card);
+  }
+
+  appearancePresets.addEventListener("keydown", (event) => {
+    const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+
+    if (!keys.includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
+    const currentIndex = cards.findIndex((card) => card === document.activeElement);
+    const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+    const next = cards[(Math.max(0, currentIndex) + delta + cards.length) % cards.length];
+    const preset = appearancePresetList.find((entry) => entry.id === next?.dataset.preset);
+
+    if (next && preset) {
+      next.focus();
+      applyAppearancePreset(preset);
+    }
   });
 }
 
@@ -1579,6 +1721,7 @@ toggleSidebarButton?.addEventListener("click", () => {
 
 applyMockPlatform();
 buildLivePreviewWords();
+buildAppearancePresets();
 initChoiceGroups();
 countdownEnabledInput?.addEventListener("change", () => {
   syncCountdownDurationState();
@@ -1699,6 +1842,8 @@ for (const control of [
   control?.addEventListener("input", () => {
     renderSettingsPreviewFromControls();
     renderControlReadouts();
+    updateActivePreset();
+    updateContrastHint();
     renderScriptStats();
     scheduleSettingsSave();
   });
@@ -1706,6 +1851,8 @@ for (const control of [
   control?.addEventListener("change", () => {
     renderSettingsPreviewFromControls();
     renderControlReadouts();
+    updateActivePreset();
+    updateContrastHint();
     renderScriptStats();
     scheduleSettingsSave();
   });
