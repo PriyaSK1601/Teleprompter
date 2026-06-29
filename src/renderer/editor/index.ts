@@ -77,6 +77,13 @@ const overlaySizeLimits = {
   maxHeightRatio: 0.9
 };
 
+const defaultOverlayPlacement = {
+  widthRatio: 0.47,
+  heightRatio: 0.31,
+  xRatio: 0.265,
+  yRatio: 0
+};
+
 type OverlayResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 type OverlayDragState = {
@@ -1429,6 +1436,42 @@ function syncScrollModeState(): void {
   scrollSpeedField?.classList.toggle("is-mode-disabled", scrollModeSelect?.value === "voice");
 }
 
+function applyOverlayPlacement(place: string): void {
+  if (place === "reset") {
+    overlayWidthRatio = defaultOverlayPlacement.widthRatio;
+    overlayHeightRatio = defaultOverlayPlacement.heightRatio;
+    overlayXRatio = defaultOverlayPlacement.xRatio;
+    overlayYRatio = defaultOverlayPlacement.yRatio;
+  } else if (place === "full-width") {
+    overlayWidthRatio = 1;
+    overlayXRatio = 0;
+    overlayYRatio = 0;
+  } else {
+    overlayYRatio = 0;
+
+    if (place === "top-left") {
+      overlayXRatio = 0;
+    } else if (place === "top-right") {
+      overlayXRatio = 1 - overlayWidthRatio;
+    } else {
+      overlayXRatio = (1 - overlayWidthRatio) / 2;
+    }
+  }
+
+  // Keep everything inside the screen after the change.
+  overlayWidthRatio = clampRatio(overlayWidthRatio, overlaySizeLimits.minWidthRatio, overlaySizeLimits.maxWidthRatio);
+  overlayHeightRatio = clampRatio(overlayHeightRatio, overlaySizeLimits.minHeightRatio, overlaySizeLimits.maxHeightRatio);
+  overlayXRatio = clampRatio(overlayXRatio, 0, 1 - overlayWidthRatio);
+  overlayYRatio = clampRatio(overlayYRatio, 0, 1 - overlayHeightRatio);
+
+  // Animate just this change, then drop the class so dragging stays snappy.
+  sizeWindow?.classList.add("is-snapping");
+  renderOverlaySize();
+  window.setTimeout(() => sizeWindow?.classList.remove("is-snapping"), 240);
+
+  void runEditorAction("Save teleprompter size", saveOverlaySize);
+}
+
 async function saveOverlaySize(): Promise<void> {
   await requireTeleprompterApi().updateSettings({
     overlaySize: {
@@ -1740,6 +1783,10 @@ countdownSecondsInput?.addEventListener("change", () => {
 });
 
 scrollModeSelect?.addEventListener("change", syncScrollModeState);
+
+for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".placement-row [data-place]"))) {
+  button.addEventListener("click", () => applyOverlayPlacement(button.dataset.place ?? ""));
+}
 
 sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
 window.addEventListener("pointermove", handleOverlayPointerMove);
