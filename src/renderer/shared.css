@@ -471,6 +471,11 @@ h3 {
   font-weight: 720;
   min-height: 44px;
   padding: 0 18px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .primary-button {
@@ -811,6 +816,23 @@ h3 {
 .scroll-speed-field.is-mode-disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* Keep a stable width so the label can swap without the button resizing. */
+#resetSettingsButton {
+  min-width: 11rem;
+}
+
+.secondary-button.is-arming {
+  background: #c2554f;
+  border-color: #c2554f;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgb(194 85 79 / 0.3);
+}
+
+.secondary-button.is-arming:hover {
+  background: #b4453e;
+  border-color: #b4453e;
 }
 
 .shortcut-list {

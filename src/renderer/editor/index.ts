@@ -16,7 +16,6 @@ const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
-const resetShortcutsButton = document.querySelector<HTMLButtonElement>("#resetShortcutsButton");
 const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
@@ -98,7 +97,6 @@ const ipcBackedControls = [
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
-  resetShortcutsButton,
   fontSizeInput,
   lineHeightInput,
   textColorInput,
@@ -1451,6 +1449,7 @@ function openSettings(): void {
 
 function closeSettings(): void {
   flushSettingsSave();
+  disarmReset();
   settingsModal?.classList.remove("is-open");
   cancelShortcutCapture();
   stopPreviewCountdown();
@@ -1608,16 +1607,63 @@ for (const control of [
   });
 }
 
-resetSettingsButton?.addEventListener("click", () => {
-  void runEditorAction("Reset settings", async () => {
-    const settings = await requireTeleprompterApi().resetSettings();
-    renderSettings(settings);
-  });
-});
+const resetDefaultLabel = "Reset to defaults";
+const resetArmedLabel = "Reset?";
+const resetArmDurationMs = 4000;
+let resetArmTimer: number | undefined;
 
-resetShortcutsButton?.addEventListener("click", () => {
-  void runEditorAction("Reset shortcuts", async () => {
-    const statuses = await requireTeleprompterApi().resetShortcuts();
+function handleResetOutsideClick(event: Event): void {
+  if (event.target instanceof Node && resetSettingsButton?.contains(event.target)) {
+    return;
+  }
+
+  disarmReset();
+}
+
+function disarmReset(): void {
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+    resetArmTimer = undefined;
+  }
+
+  document.removeEventListener("pointerdown", handleResetOutsideClick, true);
+
+  if (resetSettingsButton) {
+    resetSettingsButton.classList.remove("is-arming");
+    resetSettingsButton.textContent = resetDefaultLabel;
+  }
+}
+
+function armReset(): void {
+  if (!resetSettingsButton) {
+    return;
+  }
+
+  resetSettingsButton.classList.add("is-arming");
+  resetSettingsButton.textContent = resetArmedLabel;
+
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+  }
+
+  // Auto-disarm so the button never lingers in its red confirm state.
+  resetArmTimer = window.setTimeout(disarmReset, resetArmDurationMs);
+  // Clicking anywhere outside the button cancels the pending reset.
+  document.addEventListener("pointerdown", handleResetOutsideClick, true);
+}
+
+resetSettingsButton?.addEventListener("click", () => {
+  if (!resetSettingsButton.classList.contains("is-arming")) {
+    armReset();
+    return;
+  }
+
+  disarmReset();
+  void runEditorAction("Reset settings", async () => {
+    const api = requireTeleprompterApi();
+    const settings = await api.resetSettings();
+    renderSettings(settings);
+    const statuses = await api.resetShortcuts();
     renderShortcuts(statuses);
   });
 });
