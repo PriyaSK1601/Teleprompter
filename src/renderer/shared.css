@@ -842,7 +842,7 @@ h3 {
   gap: 5px;
   min-height: 34px;
   width: 156px;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 0 10px;
   transition:
     border-color 140ms ease,
