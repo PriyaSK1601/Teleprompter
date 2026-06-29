@@ -57,6 +57,7 @@ let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
 let overlayYRatio = 0;
 let autosaveTimer: number | undefined;
+let settingsSaveTimer: number | undefined;
 let previewCountdownTimer: number | undefined;
 let previewScrollRaf: number | undefined;
 let previewScrollOffset = 0;
@@ -64,6 +65,7 @@ let previewScrollLastTs = 0;
 let previewScrollPaused = false;
 
 const autosaveDelayMs = 600;
+const settingsSaveDelayMs = 200;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -223,7 +225,44 @@ function getEstimatedWordsPerMinute(): number {
     return 150;
   }
 
-  return Math.round(Math.min(240, Math.max(90, 150 * (speed / 36))));
+  // Map the scroll-speed slider (8–160 px/s) linearly onto a realistic speaking pace (70–260 wpm).
+  const minSpeed = 8;
+  const maxSpeed = 160;
+  const minWordsPerMinute = 70;
+  const maxWordsPerMinute = 260;
+  const clampedSpeed = Math.min(maxSpeed, Math.max(minSpeed, speed));
+  const ratio = (clampedSpeed - minSpeed) / (maxSpeed - minSpeed);
+  return Math.round(minWordsPerMinute + ratio * (maxWordsPerMinute - minWordsPerMinute));
+}
+
+function getSpeedPaceLabel(wordsPerMinute: number): string {
+  if (wordsPerMinute <= 110) {
+    return "Relaxed";
+  }
+
+  if (wordsPerMinute <= 150) {
+    return "Natural";
+  }
+
+  if (wordsPerMinute <= 190) {
+    return "Brisk";
+  }
+
+  return "Fast";
+}
+
+function renderScrollSpeedValue(): void {
+  if (!scrollSpeedValue) {
+    return;
+  }
+
+  const wordsPerMinute = getEstimatedWordsPerMinute();
+  scrollSpeedValue.textContent = `≈ ${wordsPerMinute} wpm · ${getSpeedPaceLabel(wordsPerMinute)}`;
+
+  if (scrollSpeedInput) {
+    // Keep the raw value discoverable on hover.
+    scrollSpeedInput.title = `${scrollSpeedInput.value} px/s`;
+  }
 }
 
 function renderScriptStats(): void {
@@ -800,9 +839,7 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
-  if (scrollSpeedValue) {
-    scrollSpeedValue.textContent = `${settings.behavior.scrollSpeed} px/s`;
-  }
+  renderScrollSpeedValue();
 
   if (scrollModeSelect) {
     scrollModeSelect.value = settings.behavior.scrollMode;
@@ -1314,6 +1351,31 @@ async function loadSettings(): Promise<void> {
   renderSettings(settings);
 }
 
+function scheduleSettingsSave(): void {
+  if (settingsRenderLocked) {
+    return;
+  }
+
+  if (settingsSaveTimer !== undefined) {
+    window.clearTimeout(settingsSaveTimer);
+  }
+
+  settingsSaveTimer = window.setTimeout(() => {
+    settingsSaveTimer = undefined;
+    void runEditorAction("Save settings", saveSettingsFromControls);
+  }, settingsSaveDelayMs);
+}
+
+function flushSettingsSave(): void {
+  if (settingsSaveTimer === undefined) {
+    return;
+  }
+
+  window.clearTimeout(settingsSaveTimer);
+  settingsSaveTimer = undefined;
+  void runEditorAction("Save settings", saveSettingsFromControls);
+}
+
 async function saveSettingsFromControls(): Promise<void> {
   if (settingsRenderLocked) {
     return;
@@ -1388,6 +1450,7 @@ function openSettings(): void {
 }
 
 function closeSettings(): void {
+  flushSettingsSave();
   settingsModal?.classList.remove("is-open");
   cancelShortcutCapture();
   stopPreviewCountdown();
@@ -1532,14 +1595,16 @@ for (const control of [
 ]) {
   control?.addEventListener("input", () => {
     renderSettingsPreviewFromControls();
+    renderScrollSpeedValue();
     renderScriptStats();
-    void runEditorAction("Save settings", saveSettingsFromControls);
+    scheduleSettingsSave();
   });
 
   control?.addEventListener("change", () => {
     renderSettingsPreviewFromControls();
+    renderScrollSpeedValue();
     renderScriptStats();
-    void runEditorAction("Save settings", saveSettingsFromControls);
+    scheduleSettingsSave();
   });
 }
 

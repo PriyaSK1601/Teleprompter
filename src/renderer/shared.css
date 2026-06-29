@@ -1213,6 +1213,7 @@ h3 {
   color: var(--ed-muted);
   font-size: 12px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .text-input,
