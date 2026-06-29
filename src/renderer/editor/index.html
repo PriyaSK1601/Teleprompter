@@ -146,10 +146,13 @@
           <div class="settings-stack">
             <div class="field-label">
               <span class="field-label-text">Scroll mode</span>
-              <span class="field-hint">Voice tracking follows your speech. Manual scrolls at a steady, adjustable pace.</span>
+              <span class="field-hint">Voice tracking follows your speech using your microphone. Manual scrolls at a steady, adjustable pace.</span>
               <div class="segmented segmented-text" role="radiogroup" aria-label="Scroll mode" data-choice-for="scrollModeSelect">
                 <button type="button" class="segmented-option" role="radio" data-value="manual">Manual</button>
-                <button type="button" class="segmented-option" role="radio" data-value="voice">Voice tracking</button>
+                <button type="button" class="segmented-option" role="radio" data-value="voice">
+                  Voice tracking
+                  <span class="option-badge">Beta</span>
+                </button>
               </div>
               <select id="scrollModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
                 <option value="manual">Manual</option>

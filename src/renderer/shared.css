@@ -726,6 +726,19 @@ h3 {
   color: var(--ed-accent-ink);
 }
 
+.option-badge {
+  background: rgb(79 125 94 / 0.16);
+  border-radius: 999px;
+  color: var(--ed-accent-deep);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-left: 6px;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
 .segmented-icon {
   fill: none;
   height: 18px;
