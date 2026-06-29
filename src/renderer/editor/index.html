@@ -78,7 +78,15 @@
             <h2 id="settingsTitle">Settings</h2>
             <p class="settings-subtitle">Tune how your teleprompter looks and moves.</p>
           </div>
-          <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
+          <div class="settings-header-actions">
+            <span id="settingsSavedPill" class="settings-saved-pill" role="status" aria-live="polite">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+              Saved
+            </span>
+            <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
+          </div>
         </header>
 
         <div class="settings-live-preview">

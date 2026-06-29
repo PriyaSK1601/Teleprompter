@@ -44,6 +44,7 @@ const previewCountdown = document.querySelector<HTMLElement>("#previewCountdown"
 const livePreviewCountdown = document.querySelector<HTMLElement>("#livePreviewCountdown");
 const countdownBlock = document.querySelector<HTMLElement>(".countdown-block");
 const scrollSpeedField = document.querySelector<HTMLElement>(".scroll-speed-field");
+const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPill");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -1259,6 +1260,7 @@ async function saveOverlaySize(): Promise<void> {
       yRatio: overlayYRatio
     }
   });
+  showSavedPill();
 }
 
 function applyOverlayResize(drag: OverlayDragState, dxRatio: number, dyRatio: number): void {
@@ -1349,6 +1351,26 @@ async function loadSettings(): Promise<void> {
   renderSettings(settings);
 }
 
+let savedPillTimer: number | undefined;
+
+function showSavedPill(): void {
+  // Only confirm while the drawer is actually open (skip the flush-on-close save).
+  if (!settingsSavedPill || !settingsModal?.classList.contains("is-open")) {
+    return;
+  }
+
+  settingsSavedPill.classList.add("is-visible");
+
+  if (savedPillTimer !== undefined) {
+    window.clearTimeout(savedPillTimer);
+  }
+
+  savedPillTimer = window.setTimeout(() => {
+    settingsSavedPill.classList.remove("is-visible");
+    savedPillTimer = undefined;
+  }, 1500);
+}
+
 function scheduleSettingsSave(): void {
   if (settingsRenderLocked) {
     return;
@@ -1405,6 +1427,7 @@ async function saveSettingsFromControls(): Promise<void> {
 
   renderSettings(settings);
   renderScriptStats();
+  showSavedPill();
 }
 
 const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
