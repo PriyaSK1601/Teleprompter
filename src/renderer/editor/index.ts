@@ -1762,9 +1762,70 @@ toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
 });
 
+function setupSliderBubble(input: HTMLInputElement | null, format: () => string): void {
+  if (!input || !input.parentNode) {
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "range-wrap";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.append(input);
+
+  const bubble = document.createElement("div");
+  bubble.className = "range-bubble";
+  bubble.setAttribute("aria-hidden", "true");
+  wrap.append(bubble);
+
+  const position = (): void => {
+    const min = Number(input.min) || 0;
+    const max = Number(input.max) || 100;
+    const value = Number(input.value);
+    const ratio = max > min ? (value - min) / (max - min) : 0;
+    const thumbWidth = 16;
+    bubble.style.left = `${ratio * (input.clientWidth - thumbWidth) + thumbWidth / 2}px`;
+    bubble.textContent = format();
+  };
+
+  const show = (): void => {
+    position();
+    bubble.classList.add("is-visible");
+  };
+
+  const hide = (): void => bubble.classList.remove("is-visible");
+
+  input.addEventListener("input", () => {
+    if (bubble.classList.contains("is-visible")) {
+      position();
+    }
+  });
+  input.addEventListener("pointerdown", show);
+  window.addEventListener("pointerup", hide);
+  // Keyboard users: reveal the bubble only when focus came from the keyboard.
+  input.addEventListener("focus", () => {
+    if (input.matches(":focus-visible")) {
+      show();
+    }
+  });
+  input.addEventListener("keydown", () => {
+    if (input.matches(":focus-visible")) {
+      show();
+    }
+  });
+  input.addEventListener("blur", hide);
+}
+
+function setupSliderBubbles(): void {
+  setupSliderBubble(fontSizeInput, () => `${fontSizeInput?.value ?? ""}px`);
+  setupSliderBubble(lineHeightInput, () => Number(lineHeightInput?.value).toFixed(2));
+  setupSliderBubble(scrollSpeedInput, () => `≈ ${getEstimatedWordsPerMinute()} wpm`);
+  setupSliderBubble(opacityInput, () => `${Math.round(Number(opacityInput?.value) * 100)}%`);
+}
+
 applyMockPlatform();
 buildLivePreviewWords();
 buildAppearancePresets();
+setupSliderBubbles();
 initChoiceGroups();
 countdownEnabledInput?.addEventListener("change", () => {
   syncCountdownDurationState();

@@ -1451,6 +1451,52 @@ h3 {
   width: 100%;
 }
 
+.range-wrap {
+  position: relative;
+}
+
+.range-bubble {
+  background: var(--ed-accent-deep);
+  border-radius: 7px;
+  bottom: calc(100% + 9px);
+  color: #ffffff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  left: 0;
+  opacity: 0;
+  padding: 3px 7px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) translateY(3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: nowrap;
+  z-index: 4;
+}
+
+.range-bubble::after {
+  border: 4px solid transparent;
+  border-top-color: var(--ed-accent-deep);
+  content: "";
+  left: 50%;
+  position: absolute;
+  top: 100%;
+  transform: translateX(-50%);
+}
+
+.range-bubble.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .range-bubble {
+    transition: opacity 120ms ease;
+  }
+}
+
 .switch-row {
   align-items: center;
   color: #3f4a43;
