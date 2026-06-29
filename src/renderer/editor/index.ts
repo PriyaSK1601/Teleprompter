@@ -16,6 +16,8 @@ const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const resetShortcutsButton = document.querySelector<HTMLButtonElement>("#resetShortcutsButton");
+const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
 const lineHeightInput = document.querySelector<HTMLInputElement>("#lineHeightInput");
@@ -93,6 +95,7 @@ const ipcBackedControls = [
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
+  resetShortcutsButton,
   fontSizeInput,
   lineHeightInput,
   textColorInput,
@@ -493,6 +496,256 @@ function initChoiceGroups(): void {
       }
     });
   }
+}
+
+const shortcutActionLabels: Record<TeleprompterCommand, string> = {
+  showOverlay: "Show teleprompter",
+  hideOverlay: "Hide teleprompter",
+  startPause: "Play / Pause",
+  restart: "Restart from top",
+  speedUp: "Speed up",
+  slowDown: "Slow down"
+};
+
+const acceleratorTokenLabels: Record<string, string> = {
+  CommandOrControl: "Ctrl",
+  CmdOrCtrl: "Ctrl",
+  Command: "Cmd",
+  Cmd: "Cmd",
+  Control: "Ctrl",
+  Ctrl: "Ctrl",
+  Alt: "Alt",
+  Option: "Alt",
+  Shift: "Shift",
+  Super: "Win",
+  Meta: "Win",
+  Up: "↑",
+  Down: "↓",
+  Left: "←",
+  Right: "→",
+  Space: "Space",
+  Return: "Enter",
+  Escape: "Esc"
+};
+
+let shortcutStatuses: ShortcutStatus[] = [];
+let captureKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
+
+function formatAcceleratorTokens(accelerator: string): string[] {
+  return accelerator
+    .split("+")
+    .filter((token) => token.length > 0)
+    .map((token) => acceleratorTokenLabels[token] ?? token);
+}
+
+function normalizeCaptureKey(event: KeyboardEvent): string | null {
+  const key = event.key;
+
+  if (["Control", "Alt", "Shift", "Meta", "OS"].includes(key)) {
+    return null;
+  }
+
+  const named: Record<string, string> = {
+    " ": "Space",
+    Spacebar: "Space",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+    Enter: "Return",
+    Escape: "Escape",
+    Tab: "Tab",
+    Backspace: "Backspace",
+    Delete: "Delete"
+  };
+
+  if (named[key]) {
+    return named[key];
+  }
+
+  if (/^F\d{1,2}$/.test(key)) {
+    return key;
+  }
+
+  if (key.length === 1) {
+    return key.toUpperCase();
+  }
+
+  return null;
+}
+
+function acceleratorFromEvent(event: KeyboardEvent): string | null {
+  const key = normalizeCaptureKey(event);
+
+  if (!key) {
+    return null;
+  }
+
+  const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
+  const isFunctionKey = /^F\d{1,2}$/.test(key);
+
+  // Require a modifier (except for function keys) so global hotkeys don't swallow plain keystrokes.
+  if (!hasModifier && !isFunctionKey) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  if (event.ctrlKey || event.metaKey) {
+    parts.push("CommandOrControl");
+  }
+
+  if (event.altKey) {
+    parts.push("Alt");
+  }
+
+  if (event.shiftKey) {
+    parts.push("Shift");
+  }
+
+  parts.push(key);
+  return parts.join("+");
+}
+
+function renderKeycaps(container: HTMLElement, accelerator: string): void {
+  container.textContent = "";
+  container.classList.remove("is-capturing");
+  const tokens = formatAcceleratorTokens(accelerator);
+
+  if (tokens.length === 0) {
+    const placeholder = document.createElement("span");
+    placeholder.className = "shortcut-keys-placeholder";
+    placeholder.textContent = "Not set";
+    container.append(placeholder);
+    return;
+  }
+
+  for (const token of tokens) {
+    const keycap = document.createElement("kbd");
+    keycap.className = "keycap";
+    keycap.textContent = token;
+    container.append(keycap);
+  }
+}
+
+function detachShortcutCapture(): void {
+  if (captureKeydownHandler) {
+    window.removeEventListener("keydown", captureKeydownHandler, true);
+    captureKeydownHandler = null;
+  }
+}
+
+function cancelShortcutCapture(): void {
+  if (!captureKeydownHandler) {
+    return;
+  }
+
+  detachShortcutCapture();
+  renderShortcuts(shortcutStatuses);
+}
+
+function beginShortcutCapture(action: TeleprompterCommand, button: HTMLButtonElement): void {
+  detachShortcutCapture();
+  button.classList.add("is-capturing");
+  button.textContent = "Press keys…";
+
+  captureKeydownHandler = (event: KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Escape") {
+      cancelShortcutCapture();
+      return;
+    }
+
+    const accelerator = acceleratorFromEvent(event);
+
+    if (!accelerator) {
+      return;
+    }
+
+    detachShortcutCapture();
+    void applyShortcutBindings(action, { accelerator });
+  };
+
+  window.addEventListener("keydown", captureKeydownHandler, true);
+}
+
+async function applyShortcutBindings(
+  action: TeleprompterCommand,
+  changes: { accelerator?: string; enabled?: boolean }
+): Promise<void> {
+  await runEditorAction("Update shortcut", async () => {
+    const bindings: ShortcutBinding[] = shortcutStatuses.map((status) => ({
+      action: status.action,
+      accelerator: status.action === action && changes.accelerator !== undefined
+        ? changes.accelerator
+        : status.accelerator,
+      enabled: status.action === action && changes.enabled !== undefined
+        ? changes.enabled
+        : status.enabled
+    }));
+    const updated = await requireTeleprompterApi().updateShortcuts({ bindings });
+    renderShortcuts(updated);
+  });
+}
+
+function renderShortcuts(statuses: ShortcutStatus[]): void {
+  shortcutStatuses = statuses;
+
+  if (!shortcutList) {
+    return;
+  }
+
+  shortcutList.textContent = "";
+
+  for (const status of statuses) {
+    const label = shortcutActionLabels[status.action] ?? status.action;
+    const row = document.createElement("div");
+    row.className = status.enabled ? "shortcut-row" : "shortcut-row is-disabled";
+
+    const info = document.createElement("div");
+    info.className = "shortcut-info";
+    const name = document.createElement("span");
+    name.className = "shortcut-name";
+    name.textContent = label;
+    info.append(name);
+
+    if (status.enabled && !status.registered) {
+      const warning = document.createElement("span");
+      warning.className = "shortcut-warning";
+      warning.textContent = "Unavailable — another app may use this combination";
+      info.append(warning);
+    }
+
+    const controls = document.createElement("div");
+    controls.className = "shortcut-controls";
+
+    const keys = document.createElement("button");
+    keys.type = "button";
+    keys.className = "shortcut-keys";
+    keys.setAttribute("aria-label", `Change the ${label} shortcut`);
+    renderKeycaps(keys, status.accelerator);
+    keys.addEventListener("click", () => beginShortcutCapture(status.action, keys));
+
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.className = "toggle-switch";
+    toggle.checked = status.enabled;
+    toggle.setAttribute("aria-label", `Enable the ${label} shortcut`);
+    toggle.addEventListener("change", () => {
+      void applyShortcutBindings(status.action, { enabled: toggle.checked });
+    });
+
+    controls.append(keys, toggle);
+    row.append(info, controls);
+    shortcutList.append(row);
+  }
+}
+
+async function loadShortcuts(): Promise<void> {
+  const statuses = await requireTeleprompterApi().getShortcutStatus();
+  renderShortcuts(statuses);
 }
 
 function renderSettings(settings: AppSettings): void {
@@ -970,6 +1223,7 @@ function openSettings(): void {
   }
 
   settingsModal.classList.add("is-open");
+  void runEditorAction("Load shortcuts", loadShortcuts);
   requestAnimationFrame(() => {
     renderOverlaySize();
     renderSettingsPreviewFromControls();
@@ -979,6 +1233,7 @@ function openSettings(): void {
 
 function closeSettings(): void {
   settingsModal?.classList.remove("is-open");
+  cancelShortcutCapture();
   stopPreviewCountdown();
   stopPreviewScroll();
 }
@@ -1136,7 +1391,15 @@ resetSettingsButton?.addEventListener("click", () => {
   });
 });
 
+resetShortcutsButton?.addEventListener("click", () => {
+  void runEditorAction("Reset shortcuts", async () => {
+    const statuses = await requireTeleprompterApi().resetShortcuts();
+    renderShortcuts(statuses);
+  });
+});
+
 if (initializePreloadApi()) {
   void runEditorAction("Load local scripts", loadScriptsState);
   void runEditorAction("Load settings", loadSettings);
+  void runEditorAction("Load shortcuts", loadShortcuts);
 }
