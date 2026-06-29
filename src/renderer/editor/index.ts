@@ -45,6 +45,7 @@ const livePreviewCountdown = document.querySelector<HTMLElement>("#livePreviewCo
 const countdownBlock = document.querySelector<HTMLElement>(".countdown-block");
 const scrollSpeedField = document.querySelector<HTMLElement>(".scroll-speed-field");
 const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPill");
+const settingsDrawer = document.querySelector<HTMLElement>(".settings-drawer");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -251,17 +252,53 @@ function getSpeedPaceLabel(wordsPerMinute: number): string {
 }
 
 function renderScrollSpeedValue(): void {
-  if (!scrollSpeedValue) {
-    return;
-  }
-
   const wordsPerMinute = getEstimatedWordsPerMinute();
-  scrollSpeedValue.textContent = `≈ ${wordsPerMinute} wpm · ${getSpeedPaceLabel(wordsPerMinute)}`;
+  const pace = getSpeedPaceLabel(wordsPerMinute);
+
+  if (scrollSpeedValue) {
+    scrollSpeedValue.textContent = `≈ ${wordsPerMinute} wpm · ${pace}`;
+  }
 
   if (scrollSpeedInput) {
-    // Keep the raw value discoverable on hover.
+    // Keep the raw value discoverable on hover, and give screen readers the pace.
     scrollSpeedInput.title = `${scrollSpeedInput.value} px/s`;
+    scrollSpeedInput.setAttribute("aria-valuetext", `about ${wordsPerMinute} words per minute, ${pace}`);
   }
+}
+
+// Refresh every numeric readout (and its screen-reader text) live from the current control values.
+function renderControlReadouts(): void {
+  if (fontSizeInput) {
+    const fontSize = fontSizeInput.value;
+
+    if (fontSizeValue) {
+      fontSizeValue.textContent = `${fontSize}px`;
+    }
+
+    fontSizeInput.setAttribute("aria-valuetext", `${fontSize} pixels`);
+  }
+
+  if (lineHeightInput) {
+    const lineHeight = Number(lineHeightInput.value).toFixed(2);
+
+    if (lineHeightValue) {
+      lineHeightValue.textContent = lineHeight;
+    }
+
+    lineHeightInput.setAttribute("aria-valuetext", `${lineHeight} line spacing`);
+  }
+
+  if (opacityInput) {
+    const percent = Math.round(Number(opacityInput.value) * 100);
+
+    if (opacityValue) {
+      opacityValue.textContent = `${percent}%`;
+    }
+
+    opacityInput.setAttribute("aria-valuetext", `${percent} percent`);
+  }
+
+  renderScrollSpeedValue();
 }
 
 function renderScriptStats(): void {
@@ -794,16 +831,8 @@ function renderSettings(settings: AppSettings): void {
     fontSizeInput.value = String(settings.text.fontSize);
   }
 
-  if (fontSizeValue) {
-    fontSizeValue.textContent = `${settings.text.fontSize}px`;
-  }
-
   if (lineHeightInput) {
     lineHeightInput.value = String(settings.text.lineHeight);
-  }
-
-  if (lineHeightValue) {
-    lineHeightValue.textContent = settings.text.lineHeight.toFixed(2);
   }
 
   if (textColorInput) {
@@ -816,10 +845,6 @@ function renderSettings(settings: AppSettings): void {
 
   if (opacityInput) {
     opacityInput.value = String(settings.overlayAppearance.opacity);
-  }
-
-  if (opacityValue) {
-    opacityValue.textContent = `${Math.round(settings.overlayAppearance.opacity * 100)}%`;
   }
 
   if (backgroundColorInput) {
@@ -838,7 +863,7 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
-  renderScrollSpeedValue();
+  renderControlReadouts();
 
   if (scrollModeSelect) {
     scrollModeSelect.value = settings.behavior.scrollMode;
@@ -1164,6 +1189,10 @@ function stepPreviewScroll(timestamp: number): void {
   previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
 function startPreviewScroll(): void {
   if (!livePreviewTrack || previewScrollRaf !== undefined) {
     return;
@@ -1173,6 +1202,13 @@ function startPreviewScroll(): void {
   previewScrollLastTs = 0;
   previewScrollPaused = false;
   livePreviewTrack.style.transform = "translateY(0)";
+
+  if (prefersReducedMotion()) {
+    // Honour reduced-motion: show a static, still-representative preview instead of looping it.
+    updatePreviewHighlight();
+    return;
+  }
+
   previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
 }
 
@@ -1456,17 +1492,59 @@ function loadSidebarCollapsed(): boolean {
   }
 }
 
+let settingsReturnFocusElement: HTMLElement | null = null;
+
+function getDrawerFocusableElements(): HTMLElement[] {
+  if (!settingsDrawer) {
+    return [];
+  }
+
+  const selector =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(settingsDrawer.querySelectorAll<HTMLElement>(selector)).filter(
+    (element) => element.offsetParent !== null
+  );
+}
+
+// Keep keyboard focus inside the open dialog instead of leaking to the dimmed editor behind it.
+function handleSettingsTabKey(event: KeyboardEvent): void {
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  const focusable = getDrawerFocusableElements();
+
+  if (focusable.length === 0) {
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+
+  if (event.shiftKey && (active === first || !settingsDrawer?.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !settingsDrawer?.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function openSettings(): void {
   if (!settingsModal) {
     return;
   }
 
+  settingsReturnFocusElement = document.activeElement as HTMLElement | null;
   settingsModal.classList.add("is-open");
   void runEditorAction("Load shortcuts", loadShortcuts);
   requestAnimationFrame(() => {
     renderOverlaySize();
     renderSettingsPreviewFromControls();
     startPreviewScroll();
+    // Move focus into the dialog for keyboard and screen-reader users.
+    (closeSettingsButton ?? getDrawerFocusableElements()[0])?.focus();
   });
 }
 
@@ -1477,6 +1555,8 @@ function closeSettings(): void {
   cancelShortcutCapture();
   stopPreviewCountdown();
   stopPreviewScroll();
+  settingsReturnFocusElement?.focus();
+  settingsReturnFocusElement = null;
 }
 
 window.addEventListener("error", (event) => {
@@ -1490,6 +1570,7 @@ window.addEventListener("unhandledrejection", (event) => {
 settingsButton?.addEventListener("click", openSettings);
 settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
+settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
 
 setSidebarCollapsed(loadSidebarCollapsed());
 toggleSidebarButton?.addEventListener("click", () => {
@@ -1617,14 +1698,14 @@ for (const control of [
 ]) {
   control?.addEventListener("input", () => {
     renderSettingsPreviewFromControls();
-    renderScrollSpeedValue();
+    renderControlReadouts();
     renderScriptStats();
     scheduleSettingsSave();
   });
 
   control?.addEventListener("change", () => {
     renderSettingsPreviewFromControls();
-    renderScrollSpeedValue();
+    renderControlReadouts();
     renderScriptStats();
     scheduleSettingsSave();
   });

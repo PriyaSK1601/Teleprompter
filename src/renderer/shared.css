@@ -1753,6 +1753,16 @@ h3 {
   transform: translate(0, 0);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .settings-drawer {
+    transition: none;
+  }
+
+  .settings-saved-pill {
+    transform: none;
+  }
+}
+
 @media (max-width: 860px) {
   .editor-app {
     grid-template-columns: 1fr;
