@@ -598,28 +598,30 @@ h3 {
 
 .live-preview-pane[data-highlight="sentence"] .live-preview-track,
 .live-preview-pane[data-highlight="word"] .live-preview-track {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 38%, #000 62%, transparent 96%);
-  mask-image: linear-gradient(to bottom, transparent 4%, #000 38%, #000 62%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2%, #000 16%, #000 84%, transparent 98%);
+  mask-image: linear-gradient(to bottom, transparent 2%, #000 16%, #000 84%, transparent 98%);
 }
 
-.live-preview-pane[data-highlight="sentence"]::after,
-.live-preview-pane[data-highlight="word"]::after {
-  background: rgb(255 255 255 / 0.1);
-  border-radius: 8px;
-  content: "";
-  height: var(--highlight-line-height, 1.5em);
-  left: 14px;
-  pointer-events: none;
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 0;
+.lp-word {
+  border-radius: 6px;
+  transition:
+    opacity 160ms ease,
+    background 160ms ease;
 }
 
-.live-preview-pane[data-highlight="word"]::after {
-  left: 34%;
-  right: 34%;
+/* When a focus mode is active, gently dim everything and let the tracked line/word read at full strength. */
+.live-preview-track.is-focus-tracking .lp-word {
+  opacity: 0.55;
+}
+
+.live-preview-track.is-focus-tracking .lp-word.is-active {
+  opacity: 1;
+}
+
+.live-preview-pane[data-highlight="word"] .lp-word.is-active {
+  background: rgb(255 255 255 / 0.14);
+  /* Spread shadow (no blur) gives the pill some breathing room without taking layout space, so words never reflow. */
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.14);
 }
 
 .live-preview-text {
@@ -775,7 +777,7 @@ h3 {
   gap: 16px;
 }
 
-.countdown-duration {
+.field-label.countdown-duration {
   align-items: center;
   display: flex;
   flex-direction: row;
@@ -789,9 +791,26 @@ h3 {
   pointer-events: none;
 }
 
+.scroll-speed-field {
+  transition: opacity 160ms ease;
+}
+
+.scroll-speed-field.is-mode-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .shortcut-list {
   display: grid;
   gap: 6px;
+}
+
+.shortcut-overlay-note {
+  line-height: 1.9;
+}
+
+.shortcut-overlay-note .keycap {
+  vertical-align: middle;
 }
 
 .shortcut-row {
@@ -884,54 +903,6 @@ h3 {
 .shortcut-keys-placeholder {
   font-size: 12px;
   font-weight: 700;
-}
-
-.settings-advanced {
-  border-top: 1px solid var(--ed-hairline);
-  padding-top: 26px;
-}
-
-.settings-advanced-summary {
-  align-items: center;
-  color: var(--ed-muted);
-  cursor: pointer;
-  display: flex;
-  font-size: 12px;
-  font-weight: 700;
-  justify-content: space-between;
-  letter-spacing: 0.12em;
-  list-style: none;
-  text-transform: uppercase;
-  user-select: none;
-}
-
-.settings-advanced-summary::-webkit-details-marker {
-  display: none;
-}
-
-.settings-advanced-summary:focus-visible {
-  border-radius: 8px;
-  outline: 2px solid var(--ed-accent-strong);
-  outline-offset: 6px;
-}
-
-.settings-advanced-chevron {
-  fill: none;
-  height: 16px;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-  transition: transform 180ms ease;
-  width: 16px;
-}
-
-.settings-advanced[open] .settings-advanced-chevron {
-  transform: rotate(180deg);
-}
-
-.settings-advanced-body {
-  padding-top: 18px;
 }
 
 .settings-preview-text {

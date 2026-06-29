@@ -44,6 +44,7 @@ const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
 const previewCountdown = document.querySelector<HTMLElement>("#previewCountdown");
 const livePreviewCountdown = document.querySelector<HTMLElement>("#livePreviewCountdown");
 const countdownBlock = document.querySelector<HTMLElement>(".countdown-block");
+const scrollSpeedField = document.querySelector<HTMLElement>(".scroll-speed-field");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -821,6 +822,7 @@ function renderSettings(settings: AppSettings): void {
   renderScriptStats();
   syncChoiceGroups();
   syncCountdownDurationState();
+  syncScrollModeState();
 
   settingsRenderLocked = false;
 }
@@ -864,7 +866,6 @@ function applyPreviewStyles(values: {
   if (livePreviewPane) {
     livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
     livePreviewPane.dataset.highlight = values.highlightMode;
-    livePreviewPane.style.setProperty("--highlight-line-height", `${values.fontSize * values.lineHeight}px`);
   }
 
   for (const text of livePreviewTexts) {
@@ -873,6 +874,8 @@ function applyPreviewStyles(values: {
     text.style.lineHeight = String(values.lineHeight);
     text.style.textAlign = values.alignment;
   }
+
+  updatePreviewHighlight();
 }
 
 function renderSettingsPreview(settings: AppSettings): void {
@@ -944,6 +947,153 @@ function renderOverlaySize(): void {
   }
 }
 
+const livePreviewSampleText =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+
+function buildLivePreviewWords(): void {
+  const words = livePreviewSampleText.split(/\s+/).filter(Boolean);
+
+  for (const paragraph of livePreviewTexts) {
+    paragraph.textContent = "";
+
+    words.forEach((word, index) => {
+      const span = document.createElement("span");
+      span.className = "lp-word";
+      span.textContent = word;
+      paragraph.append(span);
+
+      if (index < words.length - 1) {
+        paragraph.append(document.createTextNode(" "));
+      }
+    });
+  }
+}
+
+function updatePreviewHighlight(): void {
+  if (!livePreviewTrack || !livePreviewPane) {
+    return;
+  }
+
+  const mode = livePreviewPane.dataset.highlight ?? "none";
+  const words = Array.from(livePreviewTrack.querySelectorAll<HTMLElement>(".lp-word"));
+
+  if (mode !== "sentence" && mode !== "word") {
+    livePreviewTrack.classList.remove("is-focus-tracking");
+
+    for (const word of words) {
+      word.classList.remove("is-active");
+    }
+
+    return;
+  }
+
+  livePreviewTrack.classList.add("is-focus-tracking");
+
+  if (mode === "word") {
+    updatePreviewWordHighlight(words);
+    return;
+  }
+
+  updatePreviewLineHighlight(words);
+}
+
+function updatePreviewWordHighlight(words: HTMLElement[]): void {
+  if (!livePreviewTrack || !livePreviewPane) {
+    return;
+  }
+
+  // Two identical copies stack in the track, so the first half is one reading pass.
+  const wordsPerCopy = Math.floor(words.length / 2);
+  const loopHeight = livePreviewTrack.scrollHeight / 2;
+
+  if (wordsPerCopy <= 0 || loopHeight <= 0) {
+    return;
+  }
+
+  // Where the centre focus band falls in the track's own (untransformed) coordinates.
+  const bandContentY = previewScrollOffset + livePreviewPane.clientHeight / 2;
+  const bandWithinLoop = ((bandContentY % loopHeight) + loopHeight) % loopHeight;
+
+  // Group the first copy into visual lines using stable layout positions (offsetTop ignores the scroll transform).
+  type PreviewLine = { top: number; bottom: number; indices: number[] };
+  const lines: PreviewLine[] = [];
+  let currentLine: PreviewLine | null = null;
+
+  for (let index = 0; index < wordsPerCopy; index += 1) {
+    const word = words[index];
+    const top = word.offsetTop;
+    const bottom = top + word.offsetHeight;
+
+    if (!currentLine || Math.abs(top - currentLine.top) > 2) {
+      currentLine = { top, bottom, indices: [index] };
+      lines.push(currentLine);
+    } else {
+      currentLine.indices.push(index);
+      currentLine.bottom = Math.max(currentLine.bottom, bottom);
+    }
+  }
+
+  // The line nearest the band (measured with wrap, since the copies loop).
+  let activeLine: PreviewLine | null = null;
+  let bestDistance = Infinity;
+
+  for (const line of lines) {
+    const center = (line.top + line.bottom) / 2;
+    const rawDistance = Math.abs(center - bandWithinLoop);
+    const distance = Math.min(rawDistance, loopHeight - rawDistance);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      activeLine = line;
+    }
+  }
+
+  if (!activeLine) {
+    return;
+  }
+
+  // Sweep the active word left-to-right as the line crosses the band, so it keeps pace with the scroll.
+  const span = Math.max(1, activeLine.bottom - activeLine.top);
+  const through = Math.min(0.999, Math.max(0, (bandWithinLoop - activeLine.top) / span));
+  const activeIndex = activeLine.indices[Math.floor(through * activeLine.indices.length)];
+
+  words.forEach((word, index) => {
+    word.classList.toggle("is-active", index % wordsPerCopy === activeIndex);
+  });
+}
+
+function updatePreviewLineHighlight(words: HTMLElement[]): void {
+  if (!livePreviewPane) {
+    return;
+  }
+
+  const paneRect = livePreviewPane.getBoundingClientRect();
+  const bandY = paneRect.top + paneRect.height / 2;
+
+  // Read every word's geometry first (one layout pass), then write classes.
+  const entries = words.map((word) => {
+    const rect = word.getBoundingClientRect();
+    return { word, top: rect.top, center: rect.top + rect.height / 2, height: rect.height };
+  });
+
+  let best: (typeof entries)[number] | null = null;
+
+  for (const entry of entries) {
+    if (entry.height <= 0) {
+      continue;
+    }
+
+    if (!best || Math.abs(entry.center - bandY) < Math.abs(best.center - bandY)) {
+      best = entry;
+    }
+  }
+
+  for (const entry of entries) {
+    const active = best !== null && Math.abs(entry.top - best.top) <= 2;
+    entry.word.classList.toggle("is-active", active);
+  }
+}
+
 function stepPreviewScroll(timestamp: number): void {
   if (!livePreviewTrack) {
     previewScrollRaf = undefined;
@@ -974,6 +1124,7 @@ function stepPreviewScroll(timestamp: number): void {
     livePreviewTrack.style.transform = `translateY(${-previewScrollOffset}px)`;
   }
 
+  updatePreviewHighlight();
   previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
 }
 
@@ -1057,6 +1208,11 @@ function playPreviewCountdown(): void {
 
 function syncCountdownDurationState(): void {
   countdownBlock?.classList.toggle("is-duration-disabled", !countdownEnabledInput?.checked);
+}
+
+function syncScrollModeState(): void {
+  // Manual scroll speed only applies in manual mode; dim it when voice tracking drives the pace.
+  scrollSpeedField?.classList.toggle("is-mode-disabled", scrollModeSelect?.value === "voice");
 }
 
 async function saveOverlaySize(): Promise<void> {
@@ -1256,6 +1412,7 @@ toggleSidebarButton?.addEventListener("click", () => {
 });
 
 applyMockPlatform();
+buildLivePreviewWords();
 initChoiceGroups();
 countdownEnabledInput?.addEventListener("change", () => {
   syncCountdownDurationState();
@@ -1272,6 +1429,8 @@ countdownSecondsInput?.addEventListener("change", () => {
     playPreviewCountdown();
   }
 });
+
+scrollModeSelect?.addEventListener("change", syncScrollModeState);
 
 sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
 window.addEventListener("pointermove", handleOverlayPointerMove);

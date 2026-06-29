@@ -93,12 +93,17 @@
         </div>
 
         <section class="settings-section">
-          <h3>Reading comfort</h3>
+          <h3>Text</h3>
           <div class="settings-stack">
             <label class="field-label" for="fontSizeInput">
               <span class="field-label-text">Font size</span>
               <input id="fontSizeInput" class="range-input" type="range" min="18" max="72" step="1" />
               <span id="fontSizeValue" class="setting-value"></span>
+            </label>
+            <label class="field-label" for="lineHeightInput">
+              <span class="field-label-text">Line spacing</span>
+              <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
+              <span id="lineHeightValue" class="setting-value"></span>
             </label>
             <div class="field-label">
               <span class="field-label-text">Alignment</span>
@@ -119,11 +124,25 @@
                 <option value="right">Right</option>
               </select>
             </div>
+            <div class="field-label">
+              <span class="field-label-text">Text focus</span>
+              <span class="field-hint">Dim everything except where you are, so you keep your place.</span>
+              <div class="segmented segmented-text" role="radiogroup" aria-label="Text focus" data-choice-for="highlightModeSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="none">Off</button>
+                <button type="button" class="segmented-option" role="radio" data-value="sentence">Line</button>
+                <button type="button" class="segmented-option" role="radio" data-value="word">Word</button>
+              </div>
+              <select id="highlightModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
+                <option value="none">Off</option>
+                <option value="sentence">Current line</option>
+                <option value="word">Word focus</option>
+              </select>
+            </div>
           </div>
         </section>
 
         <section class="settings-section">
-          <h3>Motion</h3>
+          <h3>Movement</h3>
           <div class="settings-stack">
             <div class="field-label">
               <span class="field-label-text">Scroll mode</span>
@@ -137,7 +156,7 @@
                 <option value="voice">Voice Tracking</option>
               </select>
             </div>
-            <label class="field-label" for="scrollSpeedInput">
+            <label class="field-label scroll-speed-field" for="scrollSpeedInput">
               <span class="field-label-text">Manual scroll speed</span>
               <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
               <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
@@ -162,8 +181,8 @@
         </section>
 
         <section class="settings-section">
-          <h3>Size and position</h3>
-          <p class="settings-hint">Drag the teleprompter to move it, or drag its edges and corners to resize. This is where it appears by default when you start.</p>
+          <h3>Position &amp; size</h3>
+          <p class="settings-hint">Drag to move it. Drag the edges or corners to resize. This is where your teleprompter opens by default.</p>
           <div id="sizeScreen" class="size-screen">
             <div class="size-chrome size-macos-menubar" aria-hidden="true"></div>
             <div id="sizeWindow" class="size-window">
@@ -207,55 +226,39 @@
         </section>
 
         <section class="settings-section">
+          <h3>Appearance</h3>
+          <div class="settings-grid">
+            <label class="field-label" for="textColorInput">
+              <span class="field-label-text">Text colour</span>
+              <input id="textColorInput" class="color-input" type="color" />
+            </label>
+            <label class="field-label" for="backgroundColorInput">
+              <span class="field-label-text">Background colour</span>
+              <input id="backgroundColorInput" class="color-input" type="color" />
+            </label>
+          </div>
+          <label class="field-label" for="opacityInput">
+            <span class="field-label-text">Overlay opacity</span>
+            <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
+            <span id="opacityValue" class="setting-value"></span>
+          </label>
+        </section>
+
+        <section class="settings-section">
           <h3>Shortcuts</h3>
           <p class="settings-hint">Global hotkeys that control the teleprompter even when this window isn't focused. Click a shortcut to change it.</p>
           <div id="shortcutList" class="shortcut-list"></div>
+          <p class="settings-hint shortcut-overlay-note">
+            When the overlay itself is focused, you can also use
+            <kbd class="keycap">←</kbd> <kbd class="keycap">→</kbd> for speed,
+            <kbd class="keycap">Space</kbd> to play or pause,
+            <kbd class="keycap">R</kbd> to restart, and
+            <kbd class="keycap">Esc</kbd> to close.
+          </p>
           <div class="settings-actions">
             <button id="resetShortcutsButton" class="secondary-button" type="button">Reset shortcuts</button>
           </div>
         </section>
-
-        <details class="settings-advanced">
-          <summary class="settings-advanced-summary">
-            <span>Advanced</span>
-            <svg class="settings-advanced-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-          </summary>
-          <div class="settings-advanced-body">
-            <div class="settings-grid">
-              <label class="field-label" for="lineHeightInput">
-                Line spacing
-                <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
-                <span id="lineHeightValue" class="setting-value"></span>
-              </label>
-              <div class="field-label">
-                <span class="field-label-text">Highlight mode</span>
-                <div class="segmented segmented-text" role="radiogroup" aria-label="Highlight mode" data-choice-for="highlightModeSelect">
-                  <button type="button" class="segmented-option" role="radio" data-value="none">Off</button>
-                  <button type="button" class="segmented-option" role="radio" data-value="sentence">Line</button>
-                  <button type="button" class="segmented-option" role="radio" data-value="word">Word</button>
-                </div>
-                <select id="highlightModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
-                  <option value="none">Off</option>
-                  <option value="sentence">Current line</option>
-                  <option value="word">Word focus</option>
-                </select>
-              </div>
-              <label class="field-label" for="textColorInput">
-                Text colour
-                <input id="textColorInput" class="color-input" type="color" />
-              </label>
-              <label class="field-label" for="backgroundColorInput">
-                Background colour
-                <input id="backgroundColorInput" class="color-input" type="color" />
-              </label>
-              <label class="field-label" for="opacityInput">
-                Overlay opacity
-                <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
-                <span id="opacityValue" class="setting-value"></span>
-              </label>
-            </div>
-          </div>
-        </details>
 
         <section class="settings-section">
           <div class="settings-actions">
