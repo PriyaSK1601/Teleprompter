@@ -138,6 +138,13 @@ export type OverlayAppearanceSettings = {
   backgroundColor: string;
 };
 
+export type OverlaySizeSettings = {
+  widthRatio: number;
+  heightRatio: number;
+  xRatio: number;
+  yRatio: number;
+};
+
 export type CountdownSettings = {
   enabled: boolean;
   seconds: number;
@@ -158,6 +165,7 @@ export type AppSettings = {
   version: 1;
   text: TextSettings;
   overlayAppearance: OverlayAppearanceSettings;
+  overlaySize: OverlaySizeSettings;
   countdown: CountdownSettings;
   behavior: BehaviorSettings;
   experimental: ExperimentalSettings;
@@ -166,6 +174,7 @@ export type AppSettings = {
 export type SettingsUpdate = {
   text?: Partial<TextSettings>;
   overlayAppearance?: Partial<OverlayAppearanceSettings>;
+  overlaySize?: Partial<OverlaySizeSettings>;
   countdown?: Partial<CountdownSettings>;
   behavior?: Partial<BehaviorSettings>;
   experimental?: Partial<ExperimentalSettings>;
