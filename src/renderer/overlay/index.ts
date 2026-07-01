@@ -228,7 +228,7 @@ function getViewportReadingFocusOffset(): number {
     return 0;
   }
 
-  return promptViewport.clientHeight * 0.58;
+  return promptViewport.clientHeight * 0.48;
 }
 
 function getContentLineCandidates(): HighlightLineCandidate[] {
