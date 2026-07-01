@@ -1,6 +1,7 @@
 const statusElement = document.querySelector<HTMLElement>("#status");
+const editorApp = document.querySelector<HTMLElement>(".editor-app");
+const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
-const saveScriptButton = document.querySelector<HTMLButtonElement>("#saveScriptButton");
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
@@ -15,6 +16,7 @@ const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
 const lineHeightInput = document.querySelector<HTMLInputElement>("#lineHeightInput");
@@ -24,6 +26,8 @@ const alignmentSelect = document.querySelector<HTMLSelectElement>("#alignmentSel
 const opacityInput = document.querySelector<HTMLInputElement>("#opacityInput");
 const opacityValue = document.querySelector<HTMLElement>("#opacityValue");
 const backgroundColorInput = document.querySelector<HTMLInputElement>("#backgroundColorInput");
+const appearancePresets = document.querySelector<HTMLElement>("#appearancePresets");
+const contrastHint = document.querySelector<HTMLElement>("#contrastHint");
 const countdownEnabledInput = document.querySelector<HTMLInputElement>("#countdownEnabledInput");
 const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdownSecondsInput");
 const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
@@ -31,9 +35,19 @@ const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedI
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
+const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
+const livePreviewTrack = document.querySelector<HTMLElement>("#livePreviewTrack");
+const livePreviewTexts = Array.from(document.querySelectorAll<HTMLElement>(".live-preview-text"));
+const choiceGroups = Array.from(document.querySelectorAll<HTMLElement>("[data-choice-for]"));
 const sizeScreen = document.querySelector<HTMLElement>("#sizeScreen");
 const sizeWindow = document.querySelector<HTMLElement>("#sizeWindow");
 const sizeReadout = document.querySelector<HTMLElement>("#sizeReadout");
+const previewCountdown = document.querySelector<HTMLElement>("#previewCountdown");
+const livePreviewCountdown = document.querySelector<HTMLElement>("#livePreviewCountdown");
+const countdownBlock = document.querySelector<HTMLElement>(".countdown-block");
+const scrollSpeedField = document.querySelector<HTMLElement>(".scroll-speed-field");
+const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPill");
+const settingsDrawer = document.querySelector<HTMLElement>(".settings-drawer");
 
 let currentScriptsState: ScriptsState = {
   scripts: []
@@ -45,12 +59,29 @@ let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
 let overlayYRatio = 0;
+let autosaveTimer: number | undefined;
+let settingsSaveTimer: number | undefined;
+let previewCountdownTimer: number | undefined;
+let previewScrollRaf: number | undefined;
+let previewScrollOffset = 0;
+let previewScrollLastTs = 0;
+let previewScrollPaused = false;
+
+const autosaveDelayMs = 600;
+const settingsSaveDelayMs = 200;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
   maxWidthRatio: 1,
   minHeightRatio: 0.12,
   maxHeightRatio: 0.9
+};
+
+const defaultOverlayPlacement = {
+  widthRatio: 0.47,
+  heightRatio: 0.31,
+  xRatio: 0.265,
+  yRatio: 0
 };
 
 type OverlayResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -74,7 +105,6 @@ let activeOverlayDrag: OverlayDragState | null = null;
 const ipcBackedControls = [
   newScriptButton,
   deleteSelectedScriptsButton,
-  saveScriptButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -160,6 +190,7 @@ function getEditorBody(): string {
 }
 
 function setEditorFromScript(script?: ScriptRecord): void {
+  cancelAutosave();
   activeScriptId = script?.id;
 
   if (scriptTitle) {
@@ -171,6 +202,17 @@ function setEditorFromScript(script?: ScriptRecord): void {
   }
 
   renderScriptStats();
+  updateStartButtonState();
+}
+
+function updateStartButtonState(): void {
+  if (!startTeleprompterButton) {
+    return;
+  }
+
+  const hasScript = getEditorBody().trim().length > 0;
+  startTeleprompterButton.disabled = !hasScript || !getTeleprompterApi();
+  startTeleprompterButton.title = hasScript ? "" : "Add a script before starting";
 }
 
 function formatDuration(seconds: number): string {
@@ -192,7 +234,80 @@ function getEstimatedWordsPerMinute(): number {
     return 150;
   }
 
-  return Math.round(Math.min(240, Math.max(90, 150 * (speed / 36))));
+  // Map the scroll-speed slider (8–160 px/s) linearly onto a realistic speaking pace (70–260 wpm).
+  const minSpeed = 8;
+  const maxSpeed = 160;
+  const minWordsPerMinute = 70;
+  const maxWordsPerMinute = 260;
+  const clampedSpeed = Math.min(maxSpeed, Math.max(minSpeed, speed));
+  const ratio = (clampedSpeed - minSpeed) / (maxSpeed - minSpeed);
+  return Math.round(minWordsPerMinute + ratio * (maxWordsPerMinute - minWordsPerMinute));
+}
+
+function getSpeedPaceLabel(wordsPerMinute: number): string {
+  if (wordsPerMinute <= 110) {
+    return "Relaxed";
+  }
+
+  if (wordsPerMinute <= 150) {
+    return "Natural";
+  }
+
+  if (wordsPerMinute <= 190) {
+    return "Brisk";
+  }
+
+  return "Fast";
+}
+
+function renderScrollSpeedValue(): void {
+  const wordsPerMinute = getEstimatedWordsPerMinute();
+  const pace = getSpeedPaceLabel(wordsPerMinute);
+
+  if (scrollSpeedValue) {
+    scrollSpeedValue.textContent = `≈ ${wordsPerMinute} wpm · ${pace}`;
+  }
+
+  if (scrollSpeedInput) {
+    // Keep the raw value discoverable on hover, and give screen readers the pace.
+    scrollSpeedInput.title = `${scrollSpeedInput.value} px/s`;
+    scrollSpeedInput.setAttribute("aria-valuetext", `about ${wordsPerMinute} words per minute, ${pace}`);
+  }
+}
+
+// Refresh every numeric readout (and its screen-reader text) live from the current control values.
+function renderControlReadouts(): void {
+  if (fontSizeInput) {
+    const fontSize = fontSizeInput.value;
+
+    if (fontSizeValue) {
+      fontSizeValue.textContent = `${fontSize}px`;
+    }
+
+    fontSizeInput.setAttribute("aria-valuetext", `${fontSize} pixels`);
+  }
+
+  if (lineHeightInput) {
+    const lineHeight = Number(lineHeightInput.value).toFixed(2);
+
+    if (lineHeightValue) {
+      lineHeightValue.textContent = lineHeight;
+    }
+
+    lineHeightInput.setAttribute("aria-valuetext", `${lineHeight} line spacing`);
+  }
+
+  if (opacityInput) {
+    const percent = Math.round(Number(opacityInput.value) * 100);
+
+    if (opacityValue) {
+      opacityValue.textContent = `${percent}%`;
+    }
+
+    opacityInput.setAttribute("aria-valuetext", `${percent} percent`);
+  }
+
+  renderScrollSpeedValue();
 }
 
 function renderScriptStats(): void {
@@ -292,7 +407,7 @@ function renderScriptsList(): void {
     button.addEventListener("click", () => {
       void runEditorAction("Open script", async () => {
         const state = await requireTeleprompterApi().setActiveScript(script.id);
-        renderScriptsState(state, "Script loaded");
+        renderScriptsState(state);
       });
     });
     item.append(button);
@@ -302,17 +417,13 @@ function renderScriptsList(): void {
   renderScriptSelectionState();
 }
 
-function renderScriptsState(state: ScriptsState, status?: string): void {
+function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
   selectedScriptIds = new Set(
     Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
   );
   setEditorFromScript(state.activeScript);
   renderScriptsList();
-
-  if (status) {
-    setStatus(status);
-  }
 }
 
 function renderScriptSelectionState(): void {
@@ -331,15 +442,14 @@ function renderScriptSelectionState(): void {
 
 async function loadScriptsState(): Promise<void> {
   const state = await requireTeleprompterApi().getScriptsState();
-  renderScriptsState(state, "Ready");
+  renderScriptsState(state);
 }
 
-async function saveCurrentScript(status = "Saved"): Promise<ScriptsState | undefined> {
+async function saveCurrentScript(): Promise<ScriptsState | undefined> {
   const body = getEditorBody();
   const title = getEditorTitle();
 
   if (body.trim().length === 0 && title.trim().length === 0) {
-    setStatus("Add a title or script before saving.");
     return undefined;
   }
 
@@ -348,8 +458,379 @@ async function saveCurrentScript(status = "Saved"): Promise<ScriptsState | undef
     title,
     body
   });
-  renderScriptsState(state, status);
+  renderScriptsState(state);
   return state;
+}
+
+function cancelAutosave(): void {
+  if (autosaveTimer !== undefined) {
+    window.clearTimeout(autosaveTimer);
+    autosaveTimer = undefined;
+  }
+}
+
+function scheduleAutosave(): void {
+  if (!getTeleprompterApi()) {
+    return;
+  }
+
+  cancelAutosave();
+  autosaveTimer = window.setTimeout(() => {
+    autosaveTimer = undefined;
+    void runEditorAction("Auto-save", autosaveCurrentScript);
+  }, autosaveDelayMs);
+}
+
+async function autosaveCurrentScript(): Promise<void> {
+  const title = getEditorTitle();
+  const body = getEditorBody();
+
+  if (body.trim().length === 0 && title.trim().length === 0) {
+    return;
+  }
+
+  const state = await requireTeleprompterApi().saveScript({
+    id: activeScriptId,
+    title,
+    body
+  });
+
+  currentScriptsState = state;
+  activeScriptId = state.activeScript?.id ?? activeScriptId;
+  selectedScriptIds = new Set(
+    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
+  );
+  renderScriptsList();
+}
+
+function getChoiceBacking(group: HTMLElement): (HTMLSelectElement | HTMLInputElement) | null {
+  const backingId = group.dataset.choiceFor;
+  return backingId ? document.querySelector<HTMLSelectElement | HTMLInputElement>(`#${backingId}`) : null;
+}
+
+function getChoiceOptions(group: HTMLElement): HTMLButtonElement[] {
+  return Array.from(group.querySelectorAll<HTMLButtonElement>("[data-value]"));
+}
+
+function syncChoiceGroup(group: HTMLElement): void {
+  const backing = getChoiceBacking(group);
+
+  if (!backing) {
+    return;
+  }
+
+  for (const option of getChoiceOptions(group)) {
+    const isActive = option.dataset.value === backing.value;
+    option.setAttribute("aria-checked", isActive ? "true" : "false");
+    option.tabIndex = isActive ? 0 : -1;
+  }
+}
+
+function syncChoiceGroups(): void {
+  for (const group of choiceGroups) {
+    syncChoiceGroup(group);
+  }
+}
+
+function selectChoiceValue(group: HTMLElement, value: string): void {
+  const backing = getChoiceBacking(group);
+
+  if (!backing) {
+    return;
+  }
+
+  if (backing.value === value) {
+    syncChoiceGroup(group);
+    return;
+  }
+
+  backing.value = value;
+  syncChoiceGroup(group);
+  // Reuse the existing change handler on the backing control to persist and preview.
+  backing.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function initChoiceGroups(): void {
+  for (const group of choiceGroups) {
+    const options = getChoiceOptions(group);
+
+    group.addEventListener("click", (event) => {
+      const target = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-value]");
+
+      if (target?.dataset.value) {
+        selectChoiceValue(group, target.dataset.value);
+      }
+    });
+
+    group.addEventListener("keydown", (event) => {
+      const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+
+      if (!keys.includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      const currentIndex = options.findIndex((option) => option.getAttribute("aria-checked") === "true");
+      const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (Math.max(0, currentIndex) + delta + options.length) % options.length;
+      const next = options[nextIndex];
+
+      if (next?.dataset.value) {
+        selectChoiceValue(group, next.dataset.value);
+        next.focus();
+      }
+    });
+  }
+}
+
+const shortcutActionLabels: Record<TeleprompterCommand, string> = {
+  showOverlay: "Show teleprompter",
+  hideOverlay: "Hide teleprompter",
+  startPause: "Play / Pause",
+  restart: "Restart from top",
+  speedUp: "Speed up",
+  slowDown: "Slow down"
+};
+
+const acceleratorTokenLabels: Record<string, string> = {
+  CommandOrControl: "Ctrl",
+  CmdOrCtrl: "Ctrl",
+  Command: "Cmd",
+  Cmd: "Cmd",
+  Control: "Ctrl",
+  Ctrl: "Ctrl",
+  Alt: "Alt",
+  Option: "Alt",
+  Shift: "Shift",
+  Super: "Win",
+  Meta: "Win",
+  Up: "↑",
+  Down: "↓",
+  Left: "←",
+  Right: "→",
+  Space: "Space",
+  Return: "Enter",
+  Escape: "Esc"
+};
+
+let shortcutStatuses: ShortcutStatus[] = [];
+let captureKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
+
+function formatAcceleratorTokens(accelerator: string): string[] {
+  return accelerator
+    .split("+")
+    .filter((token) => token.length > 0)
+    .map((token) => acceleratorTokenLabels[token] ?? token);
+}
+
+function normalizeCaptureKey(event: KeyboardEvent): string | null {
+  const key = event.key;
+
+  if (["Control", "Alt", "Shift", "Meta", "OS"].includes(key)) {
+    return null;
+  }
+
+  const named: Record<string, string> = {
+    " ": "Space",
+    Spacebar: "Space",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+    Enter: "Return",
+    Escape: "Escape",
+    Tab: "Tab",
+    Backspace: "Backspace",
+    Delete: "Delete"
+  };
+
+  if (named[key]) {
+    return named[key];
+  }
+
+  if (/^F\d{1,2}$/.test(key)) {
+    return key;
+  }
+
+  if (key.length === 1) {
+    return key.toUpperCase();
+  }
+
+  return null;
+}
+
+function acceleratorFromEvent(event: KeyboardEvent): string | null {
+  const key = normalizeCaptureKey(event);
+
+  if (!key) {
+    return null;
+  }
+
+  const hasModifier = event.ctrlKey || event.metaKey || event.altKey;
+  const isFunctionKey = /^F\d{1,2}$/.test(key);
+
+  // Require a modifier (except for function keys) so global hotkeys don't swallow plain keystrokes.
+  if (!hasModifier && !isFunctionKey) {
+    return null;
+  }
+
+  const parts: string[] = [];
+
+  if (event.ctrlKey || event.metaKey) {
+    parts.push("CommandOrControl");
+  }
+
+  if (event.altKey) {
+    parts.push("Alt");
+  }
+
+  if (event.shiftKey) {
+    parts.push("Shift");
+  }
+
+  parts.push(key);
+  return parts.join("+");
+}
+
+function renderKeycaps(container: HTMLElement, accelerator: string): void {
+  container.textContent = "";
+  container.classList.remove("is-capturing");
+  const tokens = formatAcceleratorTokens(accelerator);
+
+  if (tokens.length === 0) {
+    const placeholder = document.createElement("span");
+    placeholder.className = "shortcut-keys-placeholder";
+    placeholder.textContent = "Not set";
+    container.append(placeholder);
+    return;
+  }
+
+  for (const token of tokens) {
+    const keycap = document.createElement("kbd");
+    keycap.className = "keycap";
+    keycap.textContent = token;
+    container.append(keycap);
+  }
+}
+
+function detachShortcutCapture(): void {
+  if (captureKeydownHandler) {
+    window.removeEventListener("keydown", captureKeydownHandler, true);
+    captureKeydownHandler = null;
+  }
+}
+
+function cancelShortcutCapture(): void {
+  if (!captureKeydownHandler) {
+    return;
+  }
+
+  detachShortcutCapture();
+  renderShortcuts(shortcutStatuses);
+}
+
+function beginShortcutCapture(action: TeleprompterCommand, button: HTMLButtonElement): void {
+  detachShortcutCapture();
+  button.classList.add("is-capturing");
+  button.textContent = "Press keys…";
+
+  captureKeydownHandler = (event: KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Escape") {
+      cancelShortcutCapture();
+      return;
+    }
+
+    const accelerator = acceleratorFromEvent(event);
+
+    if (!accelerator) {
+      return;
+    }
+
+    detachShortcutCapture();
+    void applyShortcutBindings(action, { accelerator });
+  };
+
+  window.addEventListener("keydown", captureKeydownHandler, true);
+}
+
+async function applyShortcutBindings(
+  action: TeleprompterCommand,
+  changes: { accelerator?: string; enabled?: boolean }
+): Promise<void> {
+  await runEditorAction("Update shortcut", async () => {
+    const bindings: ShortcutBinding[] = shortcutStatuses.map((status) => ({
+      action: status.action,
+      accelerator: status.action === action && changes.accelerator !== undefined
+        ? changes.accelerator
+        : status.accelerator,
+      enabled: status.action === action && changes.enabled !== undefined
+        ? changes.enabled
+        : status.enabled
+    }));
+    const updated = await requireTeleprompterApi().updateShortcuts({ bindings });
+    renderShortcuts(updated);
+  });
+}
+
+function renderShortcuts(statuses: ShortcutStatus[]): void {
+  shortcutStatuses = statuses;
+
+  if (!shortcutList) {
+    return;
+  }
+
+  shortcutList.textContent = "";
+
+  for (const status of statuses) {
+    const label = shortcutActionLabels[status.action] ?? status.action;
+    const row = document.createElement("div");
+    row.className = status.enabled ? "shortcut-row" : "shortcut-row is-disabled";
+
+    const info = document.createElement("div");
+    info.className = "shortcut-info";
+    const name = document.createElement("span");
+    name.className = "shortcut-name";
+    name.textContent = label;
+    info.append(name);
+
+    if (status.enabled && !status.registered) {
+      const warning = document.createElement("span");
+      warning.className = "shortcut-warning";
+      warning.textContent = "Unavailable — another app may use this combination";
+      info.append(warning);
+    }
+
+    const controls = document.createElement("div");
+    controls.className = "shortcut-controls";
+
+    const keys = document.createElement("button");
+    keys.type = "button";
+    keys.className = "shortcut-keys";
+    keys.setAttribute("aria-label", `Change the ${label} shortcut`);
+    renderKeycaps(keys, status.accelerator);
+    keys.addEventListener("click", () => beginShortcutCapture(status.action, keys));
+
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.className = "toggle-switch";
+    toggle.checked = status.enabled;
+    toggle.setAttribute("aria-label", `Enable the ${label} shortcut`);
+    toggle.addEventListener("change", () => {
+      void applyShortcutBindings(status.action, { enabled: toggle.checked });
+    });
+
+    controls.append(keys, toggle);
+    row.append(info, controls);
+    shortcutList.append(row);
+  }
+}
+
+async function loadShortcuts(): Promise<void> {
+  const statuses = await requireTeleprompterApi().getShortcutStatus();
+  renderShortcuts(statuses);
 }
 
 function renderSettings(settings: AppSettings): void {
@@ -359,16 +840,8 @@ function renderSettings(settings: AppSettings): void {
     fontSizeInput.value = String(settings.text.fontSize);
   }
 
-  if (fontSizeValue) {
-    fontSizeValue.textContent = `${settings.text.fontSize}px`;
-  }
-
   if (lineHeightInput) {
     lineHeightInput.value = String(settings.text.lineHeight);
-  }
-
-  if (lineHeightValue) {
-    lineHeightValue.textContent = settings.text.lineHeight.toFixed(2);
   }
 
   if (textColorInput) {
@@ -381,10 +854,6 @@ function renderSettings(settings: AppSettings): void {
 
   if (opacityInput) {
     opacityInput.value = String(settings.overlayAppearance.opacity);
-  }
-
-  if (opacityValue) {
-    opacityValue.textContent = `${Math.round(settings.overlayAppearance.opacity * 100)}%`;
   }
 
   if (backgroundColorInput) {
@@ -403,9 +872,7 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
-  if (scrollSpeedValue) {
-    scrollSpeedValue.textContent = `${settings.behavior.scrollSpeed} px/s`;
-  }
+  renderControlReadouts();
 
   if (scrollModeSelect) {
     scrollModeSelect.value = settings.behavior.scrollMode;
@@ -423,6 +890,11 @@ function renderSettings(settings: AppSettings): void {
 
   renderSettingsPreview(settings);
   renderScriptStats();
+  syncChoiceGroups();
+  syncCountdownDurationState();
+  syncScrollModeState();
+  updateActivePreset();
+  updateContrastHint();
 
   settingsRenderLocked = false;
 }
@@ -449,9 +921,11 @@ function applyPreviewStyles(values: {
   fontSize: number;
   lineHeight: number;
   alignment: string;
+  highlightMode: string;
 }): void {
   if (sizeWindow) {
     sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+    sizeWindow.style.setProperty("--preview-scale", String(getPreviewScale()));
   }
 
   if (settingsPreview) {
@@ -460,6 +934,20 @@ function applyPreviewStyles(values: {
     settingsPreview.style.lineHeight = String(values.lineHeight);
     settingsPreview.style.textAlign = values.alignment;
   }
+
+  if (livePreviewPane) {
+    livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
+    livePreviewPane.dataset.highlight = values.highlightMode;
+  }
+
+  for (const text of livePreviewTexts) {
+    text.style.color = values.textColor;
+    text.style.fontSize = `${values.fontSize}px`;
+    text.style.lineHeight = String(values.lineHeight);
+    text.style.textAlign = values.alignment;
+  }
+
+  updatePreviewHighlight();
 }
 
 function renderSettingsPreview(settings: AppSettings): void {
@@ -469,7 +957,8 @@ function renderSettingsPreview(settings: AppSettings): void {
     textColor: settings.text.textColor,
     fontSize: settings.text.fontSize,
     lineHeight: settings.text.lineHeight,
-    alignment: settings.text.alignment
+    alignment: settings.text.alignment,
+    highlightMode: settings.experimental.highlightMode
   });
 }
 
@@ -480,7 +969,146 @@ function renderSettingsPreviewFromControls(): void {
     textColor: textColorInput?.value ?? "#f8fafc",
     fontSize: Number(fontSizeInput?.value) || 32,
     lineHeight: Number(lineHeightInput?.value) || 1.5,
-    alignment: alignmentSelect?.value ?? "center"
+    alignment: alignmentSelect?.value ?? "center",
+    highlightMode: highlightModeSelect?.value ?? "none"
+  });
+}
+
+type AppearancePreset = {
+  id: string;
+  name: string;
+  textColor: string;
+  backgroundColor: string;
+  opacity: number;
+};
+
+const appearancePresetList: AppearancePreset[] = [
+  { id: "midnight", name: "Midnight", textColor: "#f9fafb", backgroundColor: "#111827", opacity: 0.82 },
+  { id: "contrast", name: "High contrast", textColor: "#ffffff", backgroundColor: "#000000", opacity: 1 },
+  { id: "paper", name: "Paper", textColor: "#26221b", backgroundColor: "#f4efe2", opacity: 0.95 },
+  { id: "sage", name: "Sage", textColor: "#eef4ec", backgroundColor: "#2f4636", opacity: 0.86 }
+];
+
+function relativeLuminance(hexColor: string): number {
+  const { red, green, blue } = hexToPreviewRgb(hexColor);
+  const channels = [red, green, blue].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function getContrastRatio(hexA: string, hexB: string): number {
+  const lighter = Math.max(relativeLuminance(hexA), relativeLuminance(hexB));
+  const darker = Math.min(relativeLuminance(hexA), relativeLuminance(hexB));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function isPresetActive(preset: AppearancePreset): boolean {
+  return (
+    (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
+    (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
+    Math.abs(Number(opacityInput?.value) - preset.opacity) < 0.005
+  );
+}
+
+function updateActivePreset(): void {
+  if (!appearancePresets) {
+    return;
+  }
+
+  const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
+  const anyActive = appearancePresetList.some(isPresetActive);
+
+  cards.forEach((card, index) => {
+    const preset = appearancePresetList.find((entry) => entry.id === card.dataset.preset);
+    const active = preset ? isPresetActive(preset) : false;
+    card.setAttribute("aria-checked", active ? "true" : "false");
+    // Keep one card keyboard-reachable: the active one, or the first when on custom colours.
+    card.tabIndex = active || (!anyActive && index === 0) ? 0 : -1;
+  });
+}
+
+function updateContrastHint(): void {
+  if (!contrastHint) {
+    return;
+  }
+
+  const textColor = textColorInput?.value ?? "#ffffff";
+  const backgroundColor = backgroundColorInput?.value ?? "#000000";
+  contrastHint.hidden = getContrastRatio(textColor, backgroundColor) >= 3;
+}
+
+function applyAppearancePreset(preset: AppearancePreset): void {
+  if (textColorInput) {
+    textColorInput.value = preset.textColor;
+  }
+
+  if (backgroundColorInput) {
+    backgroundColorInput.value = preset.backgroundColor;
+  }
+
+  if (opacityInput) {
+    opacityInput.value = String(preset.opacity);
+  }
+
+  renderSettingsPreviewFromControls();
+  renderControlReadouts();
+  updateActivePreset();
+  updateContrastHint();
+  scheduleSettingsSave();
+}
+
+function buildAppearancePresets(): void {
+  if (!appearancePresets) {
+    return;
+  }
+
+  appearancePresets.textContent = "";
+
+  for (const preset of appearancePresetList) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "preset-card";
+    card.dataset.preset = preset.id;
+    card.setAttribute("role", "radio");
+    card.setAttribute("aria-checked", "false");
+    card.setAttribute("aria-label", preset.name);
+    card.tabIndex = -1;
+
+    const swatch = document.createElement("span");
+    swatch.className = "preset-swatch";
+    swatch.textContent = "Aa";
+    swatch.style.background = getOpaquePreviewBackground(preset.backgroundColor, preset.opacity);
+    swatch.style.color = preset.textColor;
+
+    const name = document.createElement("span");
+    name.className = "preset-name";
+    name.textContent = preset.name;
+
+    card.append(swatch, name);
+    card.addEventListener("click", () => applyAppearancePreset(preset));
+    appearancePresets.append(card);
+  }
+
+  appearancePresets.addEventListener("keydown", (event) => {
+    const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
+
+    if (!keys.includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
+    const currentIndex = cards.findIndex((card) => card === document.activeElement);
+    const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+    const next = cards[(Math.max(0, currentIndex) + delta + cards.length) % cards.length];
+    const preset = appearancePresetList.find((entry) => entry.id === next?.dataset.preset);
+
+    if (next && preset) {
+      next.focus();
+      applyAppearancePreset(preset);
+    }
   });
 }
 
@@ -529,6 +1157,321 @@ function renderOverlaySize(): void {
   }
 }
 
+const livePreviewSampleText =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+
+function buildLivePreviewWords(): void {
+  const words = livePreviewSampleText.split(/\s+/).filter(Boolean);
+
+  for (const paragraph of livePreviewTexts) {
+    paragraph.textContent = "";
+
+    words.forEach((word, index) => {
+      const span = document.createElement("span");
+      span.className = "lp-word";
+      span.textContent = word;
+      paragraph.append(span);
+
+      if (index < words.length - 1) {
+        paragraph.append(document.createTextNode(" "));
+      }
+    });
+  }
+}
+
+function updatePreviewHighlight(): void {
+  if (!livePreviewTrack || !livePreviewPane) {
+    return;
+  }
+
+  const mode = livePreviewPane.dataset.highlight ?? "none";
+  const words = Array.from(livePreviewTrack.querySelectorAll<HTMLElement>(".lp-word"));
+
+  if (mode !== "sentence" && mode !== "word") {
+    livePreviewTrack.classList.remove("is-focus-tracking");
+
+    for (const word of words) {
+      word.classList.remove("is-active");
+    }
+
+    return;
+  }
+
+  livePreviewTrack.classList.add("is-focus-tracking");
+
+  if (mode === "word") {
+    updatePreviewWordHighlight(words);
+    return;
+  }
+
+  updatePreviewLineHighlight(words);
+}
+
+function updatePreviewWordHighlight(words: HTMLElement[]): void {
+  if (!livePreviewTrack || !livePreviewPane) {
+    return;
+  }
+
+  // Two identical copies stack in the track, so the first half is one reading pass.
+  const wordsPerCopy = Math.floor(words.length / 2);
+  const loopHeight = livePreviewTrack.scrollHeight / 2;
+
+  if (wordsPerCopy <= 0 || loopHeight <= 0) {
+    return;
+  }
+
+  // Where the centre focus band falls in the track's own (untransformed) coordinates.
+  const bandContentY = previewScrollOffset + livePreviewPane.clientHeight / 2;
+  const bandWithinLoop = ((bandContentY % loopHeight) + loopHeight) % loopHeight;
+
+  // Group the first copy into visual lines using stable layout positions (offsetTop ignores the scroll transform).
+  type PreviewLine = { top: number; bottom: number; indices: number[] };
+  const lines: PreviewLine[] = [];
+  let currentLine: PreviewLine | null = null;
+
+  for (let index = 0; index < wordsPerCopy; index += 1) {
+    const word = words[index];
+    const top = word.offsetTop;
+    const bottom = top + word.offsetHeight;
+
+    if (!currentLine || Math.abs(top - currentLine.top) > 2) {
+      currentLine = { top, bottom, indices: [index] };
+      lines.push(currentLine);
+    } else {
+      currentLine.indices.push(index);
+      currentLine.bottom = Math.max(currentLine.bottom, bottom);
+    }
+  }
+
+  // The line nearest the band (measured with wrap, since the copies loop).
+  let activeLine: PreviewLine | null = null;
+  let bestDistance = Infinity;
+
+  for (const line of lines) {
+    const center = (line.top + line.bottom) / 2;
+    const rawDistance = Math.abs(center - bandWithinLoop);
+    const distance = Math.min(rawDistance, loopHeight - rawDistance);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      activeLine = line;
+    }
+  }
+
+  if (!activeLine) {
+    return;
+  }
+
+  // Sweep the active word left-to-right as the line crosses the band, so it keeps pace with the scroll.
+  const span = Math.max(1, activeLine.bottom - activeLine.top);
+  const through = Math.min(0.999, Math.max(0, (bandWithinLoop - activeLine.top) / span));
+  const activeIndex = activeLine.indices[Math.floor(through * activeLine.indices.length)];
+
+  words.forEach((word, index) => {
+    word.classList.toggle("is-active", index % wordsPerCopy === activeIndex);
+  });
+}
+
+function updatePreviewLineHighlight(words: HTMLElement[]): void {
+  if (!livePreviewPane) {
+    return;
+  }
+
+  const paneRect = livePreviewPane.getBoundingClientRect();
+  const bandY = paneRect.top + paneRect.height / 2;
+
+  // Read every word's geometry first (one layout pass), then write classes.
+  const entries = words.map((word) => {
+    const rect = word.getBoundingClientRect();
+    return { word, top: rect.top, center: rect.top + rect.height / 2, height: rect.height };
+  });
+
+  let best: (typeof entries)[number] | null = null;
+
+  for (const entry of entries) {
+    if (entry.height <= 0) {
+      continue;
+    }
+
+    if (!best || Math.abs(entry.center - bandY) < Math.abs(best.center - bandY)) {
+      best = entry;
+    }
+  }
+
+  for (const entry of entries) {
+    const active = best !== null && Math.abs(entry.top - best.top) <= 2;
+    entry.word.classList.toggle("is-active", active);
+  }
+}
+
+function stepPreviewScroll(timestamp: number): void {
+  if (!livePreviewTrack) {
+    previewScrollRaf = undefined;
+    return;
+  }
+
+  if (previewScrollPaused) {
+    // Hold position (reset to top) while a countdown plays; keep the loop alive to resume cleanly.
+    previewScrollLastTs = timestamp;
+    previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+    return;
+  }
+
+  if (previewScrollLastTs === 0) {
+    previewScrollLastTs = timestamp;
+  }
+
+  const dtSeconds = Math.min(0.05, (timestamp - previewScrollLastTs) / 1000);
+  previewScrollLastTs = timestamp;
+
+  const speed = Number(scrollSpeedInput?.value);
+  const safeSpeed = Number.isFinite(speed) && speed > 0 ? speed : 0;
+  // The track holds two identical copies, so wrapping at half its height loops seamlessly.
+  const loopHeight = livePreviewTrack.scrollHeight / 2;
+
+  if (loopHeight > 0) {
+    previewScrollOffset = (previewScrollOffset + safeSpeed * dtSeconds) % loopHeight;
+    livePreviewTrack.style.transform = `translateY(${-previewScrollOffset}px)`;
+  }
+
+  updatePreviewHighlight();
+  previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
+function startPreviewScroll(): void {
+  if (!livePreviewTrack || previewScrollRaf !== undefined) {
+    return;
+  }
+
+  previewScrollOffset = 0;
+  previewScrollLastTs = 0;
+  previewScrollPaused = false;
+  livePreviewTrack.style.transform = "translateY(0)";
+
+  if (prefersReducedMotion()) {
+    // Honour reduced-motion: show a static, still-representative preview instead of looping it.
+    updatePreviewHighlight();
+    return;
+  }
+
+  previewScrollRaf = requestAnimationFrame(stepPreviewScroll);
+}
+
+function stopPreviewScroll(): void {
+  if (previewScrollRaf !== undefined) {
+    cancelAnimationFrame(previewScrollRaf);
+    previewScrollRaf = undefined;
+  }
+
+  previewScrollLastTs = 0;
+}
+
+function getCountdownElements(): HTMLElement[] {
+  return [previewCountdown, livePreviewCountdown].filter((element): element is HTMLElement => element !== null);
+}
+
+function setCountdownText(text: string, hidden: boolean): void {
+  for (const element of getCountdownElements()) {
+    element.textContent = text;
+    element.hidden = hidden;
+  }
+}
+
+function stopPreviewCountdown(): void {
+  if (previewCountdownTimer !== undefined) {
+    window.clearInterval(previewCountdownTimer);
+    previewCountdownTimer = undefined;
+  }
+
+  for (const element of getCountdownElements()) {
+    element.hidden = true;
+  }
+
+  // Resume the preview scroll once the countdown ends (or is cancelled).
+  previewScrollPaused = false;
+  previewScrollLastTs = 0;
+}
+
+function playPreviewCountdown(): void {
+  stopPreviewCountdown();
+
+  if (getCountdownElements().length === 0) {
+    return;
+  }
+
+  // Park the preview scroll at the top and hold it until the countdown finishes.
+  previewScrollPaused = true;
+  previewScrollOffset = 0;
+  previewScrollLastTs = 0;
+
+  if (livePreviewTrack) {
+    livePreviewTrack.style.transform = "translateY(0)";
+  }
+
+  const seconds = Math.max(1, Math.min(10, Math.round(Number(countdownSecondsInput?.value) || 3)));
+  let remaining = seconds;
+  setCountdownText(String(remaining), false);
+  previewCountdownTimer = window.setInterval(() => {
+    remaining -= 1;
+
+    if (remaining < 1) {
+      stopPreviewCountdown();
+      return;
+    }
+
+    setCountdownText(String(remaining), false);
+  }, 1000);
+}
+
+function syncCountdownDurationState(): void {
+  countdownBlock?.classList.toggle("is-duration-disabled", !countdownEnabledInput?.checked);
+}
+
+function syncScrollModeState(): void {
+  // Manual scroll speed only applies in manual mode; dim it when voice tracking drives the pace.
+  scrollSpeedField?.classList.toggle("is-mode-disabled", scrollModeSelect?.value === "voice");
+}
+
+function applyOverlayPlacement(place: string): void {
+  if (place === "reset") {
+    overlayWidthRatio = defaultOverlayPlacement.widthRatio;
+    overlayHeightRatio = defaultOverlayPlacement.heightRatio;
+    overlayXRatio = defaultOverlayPlacement.xRatio;
+    overlayYRatio = defaultOverlayPlacement.yRatio;
+  } else if (place === "full-width") {
+    overlayWidthRatio = 1;
+    overlayXRatio = 0;
+    overlayYRatio = 0;
+  } else {
+    overlayYRatio = 0;
+
+    if (place === "top-left") {
+      overlayXRatio = 0;
+    } else if (place === "top-right") {
+      overlayXRatio = 1 - overlayWidthRatio;
+    } else {
+      overlayXRatio = (1 - overlayWidthRatio) / 2;
+    }
+  }
+
+  // Keep everything inside the screen after the change.
+  overlayWidthRatio = clampRatio(overlayWidthRatio, overlaySizeLimits.minWidthRatio, overlaySizeLimits.maxWidthRatio);
+  overlayHeightRatio = clampRatio(overlayHeightRatio, overlaySizeLimits.minHeightRatio, overlaySizeLimits.maxHeightRatio);
+  overlayXRatio = clampRatio(overlayXRatio, 0, 1 - overlayWidthRatio);
+  overlayYRatio = clampRatio(overlayYRatio, 0, 1 - overlayHeightRatio);
+
+  // Animate just this change, then drop the class so dragging stays snappy.
+  sizeWindow?.classList.add("is-snapping");
+  renderOverlaySize();
+  window.setTimeout(() => sizeWindow?.classList.remove("is-snapping"), 240);
+
+  void runEditorAction("Save teleprompter size", saveOverlaySize);
+}
+
 async function saveOverlaySize(): Promise<void> {
   await requireTeleprompterApi().updateSettings({
     overlaySize: {
@@ -538,6 +1481,7 @@ async function saveOverlaySize(): Promise<void> {
       yRatio: overlayYRatio
     }
   });
+  showSavedPill();
 }
 
 function applyOverlayResize(drag: OverlayDragState, dxRatio: number, dyRatio: number): void {
@@ -628,6 +1572,51 @@ async function loadSettings(): Promise<void> {
   renderSettings(settings);
 }
 
+let savedPillTimer: number | undefined;
+
+function showSavedPill(): void {
+  // Only confirm while the drawer is actually open (skip the flush-on-close save).
+  if (!settingsSavedPill || !settingsModal?.classList.contains("is-open")) {
+    return;
+  }
+
+  settingsSavedPill.classList.add("is-visible");
+
+  if (savedPillTimer !== undefined) {
+    window.clearTimeout(savedPillTimer);
+  }
+
+  savedPillTimer = window.setTimeout(() => {
+    settingsSavedPill.classList.remove("is-visible");
+    savedPillTimer = undefined;
+  }, 1500);
+}
+
+function scheduleSettingsSave(): void {
+  if (settingsRenderLocked) {
+    return;
+  }
+
+  if (settingsSaveTimer !== undefined) {
+    window.clearTimeout(settingsSaveTimer);
+  }
+
+  settingsSaveTimer = window.setTimeout(() => {
+    settingsSaveTimer = undefined;
+    void runEditorAction("Save settings", saveSettingsFromControls);
+  }, settingsSaveDelayMs);
+}
+
+function flushSettingsSave(): void {
+  if (settingsSaveTimer === undefined) {
+    return;
+  }
+
+  window.clearTimeout(settingsSaveTimer);
+  settingsSaveTimer = undefined;
+  void runEditorAction("Save settings", saveSettingsFromControls);
+}
+
 async function saveSettingsFromControls(): Promise<void> {
   if (settingsRenderLocked) {
     return;
@@ -659,7 +1648,72 @@ async function saveSettingsFromControls(): Promise<void> {
 
   renderSettings(settings);
   renderScriptStats();
-  setStatus("Settings saved");
+  showSavedPill();
+}
+
+const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
+
+function setSidebarCollapsed(collapsed: boolean): void {
+  editorApp?.classList.toggle("sidebar-collapsed", collapsed);
+
+  if (toggleSidebarButton) {
+    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    toggleSidebarButton.setAttribute("aria-label", label);
+    toggleSidebarButton.title = label;
+  }
+
+  try {
+    localStorage.setItem(sidebarCollapsedStorageKey, collapsed ? "1" : "0");
+  } catch {
+    // Ignore storage failures; collapse state simply won't persist.
+  }
+}
+
+function loadSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(sidebarCollapsedStorageKey) === "1";
+  } catch {
+    return false;
+  }
+}
+
+let settingsReturnFocusElement: HTMLElement | null = null;
+
+function getDrawerFocusableElements(): HTMLElement[] {
+  if (!settingsDrawer) {
+    return [];
+  }
+
+  const selector =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(settingsDrawer.querySelectorAll<HTMLElement>(selector)).filter(
+    (element) => element.offsetParent !== null
+  );
+}
+
+// Keep keyboard focus inside the open dialog instead of leaking to the dimmed editor behind it.
+function handleSettingsTabKey(event: KeyboardEvent): void {
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  const focusable = getDrawerFocusableElements();
+
+  if (focusable.length === 0) {
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+
+  if (event.shiftKey && (active === first || !settingsDrawer?.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || !settingsDrawer?.contains(active))) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function openSettings(): void {
@@ -667,17 +1721,27 @@ function openSettings(): void {
     return;
   }
 
-  settingsModal.hidden = false;
+  settingsReturnFocusElement = document.activeElement as HTMLElement | null;
+  settingsModal.classList.add("is-open");
+  void runEditorAction("Load shortcuts", loadShortcuts);
   requestAnimationFrame(() => {
     renderOverlaySize();
     renderSettingsPreviewFromControls();
+    startPreviewScroll();
+    // Move focus into the dialog for keyboard and screen-reader users.
+    (closeSettingsButton ?? getDrawerFocusableElements()[0])?.focus();
   });
 }
 
 function closeSettings(): void {
-  if (settingsModal) {
-    settingsModal.hidden = true;
-  }
+  flushSettingsSave();
+  disarmReset();
+  settingsModal?.classList.remove("is-open");
+  cancelShortcutCapture();
+  stopPreviewCountdown();
+  stopPreviewScroll();
+  settingsReturnFocusElement?.focus();
+  settingsReturnFocusElement = null;
 }
 
 window.addEventListener("error", (event) => {
@@ -691,8 +1755,100 @@ window.addEventListener("unhandledrejection", (event) => {
 settingsButton?.addEventListener("click", openSettings);
 settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
+settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
+
+setSidebarCollapsed(loadSidebarCollapsed());
+toggleSidebarButton?.addEventListener("click", () => {
+  setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
+});
+
+function setupSliderBubble(input: HTMLInputElement | null, format: () => string): void {
+  if (!input || !input.parentNode) {
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "range-wrap";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.append(input);
+
+  const bubble = document.createElement("div");
+  bubble.className = "range-bubble";
+  bubble.setAttribute("aria-hidden", "true");
+  wrap.append(bubble);
+
+  const position = (): void => {
+    const min = Number(input.min) || 0;
+    const max = Number(input.max) || 100;
+    const value = Number(input.value);
+    const ratio = max > min ? (value - min) / (max - min) : 0;
+    const thumbWidth = 16;
+    bubble.style.left = `${ratio * (input.clientWidth - thumbWidth) + thumbWidth / 2}px`;
+    bubble.textContent = format();
+  };
+
+  const show = (): void => {
+    position();
+    bubble.classList.add("is-visible");
+  };
+
+  const hide = (): void => bubble.classList.remove("is-visible");
+
+  input.addEventListener("input", () => {
+    if (bubble.classList.contains("is-visible")) {
+      position();
+    }
+  });
+  input.addEventListener("pointerdown", show);
+  window.addEventListener("pointerup", hide);
+  // Keyboard users: reveal the bubble only when focus came from the keyboard.
+  input.addEventListener("focus", () => {
+    if (input.matches(":focus-visible")) {
+      show();
+    }
+  });
+  input.addEventListener("keydown", () => {
+    if (input.matches(":focus-visible")) {
+      show();
+    }
+  });
+  input.addEventListener("blur", hide);
+}
+
+function setupSliderBubbles(): void {
+  setupSliderBubble(fontSizeInput, () => `${fontSizeInput?.value ?? ""}px`);
+  setupSliderBubble(lineHeightInput, () => Number(lineHeightInput?.value).toFixed(2));
+  setupSliderBubble(scrollSpeedInput, () => `≈ ${getEstimatedWordsPerMinute()} wpm`);
+  setupSliderBubble(opacityInput, () => `${Math.round(Number(opacityInput?.value) * 100)}%`);
+}
 
 applyMockPlatform();
+buildLivePreviewWords();
+buildAppearancePresets();
+setupSliderBubbles();
+initChoiceGroups();
+countdownEnabledInput?.addEventListener("change", () => {
+  syncCountdownDurationState();
+
+  if (countdownEnabledInput?.checked) {
+    playPreviewCountdown();
+  } else {
+    stopPreviewCountdown();
+  }
+});
+
+countdownSecondsInput?.addEventListener("change", () => {
+  if (countdownEnabledInput?.checked) {
+    playPreviewCountdown();
+  }
+});
+
+scrollModeSelect?.addEventListener("change", syncScrollModeState);
+
+for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>(".placement-row [data-place]"))) {
+  button.addEventListener("click", () => applyOverlayPlacement(button.dataset.place ?? ""));
+}
+
 sizeWindow?.addEventListener("pointerdown", handleOverlayPointerDown);
 window.addEventListener("pointermove", handleOverlayPointerMove);
 window.addEventListener("pointerup", handleOverlayPointerUp);
@@ -709,26 +1865,34 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
-scriptBody?.addEventListener("input", renderScriptStats);
-scriptTitle?.addEventListener("input", renderScriptStats);
+scriptBody?.addEventListener("input", () => {
+  renderScriptStats();
+  scheduleAutosave();
+  updateStartButtonState();
+});
+scriptTitle?.addEventListener("input", () => {
+  renderScriptStats();
+  scheduleAutosave();
+});
+
+function blockWheelScroll(event: WheelEvent): void {
+  event.preventDefault();
+}
+
+scriptTitle?.addEventListener("wheel", blockWheelScroll, { passive: false });
+scriptStats?.addEventListener("wheel", blockWheelScroll, { passive: false });
 
 newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
-    renderScriptsState(state, "New script");
-  });
-});
-
-saveScriptButton?.addEventListener("click", () => {
-  void runEditorAction("Save script", async () => {
-    await saveCurrentScript();
+    renderScriptsState(state);
   });
 });
 
 clearScriptButton?.addEventListener("click", () => {
   void runEditorAction("Clear editor", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
-    renderScriptsState(state, "Editor cleared");
+    renderScriptsState(state);
   });
 });
 
@@ -752,13 +1916,13 @@ deleteSelectedScriptsButton?.addEventListener("click", () => {
 
     const state = await requireTeleprompterApi().deleteScripts(ids);
     selectedScriptIds = new Set();
-    renderScriptsState(state, ids.length === 1 ? "Script deleted" : "Scripts deleted");
+    renderScriptsState(state);
   });
 });
 
 startTeleprompterButton?.addEventListener("click", () => {
   void runEditorAction("Start teleprompter", async () => {
-    const state = await saveCurrentScript("Script saved");
+    const state = await saveCurrentScript();
 
     if (!state?.activeScript) {
       return;
@@ -767,7 +1931,6 @@ startTeleprompterButton?.addEventListener("click", () => {
     const api = requireTeleprompterApi();
     await api.openOverlay();
     await api.sendTeleprompterCommand("restart");
-    setStatus("Teleprompter started");
   });
 });
 
@@ -786,26 +1949,86 @@ for (const control of [
 ]) {
   control?.addEventListener("input", () => {
     renderSettingsPreviewFromControls();
+    renderControlReadouts();
+    updateActivePreset();
+    updateContrastHint();
     renderScriptStats();
-    void runEditorAction("Save settings", saveSettingsFromControls);
+    scheduleSettingsSave();
   });
 
   control?.addEventListener("change", () => {
     renderSettingsPreviewFromControls();
+    renderControlReadouts();
+    updateActivePreset();
+    updateContrastHint();
     renderScriptStats();
-    void runEditorAction("Save settings", saveSettingsFromControls);
+    scheduleSettingsSave();
   });
 }
 
+const resetDefaultLabel = "Reset to defaults";
+const resetArmedLabel = "Reset?";
+const resetArmDurationMs = 4000;
+let resetArmTimer: number | undefined;
+
+function handleResetOutsideClick(event: Event): void {
+  if (event.target instanceof Node && resetSettingsButton?.contains(event.target)) {
+    return;
+  }
+
+  disarmReset();
+}
+
+function disarmReset(): void {
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+    resetArmTimer = undefined;
+  }
+
+  document.removeEventListener("pointerdown", handleResetOutsideClick, true);
+
+  if (resetSettingsButton) {
+    resetSettingsButton.classList.remove("is-arming");
+    resetSettingsButton.textContent = resetDefaultLabel;
+  }
+}
+
+function armReset(): void {
+  if (!resetSettingsButton) {
+    return;
+  }
+
+  resetSettingsButton.classList.add("is-arming");
+  resetSettingsButton.textContent = resetArmedLabel;
+
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+  }
+
+  // Auto-disarm so the button never lingers in its red confirm state.
+  resetArmTimer = window.setTimeout(disarmReset, resetArmDurationMs);
+  // Clicking anywhere outside the button cancels the pending reset.
+  document.addEventListener("pointerdown", handleResetOutsideClick, true);
+}
+
 resetSettingsButton?.addEventListener("click", () => {
+  if (!resetSettingsButton.classList.contains("is-arming")) {
+    armReset();
+    return;
+  }
+
+  disarmReset();
   void runEditorAction("Reset settings", async () => {
-    const settings = await requireTeleprompterApi().resetSettings();
+    const api = requireTeleprompterApi();
+    const settings = await api.resetSettings();
     renderSettings(settings);
-    setStatus("Settings reset");
+    const statuses = await api.resetShortcuts();
+    renderShortcuts(statuses);
   });
 });
 
 if (initializePreloadApi()) {
   void runEditorAction("Load local scripts", loadScriptsState);
   void runEditorAction("Load settings", loadSettings);
+  void runEditorAction("Load shortcuts", loadShortcuts);
 }

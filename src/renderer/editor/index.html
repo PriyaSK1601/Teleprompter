@@ -7,15 +7,27 @@
     <link rel="stylesheet" href="../shared.css" />
   </head>
   <body>
+    <div class="window-titlebar"></div>
     <main class="editor-app">
       <aside class="scripts-sidebar">
         <div class="sidebar-header">
-          <div>
-            <p class="eyebrow">Teleprompter</p>
-            <h1>Scripts</h1>
+          <div class="sidebar-header-lead">
+            <button id="toggleSidebarButton" class="icon-button" type="button" aria-label="Collapse sidebar">
+              <svg class="icon-button-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 3v18" />
+              </svg>
+            </button>
+            <div class="sidebar-title">
+              <p class="eyebrow">Teleprompter</p>
+              <h1>Scripts</h1>
+            </div>
           </div>
-          <button id="newScriptButton" class="icon-button" type="button" aria-label="Create new script">+</button>
         </div>
+        <button id="newScriptButton" class="sidebar-action" type="button" aria-label="Create new script">
+          <span class="sidebar-action-icon" aria-hidden="true">+</span>
+          <span class="sidebar-action-label">New script</span>
+        </button>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
         <div class="script-bulk-actions">
           <span id="selectedScriptsLabel">No scripts selected</span>
@@ -26,11 +38,20 @@
 
       <section class="editor-workspace">
         <header class="editor-topbar">
-          <div>
-            <p class="eyebrow">Editor Mode</p>
-            <h2>Prepare your script</h2>
-          </div>
-          <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings">⚙</button>
+          <p class="eyebrow">Editor Mode</p>
+          <button id="settingsButton" class="icon-button" type="button" aria-label="Settings" title="Settings">
+            <svg class="icon-button-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="6" x2="11" y2="6" />
+              <line x1="15" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="8" y2="12" />
+              <line x1="12" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="14" y2="18" />
+              <line x1="18" y1="18" x2="20" y2="18" />
+              <circle cx="13" cy="6" r="2" />
+              <circle cx="10" cy="12" r="2" />
+              <circle cx="16" cy="18" r="2" />
+            </svg>
+          </button>
         </header>
 
         <section class="script-card">
@@ -40,72 +61,175 @@
         </section>
 
         <footer class="editor-actions">
-          <p id="status" class="status-text" aria-live="polite">Ready</p>
+          <p id="status" class="status-text" aria-live="polite"></p>
           <div class="primary-actions">
             <button id="clearScriptButton" class="secondary-button" type="button">Clear</button>
-            <button id="saveScriptButton" class="secondary-button" type="button">Save Script</button>
             <button id="startTeleprompterButton" class="primary-button" type="button">Start Teleprompter</button>
           </div>
         </footer>
       </section>
     </main>
 
-    <section id="settingsModal" class="settings-modal" hidden>
+    <section id="settingsModal" class="settings-modal">
       <div id="settingsBackdrop" class="settings-backdrop"></div>
       <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <header class="settings-header">
-          <div>
-            <p class="eyebrow">Settings</p>
-            <h2 id="settingsTitle">Teleprompter preferences</h2>
+          <div class="settings-heading">
+            <h2 id="settingsTitle">Settings</h2>
+            <p class="settings-subtitle">Tune how your teleprompter looks and moves.</p>
           </div>
-          <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
+          <div class="settings-header-actions">
+            <span id="settingsSavedPill" class="settings-saved-pill" role="status" aria-live="polite">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+              Saved
+            </span>
+            <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
+          </div>
         </header>
 
+        <div class="settings-live-preview">
+          <span class="live-preview-badge">Live preview</span>
+          <div id="livePreviewPane" class="live-preview-pane">
+            <div id="livePreviewCountdown" class="live-preview-countdown" aria-hidden="true" hidden>3</div>
+            <div id="livePreviewTrack" class="live-preview-track" aria-hidden="true">
+              <p class="live-preview-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+              <p class="live-preview-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+            </div>
+          </div>
+        </div>
+
         <section class="settings-section">
-          <h3>Appearance</h3>
-          <div class="settings-grid">
+          <h3>Text</h3>
+          <div class="settings-stack">
             <label class="field-label" for="fontSizeInput">
-              Font size
+              <span class="field-label-text">Font size</span>
               <input id="fontSizeInput" class="range-input" type="range" min="18" max="72" step="1" />
               <span id="fontSizeValue" class="setting-value"></span>
             </label>
             <label class="field-label" for="lineHeightInput">
-              Line spacing
+              <span class="field-label-text">Line spacing</span>
               <input id="lineHeightInput" class="range-input" type="range" min="1.1" max="2.2" step="0.05" />
               <span id="lineHeightValue" class="setting-value"></span>
             </label>
-            <label class="field-label" for="textColorInput">
-              Text colour
-              <input id="textColorInput" class="color-input" type="color" />
-            </label>
-            <label class="field-label" for="backgroundColorInput">
-              Background colour
-              <input id="backgroundColorInput" class="color-input" type="color" />
-            </label>
-            <label class="field-label" for="opacityInput">
-              Overlay opacity
-              <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
-              <span id="opacityValue" class="setting-value"></span>
-            </label>
-            <label class="field-label" for="alignmentSelect">
-              Alignment
-              <select id="alignmentSelect" class="text-input">
+            <div class="field-label">
+              <span class="field-label-text">Alignment</span>
+              <div class="segmented" role="radiogroup" aria-label="Text alignment" data-choice-for="alignmentSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="left" aria-label="Left">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h12M3 18h15" /></svg>
+                </button>
+                <button type="button" class="segmented-option" role="radio" data-value="center" aria-label="Center">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M6 12h12M5 18h14" /></svg>
+                </button>
+                <button type="button" class="segmented-option" role="radio" data-value="right" aria-label="Right">
+                  <svg class="segmented-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 12h12M6 18h15" /></svg>
+                </button>
+              </div>
+              <select id="alignmentSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
                 <option value="left">Left</option>
                 <option value="center">Center</option>
                 <option value="right">Right</option>
               </select>
-            </label>
+            </div>
+            <div class="field-label">
+              <span class="field-label-text">Text focus</span>
+              <span class="field-hint">Dim everything except where you are, so you keep your place.</span>
+              <div class="segmented segmented-text" role="radiogroup" aria-label="Text focus" data-choice-for="highlightModeSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="none">Off</button>
+                <button type="button" class="segmented-option" role="radio" data-value="sentence">Line</button>
+                <button type="button" class="segmented-option" role="radio" data-value="word">Word</button>
+              </div>
+              <select id="highlightModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
+                <option value="none">Off</option>
+                <option value="sentence">Current line</option>
+                <option value="word">Word focus</option>
+              </select>
+            </div>
           </div>
         </section>
 
         <section class="settings-section">
-          <h3>Teleprompter size &amp; position</h3>
-          <p class="settings-hint">Drag the teleprompter to move it, or drag its edges and corners to resize. This is where it appears by default when you start.</p>
+          <h3>Movement</h3>
+          <div class="settings-stack">
+            <div class="field-label">
+              <span class="field-label-text">Scroll mode</span>
+              <span class="field-hint">Voice tracking follows your speech using your microphone. Manual scrolls at a steady, adjustable pace.</span>
+              <div class="segmented segmented-text" role="radiogroup" aria-label="Scroll mode" data-choice-for="scrollModeSelect">
+                <button type="button" class="segmented-option" role="radio" data-value="manual">Manual</button>
+                <button type="button" class="segmented-option" role="radio" data-value="voice">
+                  Voice tracking
+                  <span class="option-badge">Beta</span>
+                </button>
+              </div>
+              <select id="scrollModeSelect" class="visually-hidden-input" tabindex="-1" aria-hidden="true">
+                <option value="manual">Manual</option>
+                <option value="voice">Voice Tracking</option>
+              </select>
+            </div>
+            <label class="field-label scroll-speed-field" for="scrollSpeedInput">
+              <span class="field-label-text">Manual scroll speed</span>
+              <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
+              <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
+              <span id="scrollSpeedValue" class="setting-value"></span>
+            </label>
+            <div class="countdown-block">
+              <label class="switch-row">
+                <span>Enable countdown</span>
+                <input id="countdownEnabledInput" class="toggle-switch" type="checkbox" />
+              </label>
+              <div class="field-label countdown-duration">
+                <span class="field-label-text">Countdown duration</span>
+                <div class="chip-row" role="radiogroup" aria-label="Countdown duration" data-choice-for="countdownSecondsInput">
+                  <button type="button" class="chip" role="radio" data-value="3">3s</button>
+                  <button type="button" class="chip" role="radio" data-value="5">5s</button>
+                  <button type="button" class="chip" role="radio" data-value="10">10s</button>
+                </div>
+                <input id="countdownSecondsInput" class="visually-hidden-input" type="number" min="0" max="10" step="1" tabindex="-1" aria-hidden="true" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Position &amp; size</h3>
+          <p class="settings-hint">Drag to move it. Drag the edges or corners to resize. This is where your teleprompter opens by default.</p>
+          <div class="placement-field">
+            <span class="field-label-text">Quick placement</span>
+            <div class="placement-row">
+              <button type="button" class="chip" data-place="top-left">Top left</button>
+              <button type="button" class="chip" data-place="top-center">Top center</button>
+              <button type="button" class="chip" data-place="top-right">Top right</button>
+              <button type="button" class="chip" data-place="full-width">Full width</button>
+              <button type="button" class="chip" data-place="reset">Reset</button>
+            </div>
+          </div>
           <div id="sizeScreen" class="size-screen">
             <div class="size-chrome size-macos-menubar" aria-hidden="true"></div>
             <div id="sizeWindow" class="size-window">
               <div id="settingsPreview" class="settings-preview-text">
                 Your words appear here, styled exactly like the teleprompter overlay.
+              </div>
+              <div id="previewCountdown" class="preview-countdown" aria-hidden="true" hidden>3</div>
+              <div class="preview-overlay-chrome" aria-hidden="true">
+                <div class="overlay-progress-track"><div class="overlay-progress-bar"></div></div>
+                <nav class="overlay-control-bar">
+                  <span class="overlay-control">
+                    <svg class="overlay-control-icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /></svg>
+                  </span>
+                  <span class="overlay-control">
+                    <svg class="overlay-control-icon" viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+                  </span>
+                  <span class="overlay-control primary">
+                    <svg class="overlay-control-icon" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z" /></svg>
+                  </span>
+                  <span class="overlay-control">
+                    <svg class="overlay-control-icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+                  </span>
+                  <span class="overlay-control">
+                    <svg class="overlay-control-icon" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                  </span>
+                </nav>
               </div>
               <span class="size-handle size-handle-n" data-resize-dir="n"></span>
               <span class="size-handle size-handle-s" data-resize-dir="s"></span>
@@ -123,43 +247,53 @@
         </section>
 
         <section class="settings-section">
-          <h3>Teleprompter</h3>
-          <div class="settings-grid">
-            <label class="field-label" for="scrollModeSelect">
-              Scroll mode
-              <select id="scrollModeSelect" class="text-input">
-                <option value="manual">Manual</option>
-                <option value="voice">Voice Tracking</option>
-              </select>
-            </label>
-            <label class="field-label" for="scrollSpeedInput">
-              Manual scroll speed
-              <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
-              <span id="scrollSpeedValue" class="setting-value"></span>
-            </label>
-            <label class="field-label" for="highlightModeSelect">
-              Highlight mode
-              <select id="highlightModeSelect" class="text-input">
-                <option value="none">Off</option>
-                <option value="sentence">Current line</option>
-                <option value="word">Word focus</option>
-              </select>
-            </label>
-            <label class="switch-row">
-              <input id="countdownEnabledInput" type="checkbox" />
-              <span>Enable countdown</span>
-            </label>
-            <label class="field-label" for="countdownSecondsInput">
-              Countdown duration
-              <input id="countdownSecondsInput" class="number-input" type="number" min="0" max="10" step="1" />
-            </label>
-          </div>
+          <h3>Appearance</h3>
+          <div id="appearancePresets" class="preset-grid" role="radiogroup" aria-label="Appearance preset"></div>
+          <details class="appearance-custom">
+            <summary class="appearance-custom-summary">
+              <svg class="appearance-custom-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+              Custom colours
+            </summary>
+            <div class="appearance-custom-body">
+              <div class="settings-grid">
+                <label class="field-label" for="textColorInput">
+                  <span class="field-label-text">Text colour</span>
+                  <input id="textColorInput" class="color-input" type="color" />
+                </label>
+                <label class="field-label" for="backgroundColorInput">
+                  <span class="field-label-text">Background colour</span>
+                  <input id="backgroundColorInput" class="color-input" type="color" />
+                </label>
+              </div>
+              <label class="field-label" for="opacityInput">
+                <span class="field-label-text">Overlay opacity</span>
+                <input id="opacityInput" class="range-input" type="range" min="0.25" max="1" step="0.01" />
+                <span id="opacityValue" class="setting-value"></span>
+              </label>
+              <p id="contrastHint" class="contrast-hint" role="status" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+                Low contrast — this may be hard to read on camera.
+              </p>
+            </div>
+          </details>
         </section>
 
         <section class="settings-section">
-          <h3>Actions</h3>
+          <h3>Shortcuts</h3>
+          <p class="settings-hint">Global hotkeys that control the teleprompter even when this window isn't focused. Click a shortcut to change it.</p>
+          <div id="shortcutList" class="shortcut-list"></div>
+          <p class="settings-hint shortcut-overlay-note">
+            When the overlay itself is focused, you can also use
+            <kbd class="keycap">←</kbd> <kbd class="keycap">→</kbd> for speed,
+            <kbd class="keycap">Space</kbd> to play or pause,
+            <kbd class="keycap">R</kbd> to restart, and
+            <kbd class="keycap">Esc</kbd> to close.
+          </p>
+        </section>
+
+        <section class="settings-section settings-footer">
           <div class="settings-actions">
-            <button id="resetSettingsButton" class="secondary-button" type="button">Reset defaults</button>
+            <button id="resetSettingsButton" class="secondary-button" type="button">Reset to defaults</button>
           </div>
         </section>
       </aside>

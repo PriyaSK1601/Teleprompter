@@ -1,4 +1,4 @@
-import { app, session } from "electron";
+import { app, Menu, session } from "electron";
 import { registerIpcHandlers } from "./ipc";
 import { logError, logInfo } from "./logger";
 import { registerGlobalShortcuts } from "./shortcuts";
@@ -25,6 +25,7 @@ if (!gotSingleInstanceLock) {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   ensureAppDataDirectories();
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === "media");
