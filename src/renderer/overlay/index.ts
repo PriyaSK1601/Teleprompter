@@ -12,6 +12,7 @@ const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseBut
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
 const slowDownButton = document.querySelector<HTMLButtonElement>("#slowDownButton");
+const voiceToggleButton = document.querySelector<HTMLButtonElement>("#voiceToggleButton");
 const closeOverlayButton = document.querySelector<HTMLButtonElement>("#closeOverlayButton");
 
 type ScrollState = "idle" | "countdown" | "running" | "paused" | "completed";
@@ -57,6 +58,7 @@ let scriptWords: string[] = [];
 let scriptWordElements: HTMLElement[] = [];
 let scriptSentences: { start: number; end: number; element: HTMLElement }[] = [];
 let currentScriptWordIndex = 0;
+let activeSentenceIndex = -1;
 let targetScrollTop = 0;
 let lastScriptMatchAt = 0;
 let scriptTrackingFeedbackShown = false;
@@ -88,15 +90,11 @@ function hexToRgb(hexColor: string): { red: number; green: number; blue: number 
   };
 }
 
-function getOpaqueOverlayBackground(hexColor: string, opacity: number): string {
+function getOverlayBackground(hexColor: string, opacity: number): string {
   const background = hexToRgb(hexColor);
   const alpha = Math.min(1, Math.max(0, opacity));
 
-  const red = Math.round(background.red * alpha);
-  const green = Math.round(background.green * alpha);
-  const blue = Math.round(background.blue * alpha);
-
-  return `rgb(${red} ${green} ${blue})`;
+  return `rgb(${background.red} ${background.green} ${background.blue} / ${alpha})`;
 }
 
 function updateControls(): void {
@@ -112,6 +110,12 @@ function updateControls(): void {
 
   if (modeLabel) {
     modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
+  }
+
+  if (voiceToggleButton) {
+    const isVoiceMode = scrollMode === "voice";
+    voiceToggleButton.classList.toggle("is-active", isVoiceMode);
+    voiceToggleButton.setAttribute("aria-pressed", String(isVoiceMode));
   }
 }
 
@@ -210,15 +214,21 @@ function getNaturalPromptScrollTop(): number {
   return Math.max(0, promptViewport.scrollHeight - promptViewport.clientHeight);
 }
 
+function getLineCenteredScrollTop(lineElement: HTMLElement): number {
+  return lineElement.offsetTop + lineElement.offsetHeight / 2 - getViewportReadingFocusOffset();
+}
+
+function getMinPromptScrollTop(): number {
+  const firstLine = scriptSentences[0]?.element;
+  return firstLine ? getLineCenteredScrollTop(firstLine) : 0;
+}
+
 function getViewportReadingFocusOffset(): number {
   if (!promptViewport) {
     return 0;
   }
 
-  const viewportStyle = window.getComputedStyle(promptViewport);
-  const viewportPaddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
-  const focusOffset = Math.max(getPromptLineHeight() * 0.5, viewportPaddingTop);
-  return viewportPaddingTop + focusOffset;
+  return promptViewport.clientHeight * 0.48;
 }
 
 function getContentLineCandidates(): HighlightLineCandidate[] {
@@ -270,6 +280,12 @@ function getContentLineCandidates(): HighlightLineCandidate[] {
 }
 
 function getFinalHighlightScrollTop(): number {
+  const finalSentence = scriptSentences[scriptSentences.length - 1];
+
+  if (finalSentence) {
+    return getLineCenteredScrollTop(finalSentence.element);
+  }
+
   const lines = getContentLineCandidates();
   const finalLine = lines[lines.length - 1];
 
@@ -282,18 +298,23 @@ function getFinalHighlightScrollTop(): number {
 }
 
 function getMaxPromptScrollTop(): number {
-  return Math.max(getNaturalPromptScrollTop(), getFinalHighlightScrollTop());
+  const minScrollTop = getMinPromptScrollTop();
+  return Math.max(minScrollTop, getFinalHighlightScrollTop());
 }
 
 function getPromptScrollPosition(): number {
-  return Math.min(getMaxPromptScrollTop(), Math.max(0, scrollPositionY));
+  const minScrollTop = getMinPromptScrollTop();
+  const maxScrollTop = getMaxPromptScrollTop();
+  return Math.min(maxScrollTop, Math.max(minScrollTop, scrollPositionY));
 }
 
 function setPromptScrollPosition(nextScrollPositionY: number): void {
-  scrollPositionY = Math.min(getMaxPromptScrollTop(), Math.max(0, nextScrollPositionY));
+  const minScrollTop = getMinPromptScrollTop();
+  const maxScrollTop = getMaxPromptScrollTop();
+  scrollPositionY = Math.min(maxScrollTop, Math.max(minScrollTop, nextScrollPositionY));
 
   if (promptText) {
-    promptText.style.transform = scrollPositionY === 0
+    promptText.style.transform = Math.abs(scrollPositionY) < 0.5
       ? ""
       : `translate3d(0, ${-scrollPositionY}px, 0)`;
   }
@@ -338,8 +359,10 @@ function getProgress(): number {
     return 0;
   }
 
-  const maxScrollTop = Math.max(1, getMaxPromptScrollTop());
-  return Math.min(1, Math.max(0, getPromptScrollPosition() / maxScrollTop));
+  const minScrollTop = getMinPromptScrollTop();
+  const maxScrollTop = getMaxPromptScrollTop();
+  const scrollRange = Math.max(1, maxScrollTop - minScrollTop);
+  return Math.min(1, Math.max(0, (getPromptScrollPosition() - minScrollTop) / scrollRange));
 }
 
 function updateProgress(): void {
@@ -370,13 +393,16 @@ function clearHighlightClasses(): void {
     return;
   }
 
-  for (const element of Array.from(promptText.querySelectorAll(".prompt-focus-active, .prompt-focus-past"))) {
-    element.classList.remove("prompt-focus-active", "prompt-focus-past");
+  for (const element of Array.from(
+    promptText.querySelectorAll(".prompt-focus-active, .prompt-focus-past, .active, .is-past, .is-upcoming")
+  )) {
+    element.classList.remove("prompt-focus-active", "prompt-focus-past", "active", "is-past", "is-upcoming");
   }
 
-  promptText.classList.remove("focus-mode");
+  promptText.classList.remove("focus-mode", "lyrics-mode", "word-focus-mode");
   currentHighlightIndex = -1;
   currentHighlightEndIndex = -1;
+  activeSentenceIndex = -1;
 }
 
 function updateHighlight(): void {
@@ -386,7 +412,7 @@ function updateHighlight(): void {
   }
 
   if (highlightMode === "sentence") {
-    updateCurrentLineHighlight();
+    updateActiveSentenceHighlight();
     return;
   }
 
@@ -397,6 +423,8 @@ function updateHighlight(): void {
   }
 
   promptText.classList.add("focus-mode");
+  promptText.classList.add("word-focus-mode");
+  promptText.classList.remove("lyrics-mode");
   const nextIndex = getHighlightIndex(elements.length);
 
   if (nextIndex === currentHighlightIndex) {
@@ -410,6 +438,89 @@ function updateHighlight(): void {
 
   currentHighlightIndex = nextIndex;
   currentHighlightEndIndex = nextIndex;
+}
+
+function getActiveSentenceIndexFromVoice(): number | null {
+  if (scrollMode !== "voice" || scriptWords.length === 0 || currentScriptWordIndex <= 0) {
+    return null;
+  }
+
+  const sentenceIndex = scriptSentences.findIndex((sentence) => {
+    return currentScriptWordIndex >= sentence.start && currentScriptWordIndex <= sentence.end;
+  });
+
+  return sentenceIndex >= 0 ? sentenceIndex : null;
+}
+
+function getActiveSentenceIndexFromFocus(): number {
+  if (!promptViewport || scriptSentences.length === 0) {
+    return -1;
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const focusY = viewportRect.top + getViewportReadingFocusOffset();
+  let closestIndex = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < scriptSentences.length; index += 1) {
+    const rect = scriptSentences[index].element.getBoundingClientRect();
+    const sentenceCenter = rect.top + rect.height / 2;
+    const distance = Math.abs(sentenceCenter - focusY);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  }
+
+  return closestIndex;
+}
+
+function updateActiveSentenceHighlight(): void {
+  if (!promptText || scriptSentences.length === 0) {
+    clearHighlightClasses();
+    return;
+  }
+
+  const voiceSentenceIndex = getActiveSentenceIndexFromVoice();
+  const nextIndex = voiceSentenceIndex ?? getActiveSentenceIndexFromFocus();
+
+  if (nextIndex < 0) {
+    return;
+  }
+
+  promptText.classList.add("focus-mode", "lyrics-mode");
+  promptText.classList.remove("word-focus-mode");
+
+  if (nextIndex === activeSentenceIndex) {
+    return;
+  }
+
+  endHoldElapsedMilliseconds = 0;
+
+  for (let index = 0; index < scriptSentences.length; index += 1) {
+    const sentenceElement = scriptSentences[index].element;
+    sentenceElement.classList.toggle("active", index === nextIndex);
+    sentenceElement.classList.toggle("is-past", index < nextIndex);
+    sentenceElement.classList.toggle("is-upcoming", index > nextIndex);
+  }
+
+  activeSentenceIndex = nextIndex;
+  currentHighlightIndex = scriptSentences[nextIndex].start;
+  currentHighlightEndIndex = scriptSentences[nextIndex].end;
+}
+
+function getFinalLineHoldDurationMilliseconds(): number {
+  const finalLine = scriptSentences[scriptSentences.length - 1];
+
+  if (!finalLine) {
+    return endHoldDurationMilliseconds;
+  }
+
+  const wordCount = Math.max(1, finalLine.end - finalLine.start + 1);
+  const secondsPerWord = 60 / 150;
+  const durationMilliseconds = wordCount * secondsPerWord * 1000;
+  return Math.max(1400, Math.min(5200, durationMilliseconds));
 }
 
 function getHighlightIndex(elementCount: number): number {
@@ -587,7 +698,7 @@ function applySettings(settings: AppSettings): void {
 
   document.documentElement.style.setProperty(
     "--overlay-bg",
-    getOpaqueOverlayBackground(settings.overlayAppearance.backgroundColor, settings.overlayAppearance.opacity)
+    getOverlayBackground(settings.overlayAppearance.backgroundColor, settings.overlayAppearance.opacity)
   );
   document.documentElement.style.setProperty("--prompt-font-size", `${settings.text.fontSize}px`);
   document.documentElement.style.setProperty("--prompt-text-color", settings.text.textColor);
@@ -717,8 +828,11 @@ function alignTranscriptToScript(transcript: string): void {
   const activeWord = scriptWordElements[currentScriptWordIndex];
 
   if (activeWord && promptViewport && promptText) {
-    const wordCenter = activeWord.offsetTop - promptViewport.clientHeight * 0.42;
-    targetScrollTop = Math.max(0, wordCenter);
+    const voiceSentenceIndex = getActiveSentenceIndexFromVoice();
+    const sentenceElement = voiceSentenceIndex === null ? undefined : scriptSentences[voiceSentenceIndex]?.element;
+    const targetElement = sentenceElement ?? activeWord;
+    const targetCenter = targetElement.offsetTop + targetElement.offsetHeight / 2 - getViewportReadingFocusOffset();
+    targetScrollTop = Math.max(0, targetCenter);
   }
 
   lastScriptMatchAt = Date.now();
@@ -923,9 +1037,17 @@ function scrollFrame(timestamp: number): void {
     setPromptScrollPosition(maxScrollTop);
     updateProgress();
     updateHighlight();
-    endHoldElapsedMilliseconds += deltaSeconds * 1000;
+    updateActiveSentenceHighlight();
+    const finalLineIndex = scriptSentences.length - 1;
+    const finalLineIsActive = finalLineIndex < 0 || activeSentenceIndex === finalLineIndex;
 
-    if (endHoldElapsedMilliseconds >= endHoldDurationMilliseconds) {
+    if (finalLineIsActive) {
+      endHoldElapsedMilliseconds += deltaSeconds * 1000;
+    } else {
+      endHoldElapsedMilliseconds = 0;
+    }
+
+    if (finalLineIsActive && endHoldElapsedMilliseconds >= getFinalLineHoldDurationMilliseconds()) {
       stopVoiceTracking();
       setState("completed");
       animationFrameId = null;
@@ -1026,10 +1148,11 @@ function restart(): void {
   stopAnimation();
 
   if (promptViewport) {
-    setPromptScrollPosition(0);
+    setPromptScrollPosition(getMinPromptScrollTop());
     elapsedMilliseconds = 0;
     endHoldElapsedMilliseconds = 0;
     currentScriptWordIndex = 0;
+    activeSentenceIndex = -1;
     targetScrollTop = 0;
     lastScriptMatchAt = 0;
     lastOffScriptFeedbackAt = 0;
@@ -1069,13 +1192,41 @@ function closeOverlayWithFeedback(): void {
   }, closeFeedbackDelayMilliseconds);
 }
 
-function splitSentences(text: string): string[] {
-  const matches = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
-  return matches?.map((sentence) => sentence.trim()).filter(Boolean) ?? [text];
+function toggleVoiceTrackingMode(): void {
+  flashControl(voiceToggleButton);
+  const nextScrollMode: AppSettings["behavior"]["scrollMode"] = scrollMode === "voice" ? "manual" : "voice";
+  scrollMode = nextScrollMode;
+  updateControls();
+  showFeedback(nextScrollMode === "voice" ? "Voice tracking on" : "Manual mode");
+
+  if (state === "running") {
+    if (nextScrollMode === "voice") {
+      void startVoiceTracking();
+    } else {
+      stopVoiceTracking();
+    }
+  }
+
+  void teleprompterApi?.updateSettings({
+    behavior: {
+      scrollMode: nextScrollMode
+    }
+  });
 }
 
-function appendWordSpans(parent: HTMLElement, sentence: string): void {
-  const parts = sentence.split(/(\s+)/);
+function splitReadableLines(text: string, wordsPerLine = 7): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+
+  for (let index = 0; index < words.length; index += wordsPerLine) {
+    lines.push(words.slice(index, index + wordsPerLine).join(" "));
+  }
+
+  return lines.length > 0 ? lines : [text];
+}
+
+function appendWordSpans(parent: HTMLElement, line: string): void {
+  const parts = line.split(/(\s+)/);
 
   for (const part of parts) {
     if (part.length === 0) {
@@ -1113,29 +1264,27 @@ function renderScript(body?: string): void {
   scriptWordElements = [];
   scriptSentences = [];
   currentScriptWordIndex = 0;
+  activeSentenceIndex = -1;
   targetScrollTop = 0;
   lastScriptMatchAt = 0;
 
   for (const block of blocks) {
-    const paragraph = document.createElement("p");
-
-    for (const sentence of splitSentences(block)) {
-      const sentenceElement = document.createElement("span");
-      const sentenceStart = scriptWords.length;
-      sentenceElement.dataset.highlightKind = "sentence";
-      appendWordSpans(sentenceElement, sentence);
+    for (const line of splitReadableLines(block)) {
+      const lineElement = document.createElement("p");
+      const lineStart = scriptWords.length;
+      lineElement.className = "prompt-line";
+      lineElement.dataset.lineIndex = String(scriptSentences.length);
+      appendWordSpans(lineElement, line);
       scriptSentences.push({
-        start: sentenceStart,
-        end: Math.max(sentenceStart, scriptWords.length - 1),
-        element: sentenceElement
+        start: lineStart,
+        end: Math.max(lineStart, scriptWords.length - 1),
+        element: lineElement
       });
-      paragraph.append(sentenceElement, " ");
+      promptText.append(lineElement);
     }
-
-    promptText.append(paragraph);
   }
 
-  setPromptScrollPosition(0);
+  setPromptScrollPosition(getMinPromptScrollTop());
   elapsedMilliseconds = 0;
   endHoldElapsedMilliseconds = 0;
   clearHighlightClasses();
@@ -1199,8 +1348,12 @@ const overlayTooltips: OverlayTooltip[] = [
   },
   {
     element: restartButton,
-    label: "Restart",
+    label: "Reset position",
     shortcut: "R"
+  },
+  {
+    element: voiceToggleButton,
+    label: "Voice tracking"
   },
   {
     element: speedUpButton,
@@ -1243,6 +1396,7 @@ playPauseButton?.addEventListener("click", startPause);
 restartButton?.addEventListener("click", restart);
 speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
+voiceToggleButton?.addEventListener("click", toggleVoiceTrackingMode);
 
 closeOverlayButton?.addEventListener("click", () => {
   closeOverlayWithFeedback();
