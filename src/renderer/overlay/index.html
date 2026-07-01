@@ -10,7 +10,7 @@
     <main class="overlay-shell">
       <section class="countdown" id="countdown" hidden></section>
 
-      <section class="prompt-viewport" id="promptViewport">
+      <section class="prompt-viewport overlay-lyrics-viewport" id="promptViewport">
         <article class="prompt-text" id="promptText">
           <p>No active script loaded yet.</p>
         </article>
@@ -22,13 +22,13 @@
         </div>
         <div class="overlay-bottom-row">
           <div class="overlay-status-row">
-            <span id="elapsedLabel">00:00</span>
-            <span id="remainingLabel">-00:00</span>
-            <span id="speedLabel">21 px/s</span>
+            <span class="overlay-status-metric"><small>Elapsed</small><strong id="elapsedLabel">00:00</strong></span>
+            <span class="overlay-status-metric"><small>Remaining</small><strong id="remainingLabel">-00:00</strong></span>
+            <span id="speedLabel" class="overlay-chip">21 px/s</span>
             <span id="feedbackLabel"></span>
           </div>
           <nav class="overlay-control-bar" aria-label="Teleprompter controls">
-            <button id="restartButton" class="overlay-control" type="button" data-tooltip="Restart (R)">
+            <button id="restartButton" class="overlay-control" type="button" data-tooltip="Reset position (R)" aria-label="Reset reading position">
               <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M3 12a9 9 0 1 0 3-6.7" />
                 <path d="M3 3v6h6" />
@@ -49,6 +49,15 @@
                   <path d="M15 6v12" />
                 </svg>
               </span>
+            </button>
+            <button id="voiceToggleButton" class="overlay-control" type="button" data-tooltip="Voice tracking" aria-label="Toggle voice tracking">
+              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 4v16" />
+                <path d="M8 8v8" />
+                <path d="M16 8v8" />
+                <path d="M4 11v2" />
+                <path d="M20 11v2" />
+              </svg>
             </button>
             <button id="speedUpButton" class="overlay-control" type="button" aria-label="Faster (Right Arrow)" data-tooltip="Faster (&rarr;)">
               <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
