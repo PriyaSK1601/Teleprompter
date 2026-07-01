@@ -46,7 +46,9 @@ select:disabled {
     linear-gradient(135deg, #0b0d12 0%, #11131a 46%, #0d1117 100%);
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   padding: 18px;
 }
 
@@ -66,6 +68,7 @@ select:disabled {
   flex-direction: column;
   gap: 16px;
   margin-right: 18px;
+  min-height: 0;
   padding: 18px;
 }
 
@@ -242,13 +245,16 @@ h3 {
   border-radius: 28px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
   padding: 24px;
 }
 
 .script-card {
   display: grid;
   gap: 18px;
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   padding: 28px 0 22px;
 }
@@ -275,8 +281,10 @@ h3 {
 }
 
 .script-body {
+  height: 100%;
   line-height: 1.7;
-  min-height: 440px;
+  min-height: 0;
+  overflow: auto;
   padding: 24px;
   resize: none;
 }
@@ -859,10 +867,22 @@ h3 {
 @media (max-width: 860px) {
   .editor-app {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .scripts-sidebar {
     margin: 0 0 18px;
+  }
+
+  .editor-workspace {
+    overflow: visible;
+  }
+
+  .script-body {
+    height: auto;
+    min-height: 320px;
   }
 
   .settings-grid {

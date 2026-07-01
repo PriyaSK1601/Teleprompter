@@ -172,8 +172,9 @@ export function createEditorWindow(): BrowserWindow {
   editorWindow = new BrowserWindow({
     width: 1000,
     height: 700,
-    minWidth: 820,
-    minHeight: 560,
+    minWidth: 720,
+    minHeight: 430,
+    resizable: true,
     title: "Teleprompter",
     webPreferences: {
       preload: preloadPath("editor"),
