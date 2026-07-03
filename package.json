@@ -12,6 +12,7 @@
     "dist:win": "npm run build && electron-builder --win --x64",
     "pack:win": "npm run build && electron-builder --win --x64 --dir",
     "start": "node scripts/run-electron.cjs .",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "build": {
