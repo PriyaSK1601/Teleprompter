@@ -66,6 +66,8 @@ let lastOffScriptFeedbackAt = 0;
 let currentHighlightEndIndex = -1;
 let endHoldElapsedMilliseconds = 0;
 let closeFeedbackTimerId: number | null = null;
+let currentScriptBody: string | undefined;
+let relayoutTimerId: number | null = null;
 
 const endHoldDurationMilliseconds = 500;
 const closeFeedbackDelayMilliseconds = 120;
@@ -1214,15 +1216,49 @@ function toggleVoiceTrackingMode(): void {
   });
 }
 
-function splitReadableLines(text: string, wordsPerLine = 7): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-
-  for (let index = 0; index < words.length; index += wordsPerLine) {
-    lines.push(words.slice(index, index + wordsPerLine).join(" "));
+function measureReadableLines(text: string): string[] {
+  if (!promptText) {
+    return [text];
   }
 
-  return lines.length > 0 ? lines : [text];
+  const words = text.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) {
+    return [text];
+  }
+
+  const measurement = document.createElement("p");
+  measurement.className = "prompt-line prompt-line-measure";
+  const wordElements = words.map((wordText) => {
+    const word = document.createElement("span");
+    word.textContent = wordText;
+    measurement.append(word, " ");
+    return word;
+  });
+  promptText.append(measurement);
+
+  const lines: string[] = [];
+  let currentTop: number | null = null;
+  let currentWords: string[] = [];
+
+  for (let index = 0; index < wordElements.length; index += 1) {
+    const top = wordElements[index].offsetTop;
+
+    if (currentTop !== null && Math.abs(top - currentTop) > 2) {
+      lines.push(currentWords.join(" "));
+      currentWords = [];
+    }
+
+    currentTop = top;
+    currentWords.push(words[index]);
+  }
+
+  if (currentWords.length > 0) {
+    lines.push(currentWords.join(" "));
+  }
+
+  measurement.remove();
+  return lines;
 }
 
 function appendWordSpans(parent: HTMLElement, line: string): void {
@@ -1249,11 +1285,14 @@ function appendWordSpans(parent: HTMLElement, line: string): void {
   }
 }
 
-function renderScript(body?: string): void {
+function renderScript(body?: string, preservePlayback = false): void {
   if (!promptText || !promptViewport) {
     return;
   }
 
+  const previousProgress = preservePlayback ? getProgress() : 0;
+  const previousWordIndex = currentScriptWordIndex;
+  currentScriptBody = body;
   const text = body?.trim()
     ? body
     : "No active script loaded yet. Save or open a script in the editor to send it to the overlay.";
@@ -1269,7 +1308,7 @@ function renderScript(body?: string): void {
   lastScriptMatchAt = 0;
 
   for (const block of blocks) {
-    for (const line of splitReadableLines(block)) {
+    for (const line of measureReadableLines(block)) {
       const lineElement = document.createElement("p");
       const lineStart = scriptWords.length;
       lineElement.className = "prompt-line";
@@ -1284,14 +1323,21 @@ function renderScript(body?: string): void {
     }
   }
 
-  setPromptScrollPosition(getMinPromptScrollTop());
-  elapsedMilliseconds = 0;
-  endHoldElapsedMilliseconds = 0;
+  if (preservePlayback) {
+    const minScrollTop = getMinPromptScrollTop();
+    const maxScrollTop = getMaxPromptScrollTop();
+    currentScriptWordIndex = Math.min(previousWordIndex, Math.max(0, scriptWords.length - 1));
+    setPromptScrollPosition(minScrollTop + previousProgress * Math.max(0, maxScrollTop - minScrollTop));
+  } else {
+    setPromptScrollPosition(getMinPromptScrollTop());
+    elapsedMilliseconds = 0;
+    endHoldElapsedMilliseconds = 0;
+  }
   clearHighlightClasses();
   updateProgress();
   updateHighlight();
 
-  if (state !== "idle") {
+  if (!preservePlayback && state !== "idle") {
     clearCountdown();
     setState("idle");
   }
@@ -1435,6 +1481,17 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     closeOverlayWithFeedback();
   }
+});
+
+window.addEventListener("resize", () => {
+  if (relayoutTimerId !== null) {
+    window.clearTimeout(relayoutTimerId);
+  }
+
+  relayoutTimerId = window.setTimeout(() => {
+    relayoutTimerId = null;
+    renderScript(currentScriptBody, true);
+  }, 80);
 });
 
 if (teleprompterApi) {

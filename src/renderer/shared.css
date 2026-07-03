@@ -1904,6 +1904,10 @@ h3 {
   will-change: filter, font-size, opacity, transform;
 }
 
+.prompt-line-measure {
+  visibility: hidden;
+}
+
 .prompt-line.is-past {
   filter: blur(1px);
   opacity: 0.28;
