@@ -1300,8 +1300,9 @@ function renderScript(body?: string, preservePlayback = false): void {
     ? body
     : "No active script loaded yet. Save or open a script in the editor to send it to the overlay.";
   const blocks = text.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const measuredBlocks = blocks.map(measureReadableLines);
+  const nextContent = document.createDocumentFragment();
 
-  promptText.textContent = "";
   scriptWords = [];
   scriptWordElements = [];
   scriptSentences = [];
@@ -1310,8 +1311,8 @@ function renderScript(body?: string, preservePlayback = false): void {
   targetScrollTop = 0;
   lastScriptMatchAt = 0;
 
-  for (const block of blocks) {
-    for (const line of measureReadableLines(block)) {
+  for (const lines of measuredBlocks) {
+    for (const line of lines) {
       const lineElement = document.createElement("p");
       const lineStart = scriptWords.length;
       lineElement.className = "prompt-line";
@@ -1322,9 +1323,12 @@ function renderScript(body?: string, preservePlayback = false): void {
         end: Math.max(lineStart, scriptWords.length - 1),
         element: lineElement
       });
-      promptText.append(lineElement);
+      nextContent.append(lineElement);
     }
   }
+
+  promptText.style.transform = "none";
+  promptText.replaceChildren(nextContent);
 
   if (preservePlayback) {
     const minScrollTop = getMinPromptScrollTop();

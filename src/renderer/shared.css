@@ -1878,13 +1878,11 @@ h3 {
   padding: 0;
   position: relative;
   text-align: var(--prompt-text-align);
-  will-change: transform;
   z-index: 2;
 }
 
 .prompt-line {
   color: var(--prompt-text-color);
-  filter: blur(1px);
   font-size: clamp(20px, 2.6vw, 34px);
   font-weight: 560;
   line-height: 1.2;
@@ -1892,16 +1890,10 @@ h3 {
   max-width: min(88%, 980px);
   opacity: 0.35;
   overflow-wrap: anywhere;
-  transform: translateY(8px) scale(0.96);
-  transform-origin: center;
   transition:
     color 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    font-size 520ms cubic-bezier(0.16, 1, 0.3, 1),
     font-weight 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 580ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: filter, font-size, opacity, transform;
+    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .prompt-line-measure {
@@ -1909,28 +1901,21 @@ h3 {
 }
 
 .prompt-line.is-past {
-  filter: blur(1px);
   opacity: 0.28;
-  transform: translateY(-8px) scale(0.92);
 }
 
 .prompt-line.is-upcoming {
-  filter: blur(1px);
   opacity: 0.35;
-  transform: translateY(8px) scale(0.94);
 }
 
 .prompt-line.active {
   color: #ffffff;
-  filter: none;
-  font-size: clamp(24px, 3.2vw, 42px);
   font-weight: 700;
   line-height: 1.2;
   max-width: min(88%, 980px);
   opacity: 1;
   overflow-wrap: anywhere;
   text-shadow: 0 0 18px rgb(255 255 255 / 0.24);
-  transform: translateY(0) scale(1);
 }
 
 .prompt-line [data-highlight-kind="word"] {
@@ -1943,41 +1928,30 @@ h3 {
   opacity: 0.54;
   position: relative;
   text-shadow: none;
-  transform: translateY(0) scale(0.88);
-  transform-origin: center;
   transition:
     opacity 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
     background 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
     color 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    text-shadow 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, filter, transform;
+    text-shadow 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .prompt-text.word-focus-mode.focus-mode [data-highlight-kind="word"] {
-  filter: blur(0.7px);
   opacity: 0.34;
-  transform: translateY(6px) scale(0.82);
 }
 
 .prompt-text.word-focus-mode .prompt-focus-past {
-  filter: blur(1.1px);
   opacity: 0.18;
-  transform: translateY(-10px) scale(0.72);
 }
 
 .prompt-text.word-focus-mode .prompt-focus-active {
   background: transparent;
   box-shadow: none;
   color: #ffffff;
-  filter: none;
   opacity: 1;
   padding: 0;
   text-shadow:
     0 0 24px rgb(255 255 255 / 0.38),
     0 0 18px rgb(var(--overlay-accent-rgb) / 0.24);
-  transform: translateY(-1px) scale(1.12);
   z-index: 2;
 }
 

@@ -234,10 +234,6 @@ export function createOverlayWindow(): BrowserWindow {
     applyConfiguredOverlayBounds(overlayWindow);
     overlayWindow.show();
   });
-  overlayWindow.webContents.once("did-finish-load", () => {
-    sendScriptChangedEvent();
-    sendSettingsChangedEvent();
-  });
   overlayWindow.on("move", scheduleOverlayBoundsSave);
   overlayWindow.on("resize", scheduleOverlayBoundsSave);
   overlayWindow.on("closed", () => {
