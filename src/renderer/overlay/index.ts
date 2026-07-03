@@ -221,8 +221,7 @@ function getLineCenteredScrollTop(lineElement: HTMLElement): number {
 }
 
 function getMinPromptScrollTop(): number {
-  const firstLine = scriptSentences[0]?.element;
-  return firstLine ? getLineCenteredScrollTop(firstLine) : 0;
+  return 0;
 }
 
 function getViewportReadingFocusOffset(): number {
@@ -230,7 +229,10 @@ function getViewportReadingFocusOffset(): number {
     return 0;
   }
 
-  return promptViewport.clientHeight * 0.48;
+  const viewportStyle = window.getComputedStyle(promptViewport);
+  const paddingTop = Number.parseFloat(viewportStyle.paddingTop) || 0;
+  const firstLineHeight = scriptSentences[0]?.element.offsetHeight ?? getPromptLineHeight();
+  return paddingTop + firstLineHeight / 2;
 }
 
 function getContentLineCandidates(): HighlightLineCandidate[] {
