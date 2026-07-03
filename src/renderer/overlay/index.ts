@@ -68,6 +68,7 @@ let endHoldElapsedMilliseconds = 0;
 let closeFeedbackTimerId: number | null = null;
 let currentScriptBody: string | undefined;
 let relayoutTimerId: number | null = null;
+let enabledShortcutActions = new Set<TeleprompterCommand>();
 
 const endHoldDurationMilliseconds = 500;
 const closeFeedbackDelayMilliseconds = 120;
@@ -1375,6 +1376,14 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
+function applyShortcutStatuses(statuses: ShortcutStatus[]): void {
+  enabledShortcutActions = new Set(statuses.filter((status) => status.enabled).map((status) => status.action));
+}
+
+function isLocalShortcutEnabled(action: TeleprompterCommand): boolean {
+  return enabledShortcutActions.has(action);
+}
+
 type OverlayTooltip = {
   element: HTMLButtonElement | null;
   label: string;
@@ -1455,31 +1464,31 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "ArrowRight") {
+  if (event.key === "ArrowRight" && isLocalShortcutEnabled("speedUp")) {
     event.preventDefault();
     speedUp();
     return;
   }
 
-  if (event.key === "ArrowLeft") {
+  if (event.key === "ArrowLeft" && isLocalShortcutEnabled("slowDown")) {
     event.preventDefault();
     slowDown();
     return;
   }
 
-  if (event.key === " ") {
+  if (event.key === " " && isLocalShortcutEnabled("startPause")) {
     event.preventDefault();
     startPause();
     return;
   }
 
-  if (event.key.toLowerCase() === "r") {
+  if (event.key.toLowerCase() === "r" && isLocalShortcutEnabled("restart")) {
     event.preventDefault();
     restart();
     return;
   }
 
-  if (event.key === "Escape") {
+  if (event.key === "Escape" && isLocalShortcutEnabled("hideOverlay")) {
     event.preventDefault();
     closeOverlayWithFeedback();
   }
@@ -1497,6 +1506,7 @@ window.addEventListener("resize", () => {
 });
 
 if (teleprompterApi) {
+  teleprompterApi.onShortcutsChanged(applyShortcutStatuses);
   teleprompterApi.onTeleprompterCommand((event) => {
     handleCommand(event.command);
   });
@@ -1517,6 +1527,9 @@ if (teleprompterApi) {
 
   teleprompterApi.getSettings().then(applySettings).catch(() => {
     updateControls();
+  });
+  teleprompterApi.getShortcutStatus().then(applyShortcutStatuses).catch(() => {
+    enabledShortcutActions.clear();
   });
 } else {
   renderScript();

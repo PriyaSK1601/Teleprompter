@@ -12,6 +12,7 @@ import {
   createOverlayWindow,
   broadcastScriptChanged,
   broadcastSettingsChanged,
+  broadcastShortcutsChanged,
   closeOverlayWindow,
   closeOverlayForRecovery,
   getOverlayState,
@@ -109,11 +110,15 @@ export function registerIpcHandlers(): void {
   });
 
   registerLoggedHandler(ipcChannels.shortcutsUpdate, async (_event, input: ShortcutUpdateInput) => {
-    return updateGlobalShortcuts(input);
+    const statuses = updateGlobalShortcuts(input);
+    broadcastShortcutsChanged(statuses);
+    return statuses;
   });
 
   registerLoggedHandler(ipcChannels.shortcutsReset, async () => {
-    return resetGlobalShortcuts();
+    const statuses = resetGlobalShortcuts();
+    broadcastShortcutsChanged(statuses);
+    return statuses;
   });
 
   registerLoggedHandler(ipcChannels.scriptsGetState, async () => {

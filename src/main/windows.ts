@@ -7,6 +7,7 @@ import {
   type OverlayState,
   type ScriptChangedEvent,
   type SettingsChangedEvent,
+  type ShortcutStatus,
   type TeleprompterCommand,
   type TeleprompterCommandEvent
 } from "../shared/ipc";
@@ -351,4 +352,12 @@ export function broadcastScriptChanged(): void {
 
 export function broadcastSettingsChanged(settings?: AppSettings): void {
   sendSettingsChangedEvent(settings);
+}
+
+export function broadcastShortcutsChanged(statuses: ShortcutStatus[]): void {
+  for (const window of [editorWindow, overlayWindow]) {
+    if (window && !window.isDestroyed() && !window.webContents.isLoading()) {
+      window.webContents.send(ipcChannels.shortcutsChangedEvent, statuses);
+    }
+  }
 }
