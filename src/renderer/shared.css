@@ -1900,7 +1900,7 @@ h3 {
 .prompt-line {
   color: var(--prompt-text-color);
   font-size: clamp(20px, 2.6vw, 34px);
-  font-weight: 560;
+  font-weight: 700;
   line-height: 1.2;
   margin: 0 auto clamp(12px, 2.6vh, 24px);
   max-width: 1280px;
@@ -1908,7 +1908,6 @@ h3 {
   overflow-wrap: anywhere;
   transition:
     color 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    font-weight 520ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 520ms cubic-bezier(0.16, 1, 0.3, 1);
   width: 96%;
 }
