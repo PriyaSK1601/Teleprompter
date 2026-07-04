@@ -1867,7 +1867,7 @@ h3 {
   align-self: stretch;
   overflow: hidden;
   min-height: 0;
-  padding: clamp(24px, 8vh, 64px) clamp(24px, 6vw, 72px);
+  padding: clamp(24px, 8vh, 64px) clamp(16px, 3vw, 40px);
   position: relative;
   scroll-behavior: auto;
   z-index: 2;
@@ -1877,10 +1877,11 @@ h3 {
   color: var(--prompt-text-color);
   line-height: var(--prompt-line-height);
   margin: 0 auto;
-  max-width: min(90%, 1040px);
+  max-width: 1400px;
   padding: 0;
   position: relative;
   text-align: var(--prompt-text-align);
+  width: 100%;
   z-index: 2;
 }
 
@@ -1902,13 +1903,14 @@ h3 {
   font-weight: 560;
   line-height: 1.2;
   margin: 0 auto clamp(12px, 2.6vh, 24px);
-  max-width: min(88%, 980px);
+  max-width: 1280px;
   opacity: 0.35;
   overflow-wrap: anywhere;
   transition:
     color 520ms cubic-bezier(0.16, 1, 0.3, 1),
     font-weight 520ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 96%;
 }
 
 .prompt-line-measure {
@@ -1927,7 +1929,6 @@ h3 {
   color: #ffffff;
   font-weight: 700;
   line-height: 1.2;
-  max-width: min(88%, 980px);
   opacity: 1;
   overflow-wrap: anywhere;
   text-shadow: 0 0 18px rgb(255 255 255 / 0.24);
