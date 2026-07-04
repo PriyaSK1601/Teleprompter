@@ -44,8 +44,20 @@ function getConfiguredOverlayBounds(): OverlayBounds {
 
 function applyConfiguredOverlayBounds(window: BrowserWindow): void {
   if (process.platform === "darwin") {
-    window.setFullScreen(false);
-    window.setSimpleFullScreen(false);
+    if (window.isSimpleFullScreen()) {
+      window.setSimpleFullScreen(false);
+    }
+
+    if (window.isFullScreen()) {
+      // macOS leaves fullscreen asynchronously; bounds set mid-transition are dropped.
+      window.once("leave-full-screen", () => {
+        if (!window.isDestroyed()) {
+          window.setBounds(getConfiguredOverlayBounds());
+        }
+      });
+      window.setFullScreen(false);
+      return;
+    }
   }
 
   window.setBounds(getConfiguredOverlayBounds());
