@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
-  getTopStartScrollPosition,
+  getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
   preserveScrollProgress
@@ -30,8 +30,8 @@ test("overlay bounds clamp minimum size and off-screen placement", () => {
   );
 });
 
-test("scripts begin at the top scroll origin", () => {
-  assert.equal(getTopStartScrollPosition(), 0);
+test("the active script line is centered in the prompt viewport", () => {
+  assert.equal(getCenteredLineScrollPosition(20, 40, 400), -160);
 });
 
 test("resize anchoring preserves proportional progress", () => {

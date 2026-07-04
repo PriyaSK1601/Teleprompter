@@ -32,8 +32,8 @@ export function calculateOverlayBounds(
   return { x, y, width, height };
 }
 
-export function getTopStartScrollPosition(): number {
-  return 0;
+export function getCenteredLineScrollPosition(lineTop: number, lineHeight: number, viewportHeight: number): number {
+  return lineTop + lineHeight / 2 - viewportHeight / 2;
 }
 
 export function preserveScrollProgress(

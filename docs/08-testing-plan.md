@@ -35,9 +35,9 @@
 | Scenario | Expected Result |
 | --- | --- |
 | macOS editor in native fullscreen | Opening the overlay uses its configured work-area bounds and never inherits fullscreen or maximized state. |
-| Wide and short overlay | Script wraps from the measured viewport width and the first line starts below the top padding. |
+| Wide and short overlay | Script wraps from the measured viewport width and the active line remains vertically centered. |
 | Narrow and tall overlay | Lines reflow without fixed word-count breaks, clipping, or an incorrect centered start. |
-| Resize while idle | Script is remeasured and returns to the top starting position. |
+| Resize while idle | Script is remeasured and returns the first active line to the vertical center. |
 | Resize while running or paused | Script is remeasured while preserving proportional reading progress. |
 | Repeated script replacement | Only the latest script tree is visible; no stationary duplicate or retained text layer remains. |
 | Manual/Voice mode switch | The right-side selector changes mode, persists the setting, and keeps Play/Pause centered. |
@@ -60,7 +60,7 @@
 
 ## Platform verification status
 
-- Automated bounds, line-measurement, top-start, resize-progress, and shortcut-eligibility tests run with `npm test`.
+- Automated bounds, line-measurement, centered-reading-position, resize-progress, and shortcut-eligibility tests run with `npm test`.
 - TypeScript and renderer bundle safety run with `npm run typecheck` and `npm run check:renderer`.
 - Native macOS fullscreen behavior must be verified on a Mac; Windows execution cannot substantiate that platform-specific result.
 
