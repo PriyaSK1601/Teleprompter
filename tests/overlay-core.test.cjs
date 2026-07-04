@@ -2,9 +2,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
+  calculateTimerTotalMilliseconds,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
+  getSynchronizedTimerSeconds,
   preserveScrollProgress
 } = require("../dist/shared/overlayCore.js");
 
@@ -36,6 +38,17 @@ test("the active script line is centered in the prompt viewport", () => {
 
 test("resize anchoring preserves proportional progress", () => {
   assert.equal(preserveScrollProgress(250, 0, 1000, 0, 400), 100);
+});
+
+test("elapsed and remaining timers stay complementary", () => {
+  const total = calculateTimerTotalMilliseconds(0, 216.3, 21);
+  const first = getSynchronizedTimerSeconds(1100, total);
+  const second = getSynchronizedTimerSeconds(2100, total);
+
+  assert.equal(first.elapsed + first.remaining, second.elapsed + second.remaining);
+  assert.equal(second.elapsed, first.elapsed + 1);
+  assert.equal(second.remaining, first.remaining - 1);
+  assert.equal(getSynchronizedTimerSeconds(total, total, true).remaining, 0);
 });
 
 test("measured words are grouped by their rendered row", () => {

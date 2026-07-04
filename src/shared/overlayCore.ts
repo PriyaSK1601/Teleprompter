@@ -48,6 +48,30 @@ export function preserveScrollProgress(
   return nextMin + progress * Math.max(0, nextMax - nextMin);
 }
 
+export function calculateTimerTotalMilliseconds(
+  elapsedMilliseconds: number,
+  remainingDistance: number,
+  pixelsPerSecond: number
+): number {
+  if (pixelsPerSecond <= 0) {
+    return elapsedMilliseconds;
+  }
+
+  return elapsedMilliseconds + (Math.max(0, remainingDistance) / pixelsPerSecond) * 1000;
+}
+
+export function getSynchronizedTimerSeconds(
+  elapsedMilliseconds: number,
+  totalMilliseconds: number,
+  isComplete = false
+): { elapsed: number; remaining: number } {
+  const elapsed = Math.floor(Math.max(0, elapsedMilliseconds) / 1000);
+  const remaining = isComplete
+    ? 0
+    : Math.ceil(Math.max(0, totalMilliseconds - elapsedMilliseconds) / 1000);
+  return { elapsed, remaining };
+}
+
 export function groupMeasuredWordsIntoLines(words: WordLayout[], tolerance = 2): MeasuredLine[] {
   const lines: MeasuredLine[] = [];
 
