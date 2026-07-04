@@ -30,6 +30,19 @@
 | Off-screen recovery | Reset command returns overlay to visible position. |
 | Click-through experiment | Click-through can be enabled and disabled safely. |
 
+### Stability and responsive-layout regression matrix
+
+| Scenario | Expected Result |
+| --- | --- |
+| macOS editor in native fullscreen | Opening the overlay uses its configured work-area bounds and never inherits fullscreen or maximized state. |
+| Wide and short overlay | Script wraps from the measured viewport width and the first line starts below the top padding. |
+| Narrow and tall overlay | Lines reflow without fixed word-count breaks, clipping, or an incorrect centered start. |
+| Resize while idle | Script is remeasured and returns to the top starting position. |
+| Resize while running or paused | Script is remeasured while preserving proportional reading progress. |
+| Repeated script replacement | Only the latest script tree is visible; no stationary duplicate or retained text layer remains. |
+| Manual/Voice mode switch | The right-side selector changes mode, persists the setting, and keeps Play/Pause centered. |
+| Minimum supported width | Restart, Slower, Play/Pause, Faster, and Close remain symmetric; the mode selector remains usable. |
+
 ## Shortcut Tests
 
 | Test | Expected Result |
@@ -41,6 +54,15 @@
 | Speed up shortcut | Scroll speed increases by predictable step. |
 | Slow down shortcut | Scroll speed decreases without going below minimum. |
 | Conflict scenario | App reports shortcut registration failure. |
+| Disable focused-overlay shortcut | The corresponding Space, R, arrow, or Escape action is inactive inside the overlay. |
+| Re-enable focused-overlay shortcut | The corresponding overlay key works immediately without reopening the app. |
+| Restart after disabling shortcut | Persisted disabled actions remain inactive globally and inside the overlay. |
+
+## Platform verification status
+
+- Automated bounds, line-measurement, top-start, resize-progress, and shortcut-eligibility tests run with `npm test`.
+- TypeScript and renderer bundle safety run with `npm run typecheck` and `npm run check:renderer`.
+- Native macOS fullscreen behavior must be verified on a Mac; Windows execution cannot substantiate that platform-specific result.
 
 ## Scroll Smoothness Tests
 
