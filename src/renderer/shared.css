@@ -2,6 +2,9 @@
   --overlay-bg: rgb(15 18 28 / 0.72);
   --overlay-accent: #b4c6ae;
   --overlay-accent-rgb: 180 198 174;
+  --overlay-control-size: 36px;
+  --overlay-control-icon-size: 19px;
+  --overlay-footer-gap: clamp(8px, 1.4vw, 16px);
   --prompt-font-size: 32px;
   --prompt-line-height: 1.5;
   --prompt-text-align: center;
@@ -1656,11 +1659,11 @@ h3 {
   display: inline-flex;
   font-size: 0;
   font-weight: 720;
-  height: 36px;
+  height: var(--overlay-control-size);
   justify-content: center;
   line-height: 1;
-  min-height: 36px;
-  min-width: 36px;
+  min-height: var(--overlay-control-size);
+  min-width: var(--overlay-control-size);
   padding: 0;
   position: relative;
   transition:
@@ -1668,7 +1671,7 @@ h3 {
     box-shadow 180ms ease,
     color 180ms ease,
     transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  width: 36px;
+  width: var(--overlay-control-size);
 }
 
 .overlay-control:hover {
@@ -1685,7 +1688,7 @@ h3 {
 .overlay-control-icon {
   display: block;
   fill: none;
-  height: 19px;
+  height: var(--overlay-control-icon-size);
   overflow: visible;
   pointer-events: none;
   stroke: currentColor;
@@ -1695,7 +1698,7 @@ h3 {
   transition:
     opacity 120ms ease,
     transform 120ms ease;
-  width: 19px;
+  width: var(--overlay-control-icon-size);
 }
 
 .overlay-control::after {
@@ -1757,10 +1760,10 @@ h3 {
 }
 
 #playPauseButton {
-  height: 50px;
-  min-height: 50px;
-  min-width: 50px;
-  width: 50px;
+  height: calc(var(--overlay-control-size) + 14px);
+  min-height: calc(var(--overlay-control-size) + 14px);
+  min-width: calc(var(--overlay-control-size) + 14px);
+  width: calc(var(--overlay-control-size) + 14px);
 }
 
 .overlay-control.is-active {
@@ -2025,6 +2028,7 @@ h3 {
   gap: var(--overlay-footer-gap);
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   min-height: 58px;
+  width: 100%;
 }
 
 .overlay-progress-label {
@@ -2232,11 +2236,19 @@ h3 {
     display: none;
   }
 
-  .overlay-progress-side,
   #speedLabel {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
+  }
+
+  #progressLabel {
+    display: none;
+  }
+
+  .overlay-mode-select {
+    max-width: 96px;
+    padding-inline: 8px;
   }
 
   .overlay-control-bar {
