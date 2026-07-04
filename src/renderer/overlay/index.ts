@@ -1450,6 +1450,7 @@ speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
 modeSelect?.addEventListener("change", () => {
   setScrollMode(modeSelect.value as AppSettings["behavior"]["scrollMode"]);
+  window.setTimeout(() => modeSelect.blur(), 0);
 });
 
 closeOverlayButton?.addEventListener("click", () => {
