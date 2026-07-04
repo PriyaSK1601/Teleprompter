@@ -6,13 +6,12 @@ const progressLabel = document.querySelector<HTMLElement>("#progressLabel");
 const elapsedLabel = document.querySelector<HTMLElement>("#elapsedLabel");
 const remainingLabel = document.querySelector<HTMLElement>("#remainingLabel");
 const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
-const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
+const modeSelect = document.querySelector<HTMLSelectElement>("#modeSelect");
 const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
 const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
 const slowDownButton = document.querySelector<HTMLButtonElement>("#slowDownButton");
-const voiceToggleButton = document.querySelector<HTMLButtonElement>("#voiceToggleButton");
 const closeOverlayButton = document.querySelector<HTMLButtonElement>("#closeOverlayButton");
 
 type ScrollState = "idle" | "countdown" | "running" | "paused" | "completed";
@@ -30,6 +29,7 @@ let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
 let elapsedMilliseconds = 0;
+let timerTotalSeconds = 0;
 let feedbackTimerId: number | null = null;
 let voiceAudioContext: AudioContext | null = null;
 let voiceAnalyser: AnalyserNode | null = null;
@@ -66,6 +66,9 @@ let lastOffScriptFeedbackAt = 0;
 let currentHighlightEndIndex = -1;
 let endHoldElapsedMilliseconds = 0;
 let closeFeedbackTimerId: number | null = null;
+let currentScriptBody: string | undefined;
+let relayoutTimerId: number | null = null;
+let localShortcutStatuses: ShortcutStatus[] | null = null;
 
 const endHoldDurationMilliseconds = 500;
 const closeFeedbackDelayMilliseconds = 120;
@@ -108,14 +111,8 @@ function updateControls(): void {
     speedLabel.textContent = `${speedPixelsPerSecond} px/s`;
   }
 
-  if (modeLabel) {
-    modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
-  }
-
-  if (voiceToggleButton) {
-    const isVoiceMode = scrollMode === "voice";
-    voiceToggleButton.classList.toggle("is-active", isVoiceMode);
-    voiceToggleButton.setAttribute("aria-pressed", String(isVoiceMode));
+  if (modeSelect) {
+    modeSelect.value = scrollMode;
   }
 }
 
@@ -126,26 +123,28 @@ function formatSeconds(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function getRemainingScrollSeconds(): number {
-  if (speedPixelsPerSecond <= 0) {
-    return 0;
-  }
+function getRemainingScrollDistance(): number {
+  return Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
+}
 
-  const remainingScrollDistance = Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
-  const remainingSeconds = remainingScrollDistance / speedPixelsPerSecond;
-  return remainingSeconds <= 0 ? 0 : Math.ceil(remainingSeconds);
+function syncTimerDurationWithPlaybackPosition(): void {
+  timerTotalSeconds = overlayCore.calculateSynchronizedTimerTotalSeconds(
+    elapsedMilliseconds,
+    getRemainingScrollDistance(),
+    speedPixelsPerSecond
+  );
 }
 
 function updateTimerLabels(): void {
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  const remainingSeconds = getRemainingScrollSeconds();
+  const isComplete = getPromptScrollPosition() >= getMaxPromptScrollTop() - 0.5;
+  const { elapsed, remaining } = overlayCore.getSynchronizedTimerSeconds(elapsedMilliseconds, timerTotalSeconds, isComplete);
 
   if (elapsedLabel) {
-    elapsedLabel.textContent = formatSeconds(elapsedSeconds);
+    elapsedLabel.textContent = formatSeconds(elapsed);
   }
 
   if (remainingLabel) {
-    remainingLabel.textContent = `-${formatSeconds(remainingSeconds)}`;
+    remainingLabel.textContent = `-${formatSeconds(remaining)}`;
   }
 }
 
@@ -215,7 +214,11 @@ function getNaturalPromptScrollTop(): number {
 }
 
 function getLineCenteredScrollTop(lineElement: HTMLElement): number {
-  return lineElement.offsetTop + lineElement.offsetHeight / 2 - getViewportReadingFocusOffset();
+  return overlayCore.getCenteredLineScrollPosition(
+    lineElement.offsetTop,
+    lineElement.offsetHeight,
+    promptViewport ? promptViewport.clientHeight : 0
+  );
 }
 
 function getMinPromptScrollTop(): number {
@@ -228,7 +231,7 @@ function getViewportReadingFocusOffset(): number {
     return 0;
   }
 
-  return promptViewport.clientHeight * 0.48;
+  return promptViewport.clientHeight * 0.5;
 }
 
 function getContentLineCandidates(): HighlightLineCandidate[] {
@@ -706,6 +709,7 @@ function applySettings(settings: AppSettings): void {
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 
   setPromptScrollPosition(scrollPositionY);
+  syncTimerDurationWithPlaybackPosition();
   if (highlightMode !== previousHighlightMode) {
     clearHighlightClasses();
   }
@@ -1156,6 +1160,7 @@ function restart(): void {
     targetScrollTop = 0;
     lastScriptMatchAt = 0;
     lastOffScriptFeedbackAt = 0;
+    syncTimerDurationWithPlaybackPosition();
     updateProgress();
     updateHighlight();
   }
@@ -1166,6 +1171,7 @@ function restart(): void {
 function speedUp(): void {
   flashControl(speedUpButton);
   speedPixelsPerSecond = Math.min(160, speedPixelsPerSecond + 8);
+  syncTimerDurationWithPlaybackPosition();
   updateControls();
   flashSpeedLabel();
   updateProgress();
@@ -1174,6 +1180,7 @@ function speedUp(): void {
 function slowDown(): void {
   flashControl(slowDownButton);
   speedPixelsPerSecond = Math.max(8, speedPixelsPerSecond - 8);
+  syncTimerDurationWithPlaybackPosition();
   updateControls();
   flashSpeedLabel();
   updateProgress();
@@ -1192,10 +1199,13 @@ function closeOverlayWithFeedback(): void {
   }, closeFeedbackDelayMilliseconds);
 }
 
-function toggleVoiceTrackingMode(): void {
-  flashControl(voiceToggleButton);
-  const nextScrollMode: AppSettings["behavior"]["scrollMode"] = scrollMode === "voice" ? "manual" : "voice";
+function setScrollMode(nextScrollMode: AppSettings["behavior"]["scrollMode"]): void {
+  if (nextScrollMode === scrollMode) {
+    return;
+  }
+
   scrollMode = nextScrollMode;
+  syncTimerDurationWithPlaybackPosition();
   updateControls();
   showFeedback(nextScrollMode === "voice" ? "Voice tracking on" : "Manual mode");
 
@@ -1214,15 +1224,48 @@ function toggleVoiceTrackingMode(): void {
   });
 }
 
-function splitReadableLines(text: string, wordsPerLine = 7): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-
-  for (let index = 0; index < words.length; index += wordsPerLine) {
-    lines.push(words.slice(index, index + wordsPerLine).join(" "));
+function measureReadableLineBlocks(blocks: string[]): string[][] {
+  if (!promptText) {
+    return blocks.map((block) => [block]);
   }
 
-  return lines.length > 0 ? lines : [text];
+  const measurements = blocks.map((block) => {
+    const words = block.split(/\s+/).filter(Boolean);
+    const paragraph = document.createElement("p");
+    paragraph.className = "prompt-line prompt-line-measure";
+    const wordElements = words.map((wordText) => {
+      const word = document.createElement("span");
+      word.textContent = wordText;
+      paragraph.append(word, " ");
+      return word;
+    });
+    return { block, words, paragraph, wordElements };
+  });
+
+  // Append every block before reading offsets so layout is flushed once, not once per block.
+  promptText.append(...measurements.map((measurement) => measurement.paragraph));
+
+  const lineBlocks = measurements.map(({ block, words, wordElements }) => {
+    if (words.length === 0) {
+      return [block];
+    }
+
+    const wordLayouts = wordElements.map((element, index) => ({
+      index,
+      top: element.offsetTop,
+      bottom: element.offsetTop + element.offsetHeight
+    }));
+
+    return overlayCore
+      .groupMeasuredWordsIntoLines(wordLayouts)
+      .map((line) => words.slice(line.start, line.end + 1).join(" "));
+  });
+
+  for (const { paragraph } of measurements) {
+    paragraph.remove();
+  }
+
+  return lineBlocks;
 }
 
 function appendWordSpans(parent: HTMLElement, line: string): void {
@@ -1249,17 +1292,23 @@ function appendWordSpans(parent: HTMLElement, line: string): void {
   }
 }
 
-function renderScript(body?: string): void {
+function renderScript(body?: string, preservePlayback = false): void {
   if (!promptText || !promptViewport) {
     return;
   }
 
+  const previousPosition = preservePlayback ? getPromptScrollPosition() : 0;
+  const previousMinScrollTop = preservePlayback ? getMinPromptScrollTop() : 0;
+  const previousMaxScrollTop = preservePlayback ? getMaxPromptScrollTop() : 0;
+  const previousWordIndex = currentScriptWordIndex;
+  currentScriptBody = body;
   const text = body?.trim()
     ? body
     : "No active script loaded yet. Save or open a script in the editor to send it to the overlay.";
   const blocks = text.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const measuredBlocks = measureReadableLineBlocks(blocks);
+  const nextContent = document.createDocumentFragment();
 
-  promptText.textContent = "";
   scriptWords = [];
   scriptWordElements = [];
   scriptSentences = [];
@@ -1268,8 +1317,8 @@ function renderScript(body?: string): void {
   targetScrollTop = 0;
   lastScriptMatchAt = 0;
 
-  for (const block of blocks) {
-    for (const line of splitReadableLines(block)) {
+  for (const lines of measuredBlocks) {
+    for (const line of lines) {
       const lineElement = document.createElement("p");
       const lineStart = scriptWords.length;
       lineElement.className = "prompt-line";
@@ -1280,18 +1329,35 @@ function renderScript(body?: string): void {
         end: Math.max(lineStart, scriptWords.length - 1),
         element: lineElement
       });
-      promptText.append(lineElement);
+      nextContent.append(lineElement);
     }
   }
 
-  setPromptScrollPosition(getMinPromptScrollTop());
-  elapsedMilliseconds = 0;
-  endHoldElapsedMilliseconds = 0;
+  promptText.style.transform = "none";
+  promptText.replaceChildren(nextContent);
+
+  if (preservePlayback) {
+    currentScriptWordIndex = Math.min(previousWordIndex, Math.max(0, scriptWords.length - 1));
+    setPromptScrollPosition(
+      overlayCore.preserveScrollProgress(
+        previousPosition,
+        previousMinScrollTop,
+        previousMaxScrollTop,
+        getMinPromptScrollTop(),
+        getMaxPromptScrollTop()
+      )
+    );
+  } else {
+    setPromptScrollPosition(getMinPromptScrollTop());
+    elapsedMilliseconds = 0;
+    endHoldElapsedMilliseconds = 0;
+  }
+  syncTimerDurationWithPlaybackPosition();
   clearHighlightClasses();
   updateProgress();
   updateHighlight();
 
-  if (state !== "idle") {
+  if (!preservePlayback && state !== "idle") {
     clearCountdown();
     setState("idle");
   }
@@ -1327,6 +1393,15 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
 }
 
+function applyShortcutStatuses(statuses: ShortcutStatus[]): void {
+  localShortcutStatuses = statuses;
+}
+
+function isLocalShortcutEnabled(action: TeleprompterCommand): boolean {
+  // Fail open: until statuses arrive (or if the lookup fails), every overlay key keeps working.
+  return localShortcutStatuses === null || overlayCore.isShortcutActionEnabled(localShortcutStatuses, action);
+}
+
 type OverlayTooltip = {
   element: HTMLButtonElement | null;
   label: string;
@@ -1350,10 +1425,6 @@ const overlayTooltips: OverlayTooltip[] = [
     element: restartButton,
     label: "Reset position",
     shortcut: "R"
-  },
-  {
-    element: voiceToggleButton,
-    label: "Voice tracking"
   },
   {
     element: speedUpButton,
@@ -1396,7 +1467,10 @@ playPauseButton?.addEventListener("click", startPause);
 restartButton?.addEventListener("click", restart);
 speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
-voiceToggleButton?.addEventListener("click", toggleVoiceTrackingMode);
+modeSelect?.addEventListener("change", () => {
+  setScrollMode(modeSelect.value as AppSettings["behavior"]["scrollMode"]);
+  window.setTimeout(() => modeSelect.blur(), 0);
+});
 
 closeOverlayButton?.addEventListener("click", () => {
   closeOverlayWithFeedback();
@@ -1407,37 +1481,49 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "ArrowRight") {
+  if (event.key === "ArrowRight" && isLocalShortcutEnabled("speedUp")) {
     event.preventDefault();
     speedUp();
     return;
   }
 
-  if (event.key === "ArrowLeft") {
+  if (event.key === "ArrowLeft" && isLocalShortcutEnabled("slowDown")) {
     event.preventDefault();
     slowDown();
     return;
   }
 
-  if (event.key === " ") {
+  if (event.key === " " && isLocalShortcutEnabled("startPause")) {
     event.preventDefault();
     startPause();
     return;
   }
 
-  if (event.key.toLowerCase() === "r") {
+  if (event.key.toLowerCase() === "r" && isLocalShortcutEnabled("restart")) {
     event.preventDefault();
     restart();
     return;
   }
 
-  if (event.key === "Escape") {
+  if (event.key === "Escape" && isLocalShortcutEnabled("hideOverlay")) {
     event.preventDefault();
     closeOverlayWithFeedback();
   }
 });
 
+window.addEventListener("resize", () => {
+  if (relayoutTimerId !== null) {
+    window.clearTimeout(relayoutTimerId);
+  }
+
+  relayoutTimerId = window.setTimeout(() => {
+    relayoutTimerId = null;
+    renderScript(currentScriptBody, true);
+  }, 80);
+});
+
 if (teleprompterApi) {
+  teleprompterApi.onShortcutsChanged(applyShortcutStatuses);
   teleprompterApi.onTeleprompterCommand((event) => {
     handleCommand(event.command);
   });
@@ -1458,6 +1544,9 @@ if (teleprompterApi) {
 
   teleprompterApi.getSettings().then(applySettings).catch(() => {
     updateControls();
+  });
+  teleprompterApi.getShortcutStatus().then(applyShortcutStatuses).catch(() => {
+    localShortcutStatuses = null;
   });
 } else {
   renderScript();

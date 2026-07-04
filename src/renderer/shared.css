@@ -2,6 +2,9 @@
   --overlay-bg: rgb(15 18 28 / 0.72);
   --overlay-accent: #b4c6ae;
   --overlay-accent-rgb: 180 198 174;
+  --overlay-control-size: 36px;
+  --overlay-control-icon-size: 19px;
+  --overlay-footer-gap: clamp(8px, 1.4vw, 16px);
   --prompt-font-size: 32px;
   --prompt-line-height: 1.5;
   --prompt-text-align: center;
@@ -1656,11 +1659,11 @@ h3 {
   display: inline-flex;
   font-size: 0;
   font-weight: 720;
-  height: 36px;
+  height: var(--overlay-control-size);
   justify-content: center;
   line-height: 1;
-  min-height: 36px;
-  min-width: 36px;
+  min-height: var(--overlay-control-size);
+  min-width: var(--overlay-control-size);
   padding: 0;
   position: relative;
   transition:
@@ -1668,7 +1671,7 @@ h3 {
     box-shadow 180ms ease,
     color 180ms ease,
     transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  width: 36px;
+  width: var(--overlay-control-size);
 }
 
 .overlay-control:hover {
@@ -1679,13 +1682,13 @@ h3 {
 }
 
 .overlay-control:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .overlay-control-icon {
   display: block;
   fill: none;
-  height: 19px;
+  height: var(--overlay-control-icon-size);
   overflow: visible;
   pointer-events: none;
   stroke: currentColor;
@@ -1695,7 +1698,7 @@ h3 {
   transition:
     opacity 120ms ease,
     transform 120ms ease;
-  width: 19px;
+  width: var(--overlay-control-icon-size);
 }
 
 .overlay-control::after {
@@ -1757,10 +1760,10 @@ h3 {
 }
 
 #playPauseButton {
-  height: 50px;
-  min-height: 50px;
-  min-width: 50px;
-  width: 50px;
+  height: calc(var(--overlay-control-size) + 14px);
+  min-height: calc(var(--overlay-control-size) + 14px);
+  min-width: calc(var(--overlay-control-size) + 14px);
+  width: calc(var(--overlay-control-size) + 14px);
 }
 
 .overlay-control.is-active {
@@ -1864,7 +1867,7 @@ h3 {
   align-self: stretch;
   overflow: hidden;
   min-height: 0;
-  padding: clamp(24px, 8vh, 64px) clamp(24px, 6vw, 72px);
+  padding: clamp(24px, 8vh, 64px) clamp(16px, 3vw, 40px);
   position: relative;
   scroll-behavior: auto;
   z-index: 2;
@@ -1874,59 +1877,61 @@ h3 {
   color: var(--prompt-text-color);
   line-height: var(--prompt-line-height);
   margin: 0 auto;
-  max-width: min(90%, 1040px);
+  max-width: 1400px;
   padding: 0;
   position: relative;
   text-align: var(--prompt-text-align);
+  width: 100%;
   will-change: transform;
   z-index: 2;
 }
 
+.overlay-mode-select {
+  -webkit-app-region: no-drag;
+  appearance: auto;
+  cursor: pointer;
+  max-width: 138px;
+}
+
+.overlay-mode-select:focus-visible {
+  outline: 2px solid rgb(var(--overlay-accent-rgb) / 0.72);
+  outline-offset: 2px;
+}
+
 .prompt-line {
   color: var(--prompt-text-color);
-  filter: blur(1px);
   font-size: clamp(20px, 2.6vw, 34px);
-  font-weight: 560;
+  font-weight: 700;
   line-height: 1.2;
   margin: 0 auto clamp(12px, 2.6vh, 24px);
-  max-width: min(88%, 980px);
+  max-width: 1280px;
   opacity: 0.35;
   overflow-wrap: anywhere;
-  transform: translateY(8px) scale(0.96);
-  transform-origin: center;
   transition:
     color 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    font-size 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    font-weight 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 580ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: filter, font-size, opacity, transform;
+    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 96%;
+}
+
+.prompt-line-measure {
+  visibility: hidden;
 }
 
 .prompt-line.is-past {
-  filter: blur(1px);
   opacity: 0.28;
-  transform: translateY(-8px) scale(0.92);
 }
 
 .prompt-line.is-upcoming {
-  filter: blur(1px);
   opacity: 0.35;
-  transform: translateY(8px) scale(0.94);
 }
 
 .prompt-line.active {
   color: #ffffff;
-  filter: none;
-  font-size: clamp(24px, 3.2vw, 42px);
   font-weight: 700;
   line-height: 1.2;
-  max-width: min(88%, 980px);
   opacity: 1;
   overflow-wrap: anywhere;
   text-shadow: 0 0 18px rgb(255 255 255 / 0.24);
-  transform: translateY(0) scale(1);
 }
 
 .prompt-line [data-highlight-kind="word"] {
@@ -1939,41 +1944,30 @@ h3 {
   opacity: 0.54;
   position: relative;
   text-shadow: none;
-  transform: translateY(0) scale(0.88);
-  transform-origin: center;
   transition:
     opacity 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
     background 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
     color 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    text-shadow 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, filter, transform;
+    text-shadow 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .prompt-text.word-focus-mode.focus-mode [data-highlight-kind="word"] {
-  filter: blur(0.7px);
   opacity: 0.34;
-  transform: translateY(6px) scale(0.82);
 }
 
 .prompt-text.word-focus-mode .prompt-focus-past {
-  filter: blur(1.1px);
   opacity: 0.18;
-  transform: translateY(-10px) scale(0.72);
 }
 
 .prompt-text.word-focus-mode .prompt-focus-active {
   background: transparent;
   box-shadow: none;
   color: #ffffff;
-  filter: none;
   opacity: 1;
   padding: 0;
   text-shadow:
     0 0 24px rgb(255 255 255 / 0.38),
     0 0 18px rgb(var(--overlay-accent-rgb) / 0.24);
-  transform: translateY(-1px) scale(1.12);
   z-index: 2;
 }
 
@@ -2012,9 +2006,13 @@ h3 {
 .overlay-progress-track {
   background: rgb(255 255 255 / 0.08);
   border-radius: 999px;
+  display: block;
   flex: 1;
   height: 4px;
   overflow: hidden;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
 }
 
 .overlay-progress-bar {
@@ -2028,15 +2026,17 @@ h3 {
 .overlay-bottom-row {
   align-items: center;
   display: grid;
+  gap: var(--overlay-footer-gap);
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   min-height: 58px;
+  width: 100%;
 }
 
 .overlay-progress-label {
-  color: rgb(248 250 252 / 0.58);
-  font-size: 11px;
-  font-weight: 700;
-  min-width: 28px;
+  color: rgb(245 245 247 / 0.62);
+  font-size: clamp(11px, 1.1vw, 12px);
+  font-weight: 500;
+  min-width: 2.4em;
   text-align: right;
 }
 
@@ -2047,6 +2047,10 @@ h3 {
   gap: 10px;
   justify-content: flex-end;
   min-width: 0;
+  overflow: hidden;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
 }
 
 .overlay-status-row {
@@ -2058,6 +2062,10 @@ h3 {
   gap: 14px;
   min-height: 40px;
   min-width: 0;
+  overflow: hidden;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
 }
 
 .overlay-status-metric {
@@ -2067,29 +2075,33 @@ h3 {
 }
 
 .overlay-status-metric small {
-  color: rgb(248 250 252 / 0.36);
-  font-size: 10px;
-  font-weight: 720;
+  color: rgb(245 245 247 / 0.46);
+  font-size: clamp(9px, 0.9vw, 10px);
+  font-weight: 500;
 }
 
 .overlay-status-metric strong {
-  color: rgb(248 250 252 / 0.86);
+  color: #f5f5f7;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
-  font-size: 15px;
-  font-weight: 760;
+  font-size: clamp(13px, 1.35vw, 15px);
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .overlay-chip {
-  background: rgb(255 255 255 / 0.075);
-  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.045);
+  border: 1px solid rgb(255 255 255 / 0.06);
   border-radius: 999px;
-  color: rgb(248 250 252 / 0.68);
+  color: rgb(245 245 247 / 0.65);
   display: inline-flex;
-  font-size: 12px;
-  font-weight: 760;
+  font-size: clamp(11px, 1.05vw, 12px);
+  font-weight: 500;
   line-height: 1;
-  padding: 8px 12px;
+  padding: clamp(6px, 0.75vw, 8px) clamp(9px, 1vw, 12px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+  white-space: nowrap;
 }
 
 #speedLabel.is-speed-feedback {
@@ -2110,7 +2122,32 @@ h3 {
 }
 
 #feedbackLabel {
-  color: rgb(255 255 255 / 0.82);
+  color: rgb(245 245 247 / 0.74);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+  white-space: nowrap;
+}
+
+.overlay-shell:not(:hover) .overlay-progress-track,
+.overlay-shell:not(:hover) .overlay-control-bar,
+.overlay-shell:not(:hover) .overlay-progress-side,
+.overlay-shell:not(:hover) #speedLabel,
+.overlay-shell:not(:hover) #feedbackLabel {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+.overlay-shell:not(:hover) .overlay-footer {
+  transform: translateY(2px);
+}
+
+.overlay-shell:not(:hover) .overlay-status-row {
+  gap: clamp(12px, 1.8vw, 20px);
 }
 
 .overlay-footer .overlay-control::after {
@@ -2134,6 +2171,68 @@ h3 {
 .overlay-footer .overlay-control:last-child:hover::after,
 .overlay-footer .overlay-control:last-child:focus-visible::after {
   transform: translate(0, 0);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --overlay-control-size: clamp(36px, 7vw, 42px);
+    --overlay-control-icon-size: clamp(15px, 3.2vw, 18px);
+    --overlay-footer-gap: clamp(6px, 1.3vw, 10px);
+  }
+
+  .overlay-status-row,
+  .overlay-progress-side {
+    max-width: 100%;
+  }
+
+  .overlay-status-row {
+    gap: 10px;
+  }
+
+  #feedbackLabel {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  :root {
+    --overlay-control-size: clamp(34px, 8.5vw, 38px);
+    --overlay-control-icon-size: clamp(14px, 4vw, 16px);
+    --overlay-footer-gap: 6px;
+  }
+
+  .overlay-status-metric small {
+    display: none;
+  }
+
+  #speedLabel {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  #progressLabel {
+    display: none;
+  }
+
+  .overlay-mode-select {
+    max-width: 96px;
+    padding-inline: 8px;
+  }
+
+  .overlay-control-bar {
+    gap: clamp(3px, 1vw, 6px);
+  }
+}
+
+@media (max-width: 380px) {
+  .overlay-status-row {
+    gap: 8px;
+  }
+
+  .overlay-status-metric strong {
+    font-size: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -11,6 +11,7 @@ export const ipcChannels = {
   shortcutsGetStatus: "shortcuts:getStatus",
   shortcutsUpdate: "shortcuts:update",
   shortcutsReset: "shortcuts:reset",
+  shortcutsChangedEvent: "shortcuts:changed",
   scriptsGetState: "scripts:getState",
   scriptsSave: "scripts:save",
   scriptsSetActive: "scripts:setActive",
@@ -197,6 +198,7 @@ export type TeleprompterApi = {
   getShortcutStatus: () => Promise<ShortcutStatus[]>;
   updateShortcuts: (input: ShortcutUpdateInput) => Promise<ShortcutStatus[]>;
   resetShortcuts: () => Promise<ShortcutStatus[]>;
+  onShortcutsChanged: (callback: (statuses: ShortcutStatus[]) => void) => () => void;
   getScriptsState: () => Promise<ScriptsState>;
   saveScript: (input: SaveScriptInput) => Promise<ScriptsState>;
   setActiveScript: (id: string) => Promise<ScriptsState>;

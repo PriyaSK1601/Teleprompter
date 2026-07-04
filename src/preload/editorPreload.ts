@@ -31,6 +31,11 @@ const teleprompterApi: TeleprompterApi = {
   getShortcutStatus: () => ipcRenderer.invoke(ipcChannels.shortcutsGetStatus),
   updateShortcuts: (input) => ipcRenderer.invoke(ipcChannels.shortcutsUpdate, input),
   resetShortcuts: () => ipcRenderer.invoke(ipcChannels.shortcutsReset),
+  onShortcutsChanged: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, statuses: Parameters<typeof callback>[0]) => callback(statuses);
+    ipcRenderer.on(ipcChannels.shortcutsChangedEvent, listener);
+    return () => ipcRenderer.removeListener(ipcChannels.shortcutsChangedEvent, listener);
+  },
   getScriptsState: () => ipcRenderer.invoke(ipcChannels.scriptsGetState),
   saveScript: (input) => ipcRenderer.invoke(ipcChannels.scriptsSave, input),
   setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),
