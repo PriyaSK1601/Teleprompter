@@ -48,27 +48,30 @@ export function preserveScrollProgress(
   return nextMin + progress * Math.max(0, nextMax - nextMin);
 }
 
-export function calculateTimerTotalMilliseconds(
+export function calculateSynchronizedTimerTotalSeconds(
   elapsedMilliseconds: number,
   remainingDistance: number,
   pixelsPerSecond: number
 ): number {
+  const elapsedSeconds = Math.floor(Math.max(0, elapsedMilliseconds) / 1000);
+
   if (pixelsPerSecond <= 0) {
-    return elapsedMilliseconds;
+    return elapsedSeconds;
   }
 
-  return elapsedMilliseconds + (Math.max(0, remainingDistance) / pixelsPerSecond) * 1000;
+  const remainingSeconds = Math.ceil(Math.max(0, remainingDistance) / pixelsPerSecond);
+  return elapsedSeconds + remainingSeconds;
 }
 
 export function getSynchronizedTimerSeconds(
   elapsedMilliseconds: number,
-  totalMilliseconds: number,
+  totalSeconds: number,
   isComplete = false
 ): { elapsed: number; remaining: number } {
   const elapsed = Math.floor(Math.max(0, elapsedMilliseconds) / 1000);
   const remaining = isComplete
     ? 0
-    : Math.ceil(Math.max(0, totalMilliseconds - elapsedMilliseconds) / 1000);
+    : Math.max(0, totalSeconds - elapsed);
   return { elapsed, remaining };
 }
 

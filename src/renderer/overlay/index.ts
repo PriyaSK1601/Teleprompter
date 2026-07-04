@@ -29,7 +29,7 @@ let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
 let elapsedMilliseconds = 0;
-let timerTotalMilliseconds = 0;
+let timerTotalSeconds = 0;
 let feedbackTimerId: number | null = null;
 let voiceAudioContext: AudioContext | null = null;
 let voiceAnalyser: AnalyserNode | null = null;
@@ -133,7 +133,9 @@ function getRemainingScrollMilliseconds(): number {
 }
 
 function syncTimerDurationWithPlaybackPosition(): void {
-  timerTotalMilliseconds = elapsedMilliseconds + getRemainingScrollMilliseconds();
+  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+  const remainingSeconds = Math.ceil(getRemainingScrollMilliseconds() / 1000);
+  timerTotalSeconds = elapsedSeconds + remainingSeconds;
 }
 
 function getRemainingTimerSeconds(): number {
@@ -143,7 +145,8 @@ function getRemainingTimerSeconds(): number {
     return 0;
   }
 
-  return Math.ceil(Math.max(0, timerTotalMilliseconds - elapsedMilliseconds) / 1000);
+  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+  return Math.max(0, timerTotalSeconds - elapsedSeconds);
 }
 
 function updateTimerLabels(): void {

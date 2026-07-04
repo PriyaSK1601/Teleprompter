@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
-  calculateTimerTotalMilliseconds,
+  calculateSynchronizedTimerTotalSeconds,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
@@ -41,14 +41,19 @@ test("resize anchoring preserves proportional progress", () => {
 });
 
 test("elapsed and remaining timers stay complementary", () => {
-  const total = calculateTimerTotalMilliseconds(0, 216.3, 21);
-  const first = getSynchronizedTimerSeconds(1100, total);
-  const second = getSynchronizedTimerSeconds(2100, total);
+  const total = calculateSynchronizedTimerTotalSeconds(0, 216.3, 21);
+  const beforeTick = getSynchronizedTimerSeconds(999, total);
+  const first = getSynchronizedTimerSeconds(1000, total);
+  const second = getSynchronizedTimerSeconds(2000, total);
 
+  assert.equal(beforeTick.elapsed, 0);
+  assert.equal(beforeTick.remaining, total);
   assert.equal(first.elapsed + first.remaining, second.elapsed + second.remaining);
+  assert.equal(first.elapsed, beforeTick.elapsed + 1);
+  assert.equal(first.remaining, beforeTick.remaining - 1);
   assert.equal(second.elapsed, first.elapsed + 1);
   assert.equal(second.remaining, first.remaining - 1);
-  assert.equal(getSynchronizedTimerSeconds(total, total, true).remaining, 0);
+  assert.equal(getSynchronizedTimerSeconds(total * 1000, total, true).remaining, 0);
 });
 
 test("measured words are grouped by their rendered row", () => {
