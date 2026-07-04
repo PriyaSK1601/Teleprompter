@@ -68,7 +68,7 @@ let endHoldElapsedMilliseconds = 0;
 let closeFeedbackTimerId: number | null = null;
 let currentScriptBody: string | undefined;
 let relayoutTimerId: number | null = null;
-let enabledShortcutActions = new Set<TeleprompterCommand>();
+let localShortcutStatuses: ShortcutStatus[] | null = null;
 
 const endHoldDurationMilliseconds = 500;
 const closeFeedbackDelayMilliseconds = 120;
@@ -123,42 +123,28 @@ function formatSeconds(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function getRemainingScrollMilliseconds(): number {
-  if (speedPixelsPerSecond <= 0) {
-    return 0;
-  }
-
-  const remainingScrollDistance = Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
-  return (remainingScrollDistance / speedPixelsPerSecond) * 1000;
+function getRemainingScrollDistance(): number {
+  return Math.max(0, getMaxPromptScrollTop() - getPromptScrollPosition());
 }
 
 function syncTimerDurationWithPlaybackPosition(): void {
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  const remainingSeconds = Math.ceil(getRemainingScrollMilliseconds() / 1000);
-  timerTotalSeconds = elapsedSeconds + remainingSeconds;
-}
-
-function getRemainingTimerSeconds(): number {
-  const isComplete = getPromptScrollPosition() >= getMaxPromptScrollTop() - 0.5;
-
-  if (isComplete) {
-    return 0;
-  }
-
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  return Math.max(0, timerTotalSeconds - elapsedSeconds);
+  timerTotalSeconds = overlayCore.calculateSynchronizedTimerTotalSeconds(
+    elapsedMilliseconds,
+    getRemainingScrollDistance(),
+    speedPixelsPerSecond
+  );
 }
 
 function updateTimerLabels(): void {
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
-  const remainingSeconds = getRemainingTimerSeconds();
+  const isComplete = getPromptScrollPosition() >= getMaxPromptScrollTop() - 0.5;
+  const { elapsed, remaining } = overlayCore.getSynchronizedTimerSeconds(elapsedMilliseconds, timerTotalSeconds, isComplete);
 
   if (elapsedLabel) {
-    elapsedLabel.textContent = formatSeconds(elapsedSeconds);
+    elapsedLabel.textContent = formatSeconds(elapsed);
   }
 
   if (remainingLabel) {
-    remainingLabel.textContent = `-${formatSeconds(remainingSeconds)}`;
+    remainingLabel.textContent = `-${formatSeconds(remaining)}`;
   }
 }
 
@@ -228,7 +214,11 @@ function getNaturalPromptScrollTop(): number {
 }
 
 function getLineCenteredScrollTop(lineElement: HTMLElement): number {
-  return lineElement.offsetTop + lineElement.offsetHeight / 2 - getViewportReadingFocusOffset();
+  return overlayCore.getCenteredLineScrollPosition(
+    lineElement.offsetTop,
+    lineElement.offsetHeight,
+    promptViewport ? promptViewport.clientHeight : 0
+  );
 }
 
 function getMinPromptScrollTop(): number {
@@ -1234,49 +1224,48 @@ function setScrollMode(nextScrollMode: AppSettings["behavior"]["scrollMode"]): v
   });
 }
 
-function measureReadableLines(text: string): string[] {
+function measureReadableLineBlocks(blocks: string[]): string[][] {
   if (!promptText) {
-    return [text];
+    return blocks.map((block) => [block]);
   }
 
-  const words = text.trim().split(/\s+/).filter(Boolean);
-
-  if (words.length === 0) {
-    return [text];
-  }
-
-  const measurement = document.createElement("p");
-  measurement.className = "prompt-line prompt-line-measure";
-  const wordElements = words.map((wordText) => {
-    const word = document.createElement("span");
-    word.textContent = wordText;
-    measurement.append(word, " ");
-    return word;
+  const measurements = blocks.map((block) => {
+    const words = block.split(/\s+/).filter(Boolean);
+    const paragraph = document.createElement("p");
+    paragraph.className = "prompt-line prompt-line-measure";
+    const wordElements = words.map((wordText) => {
+      const word = document.createElement("span");
+      word.textContent = wordText;
+      paragraph.append(word, " ");
+      return word;
+    });
+    return { block, words, paragraph, wordElements };
   });
-  promptText.append(measurement);
 
-  const lines: string[] = [];
-  let currentTop: number | null = null;
-  let currentWords: string[] = [];
+  // Append every block before reading offsets so layout is flushed once, not once per block.
+  promptText.append(...measurements.map((measurement) => measurement.paragraph));
 
-  for (let index = 0; index < wordElements.length; index += 1) {
-    const top = wordElements[index].offsetTop;
-
-    if (currentTop !== null && Math.abs(top - currentTop) > 2) {
-      lines.push(currentWords.join(" "));
-      currentWords = [];
+  const lineBlocks = measurements.map(({ block, words, wordElements }) => {
+    if (words.length === 0) {
+      return [block];
     }
 
-    currentTop = top;
-    currentWords.push(words[index]);
+    const wordLayouts = wordElements.map((element, index) => ({
+      index,
+      top: element.offsetTop,
+      bottom: element.offsetTop + element.offsetHeight
+    }));
+
+    return overlayCore
+      .groupMeasuredWordsIntoLines(wordLayouts)
+      .map((line) => words.slice(line.start, line.end + 1).join(" "));
+  });
+
+  for (const { paragraph } of measurements) {
+    paragraph.remove();
   }
 
-  if (currentWords.length > 0) {
-    lines.push(currentWords.join(" "));
-  }
-
-  measurement.remove();
-  return lines;
+  return lineBlocks;
 }
 
 function appendWordSpans(parent: HTMLElement, line: string): void {
@@ -1308,14 +1297,16 @@ function renderScript(body?: string, preservePlayback = false): void {
     return;
   }
 
-  const previousProgress = preservePlayback ? getProgress() : 0;
+  const previousPosition = preservePlayback ? getPromptScrollPosition() : 0;
+  const previousMinScrollTop = preservePlayback ? getMinPromptScrollTop() : 0;
+  const previousMaxScrollTop = preservePlayback ? getMaxPromptScrollTop() : 0;
   const previousWordIndex = currentScriptWordIndex;
   currentScriptBody = body;
   const text = body?.trim()
     ? body
     : "No active script loaded yet. Save or open a script in the editor to send it to the overlay.";
   const blocks = text.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
-  const measuredBlocks = blocks.map(measureReadableLines);
+  const measuredBlocks = measureReadableLineBlocks(blocks);
   const nextContent = document.createDocumentFragment();
 
   scriptWords = [];
@@ -1346,10 +1337,16 @@ function renderScript(body?: string, preservePlayback = false): void {
   promptText.replaceChildren(nextContent);
 
   if (preservePlayback) {
-    const minScrollTop = getMinPromptScrollTop();
-    const maxScrollTop = getMaxPromptScrollTop();
     currentScriptWordIndex = Math.min(previousWordIndex, Math.max(0, scriptWords.length - 1));
-    setPromptScrollPosition(minScrollTop + previousProgress * Math.max(0, maxScrollTop - minScrollTop));
+    setPromptScrollPosition(
+      overlayCore.preserveScrollProgress(
+        previousPosition,
+        previousMinScrollTop,
+        previousMaxScrollTop,
+        getMinPromptScrollTop(),
+        getMaxPromptScrollTop()
+      )
+    );
   } else {
     setPromptScrollPosition(getMinPromptScrollTop());
     elapsedMilliseconds = 0;
@@ -1397,11 +1394,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 function applyShortcutStatuses(statuses: ShortcutStatus[]): void {
-  enabledShortcutActions = new Set(statuses.filter((status) => status.enabled).map((status) => status.action));
+  localShortcutStatuses = statuses;
 }
 
 function isLocalShortcutEnabled(action: TeleprompterCommand): boolean {
-  return enabledShortcutActions.has(action);
+  // Fail open: until statuses arrive (or if the lookup fails), every overlay key keeps working.
+  return localShortcutStatuses === null || overlayCore.isShortcutActionEnabled(localShortcutStatuses, action);
 }
 
 type OverlayTooltip = {
@@ -1548,7 +1546,7 @@ if (teleprompterApi) {
     updateControls();
   });
   teleprompterApi.getShortcutStatus().then(applyShortcutStatuses).catch(() => {
-    enabledShortcutActions.clear();
+    localShortcutStatuses = null;
   });
 } else {
   renderScript();
