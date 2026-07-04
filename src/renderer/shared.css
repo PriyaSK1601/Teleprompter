@@ -1881,6 +1881,18 @@ h3 {
   z-index: 2;
 }
 
+.overlay-mode-select {
+  -webkit-app-region: no-drag;
+  appearance: auto;
+  cursor: pointer;
+  max-width: 138px;
+}
+
+.overlay-mode-select:focus-visible {
+  outline: 2px solid rgb(var(--overlay-accent-rgb) / 0.72);
+  outline-offset: 2px;
+}
+
 .prompt-line {
   color: var(--prompt-text-color);
   font-size: clamp(20px, 2.6vw, 34px);

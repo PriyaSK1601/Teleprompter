@@ -48,15 +48,6 @@
                 </svg>
               </span>
             </button>
-            <button id="voiceToggleButton" class="overlay-control" type="button" data-tooltip="Voice tracking" aria-label="Toggle voice tracking">
-              <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M12 4v16" />
-                <path d="M8 8v8" />
-                <path d="M16 8v8" />
-                <path d="M4 11v2" />
-                <path d="M20 11v2" />
-              </svg>
-            </button>
             <button id="speedUpButton" class="overlay-control" type="button" aria-label="Faster (Right Arrow)" data-tooltip="Faster (&rarr;)">
               <svg class="overlay-control-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M12 5v14" />
@@ -71,7 +62,10 @@
             </button>
           </nav>
           <div class="overlay-progress-side">
-            <span id="modeLabel" class="overlay-mode-pill">Manual</span>
+            <select id="modeSelect" class="overlay-mode-pill overlay-mode-select" aria-label="Scrolling mode">
+              <option value="manual">Manual</option>
+              <option value="voice">Voice Tracking</option>
+            </select>
             <span id="progressLabel" class="overlay-progress-label">0%</span>
           </div>
         </div>

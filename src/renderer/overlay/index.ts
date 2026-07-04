@@ -6,13 +6,12 @@ const progressLabel = document.querySelector<HTMLElement>("#progressLabel");
 const elapsedLabel = document.querySelector<HTMLElement>("#elapsedLabel");
 const remainingLabel = document.querySelector<HTMLElement>("#remainingLabel");
 const speedLabel = document.querySelector<HTMLElement>("#speedLabel");
-const modeLabel = document.querySelector<HTMLElement>("#modeLabel");
+const modeSelect = document.querySelector<HTMLSelectElement>("#modeSelect");
 const feedbackLabel = document.querySelector<HTMLElement>("#feedbackLabel");
 const playPauseButton = document.querySelector<HTMLButtonElement>("#playPauseButton");
 const restartButton = document.querySelector<HTMLButtonElement>("#restartButton");
 const speedUpButton = document.querySelector<HTMLButtonElement>("#speedUpButton");
 const slowDownButton = document.querySelector<HTMLButtonElement>("#slowDownButton");
-const voiceToggleButton = document.querySelector<HTMLButtonElement>("#voiceToggleButton");
 const closeOverlayButton = document.querySelector<HTMLButtonElement>("#closeOverlayButton");
 
 type ScrollState = "idle" | "countdown" | "running" | "paused" | "completed";
@@ -111,14 +110,8 @@ function updateControls(): void {
     speedLabel.textContent = `${speedPixelsPerSecond} px/s`;
   }
 
-  if (modeLabel) {
-    modeLabel.textContent = scrollMode === "voice" ? "Voice Tracking" : "Manual";
-  }
-
-  if (voiceToggleButton) {
-    const isVoiceMode = scrollMode === "voice";
-    voiceToggleButton.classList.toggle("is-active", isVoiceMode);
-    voiceToggleButton.setAttribute("aria-pressed", String(isVoiceMode));
+  if (modeSelect) {
+    modeSelect.value = scrollMode;
   }
 }
 
@@ -1197,9 +1190,11 @@ function closeOverlayWithFeedback(): void {
   }, closeFeedbackDelayMilliseconds);
 }
 
-function toggleVoiceTrackingMode(): void {
-  flashControl(voiceToggleButton);
-  const nextScrollMode: AppSettings["behavior"]["scrollMode"] = scrollMode === "voice" ? "manual" : "voice";
+function setScrollMode(nextScrollMode: AppSettings["behavior"]["scrollMode"]): void {
+  if (nextScrollMode === scrollMode) {
+    return;
+  }
+
   scrollMode = nextScrollMode;
   updateControls();
   showFeedback(nextScrollMode === "voice" ? "Voice tracking on" : "Manual mode");
@@ -1413,10 +1408,6 @@ const overlayTooltips: OverlayTooltip[] = [
     shortcut: "R"
   },
   {
-    element: voiceToggleButton,
-    label: "Voice tracking"
-  },
-  {
     element: speedUpButton,
     label: "Faster",
     shortcut: "\u2192",
@@ -1457,7 +1448,9 @@ playPauseButton?.addEventListener("click", startPause);
 restartButton?.addEventListener("click", restart);
 speedUpButton?.addEventListener("click", speedUp);
 slowDownButton?.addEventListener("click", slowDown);
-voiceToggleButton?.addEventListener("click", toggleVoiceTrackingMode);
+modeSelect?.addEventListener("change", () => {
+  setScrollMode(modeSelect.value as AppSettings["behavior"]["scrollMode"]);
+});
 
 closeOverlayButton?.addEventListener("click", () => {
   closeOverlayWithFeedback();
