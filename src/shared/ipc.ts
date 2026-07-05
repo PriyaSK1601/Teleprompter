@@ -17,9 +17,13 @@ export const ipcChannels = {
   scriptsSetActive: "scripts:setActive",
   scriptsRename: "scripts:rename",
   scriptsSetPinned: "scripts:setPinned",
+  scriptsMoveToProject: "scripts:moveToProject",
   scriptsDelete: "scripts:delete",
   scriptsDeleteMany: "scripts:deleteMany",
   scriptsClearActive: "scripts:clearActive",
+  projectsCreate: "projects:create",
+  projectsRename: "projects:rename",
+  projectsDelete: "projects:delete",
   scriptChangedEvent: "scripts:changed",
   settingsGet: "settings:get",
   settingsUpdate: "settings:update",
@@ -104,16 +108,26 @@ export type ScriptRecord = {
   lastOpenedAt?: string;
   archived?: boolean;
   pinned?: boolean;
+  projectId?: string;
+};
+
+export type ProjectRecord = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ScriptsFile = {
   version: 1;
   scripts: ScriptRecord[];
+  projects?: ProjectRecord[];
   activeScriptId?: string;
 };
 
 export type ScriptsState = {
   scripts: ScriptRecord[];
+  projects: ProjectRecord[];
   activeScript?: ScriptRecord;
 };
 
@@ -121,11 +135,14 @@ export type SaveScriptInput = {
   id?: string;
   title: string;
   body: string;
+  projectId?: string;
 };
 
 export type ScriptChangedEvent = {
   activeScript?: ScriptRecord;
 };
+
+export type DeleteProjectMode = "moveScripts" | "deleteScripts";
 
 export type TextAlignment = "left" | "center" | "right";
 
@@ -207,9 +224,13 @@ export type TeleprompterApi = {
   setActiveScript: (id: string) => Promise<ScriptsState>;
   renameScript: (id: string, title: string) => Promise<ScriptsState>;
   setScriptPinned: (id: string, pinned: boolean) => Promise<ScriptsState>;
+  moveScriptToProject: (id: string, projectId?: string) => Promise<ScriptsState>;
   deleteScript: (id: string) => Promise<ScriptsState>;
   deleteScripts: (ids: string[]) => Promise<ScriptsState>;
   clearActiveScript: () => Promise<ScriptsState>;
+  createProject: (name: string) => Promise<ScriptsState>;
+  renameProject: (id: string, name: string) => Promise<ScriptsState>;
+  deleteProject: (id: string, mode: DeleteProjectMode) => Promise<ScriptsState>;
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => () => void;
   getSettings: () => Promise<AppSettings>;
   updateSettings: (update: SettingsUpdate) => Promise<AppSettings>;

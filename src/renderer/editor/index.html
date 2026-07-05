@@ -29,8 +29,27 @@
           <span class="sidebar-action-label">New script</span>
         </button>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
+        <button id="allScriptsButton" class="all-scripts-button active" type="button">
+          <span class="project-list-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></svg>
+          </span>
+          <span class="project-list-name">All Scripts</span>
+          <span id="allScriptsCount" class="project-list-count">0</span>
+        </button>
+        <section class="project-section" aria-label="Script projects">
+          <div class="script-history-toolbar">
+            <span>Projects</span>
+            <button id="newProjectButton" class="sidebar-mini-button" type="button" aria-label="Create project" title="Create project">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+          </div>
+          <div id="projectList" class="project-list"></div>
+        </section>
         <div class="script-history-toolbar">
-          <span>History</span>
+          <span id="historyHeading">History</span>
         </div>
         <ul id="scriptList" class="script-list"></ul>
       </aside>
@@ -79,6 +98,28 @@
         </footer>
       </section>
     </main>
+
+    <section id="projectDialog" class="project-dialog" aria-hidden="true">
+      <div id="projectDialogBackdrop" class="project-dialog-backdrop"></div>
+      <form id="projectDialogForm" class="project-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="projectDialogTitle">
+        <header class="project-dialog-header">
+          <div>
+            <p class="eyebrow">Project</p>
+            <h2 id="projectDialogTitle">Create project</h2>
+          </div>
+          <button id="cancelProjectDialogIconButton" class="icon-button" type="button" aria-label="Cancel">×</button>
+        </header>
+        <label class="project-dialog-field">
+          <span>Project name</span>
+          <input id="projectNameInput" class="text-input" type="text" autocomplete="off" maxlength="80" placeholder="e.g. Interview prep" />
+        </label>
+        <p id="projectDialogError" class="project-dialog-error" role="alert"></p>
+        <footer class="project-dialog-actions">
+          <button id="cancelProjectDialogButton" class="secondary-button" type="button">Cancel</button>
+          <button id="submitProjectDialogButton" class="primary-button" type="submit">Create</button>
+        </footer>
+      </form>
+    </section>
 
     <section id="settingsModal" class="settings-modal">
       <div id="settingsBackdrop" class="settings-backdrop"></div>

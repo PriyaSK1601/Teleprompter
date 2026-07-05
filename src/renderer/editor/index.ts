@@ -5,6 +5,20 @@ const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptBut
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
+const allScriptsButton = document.querySelector<HTMLButtonElement>("#allScriptsButton");
+const allScriptsCount = document.querySelector<HTMLElement>("#allScriptsCount");
+const newProjectButton = document.querySelector<HTMLButtonElement>("#newProjectButton");
+const projectList = document.querySelector<HTMLElement>("#projectList");
+const projectDialog = document.querySelector<HTMLElement>("#projectDialog");
+const projectDialogBackdrop = document.querySelector<HTMLElement>("#projectDialogBackdrop");
+const projectDialogForm = document.querySelector<HTMLFormElement>("#projectDialogForm");
+const projectDialogTitle = document.querySelector<HTMLElement>("#projectDialogTitle");
+const projectNameInput = document.querySelector<HTMLInputElement>("#projectNameInput");
+const projectDialogError = document.querySelector<HTMLElement>("#projectDialogError");
+const submitProjectDialogButton = document.querySelector<HTMLButtonElement>("#submitProjectDialogButton");
+const cancelProjectDialogButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogButton");
+const cancelProjectDialogIconButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogIconButton");
+const historyHeading = document.querySelector<HTMLElement>("#historyHeading");
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
@@ -50,11 +64,15 @@ const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPil
 const settingsDrawer = document.querySelector<HTMLElement>(".settings-drawer");
 
 let currentScriptsState: ScriptsState = {
+  projects: [],
   scripts: []
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
 let openScriptMenuId: string | undefined;
+let openProjectMenuId: string | undefined;
+let selectedProjectId: string | undefined;
+let editingProjectId: string | undefined;
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
@@ -104,6 +122,7 @@ let activeOverlayDrag: OverlayDragState | null = null;
 
 const ipcBackedControls = [
   newScriptButton,
+  newProjectButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -347,19 +366,248 @@ function getOpaquePreviewBackground(hexColor: string, opacity: number): string {
 
 function getFilteredScripts(): ScriptRecord[] {
   const query = scriptSearch?.value.trim().toLowerCase() ?? "";
+  const projectScopedScripts = selectedProjectId === undefined
+    ? currentScriptsState.scripts
+    : currentScriptsState.scripts.filter((script) => script.projectId === selectedProjectId);
 
   if (!query) {
-    return currentScriptsState.scripts;
+    return projectScopedScripts;
   }
 
-  return currentScriptsState.scripts.filter((script) => {
+  return projectScopedScripts.filter((script) => {
     return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
   });
+}
+
+function getProjectName(projectId?: string): string {
+  if (!projectId) {
+    return "Uncategorised";
+  }
+
+  return currentScriptsState.projects.find((project) => project.id === projectId)?.name ?? "Unknown project";
+}
+
+function getCurrentProjectName(): string {
+  return selectedProjectId ? getProjectName(selectedProjectId) : "All Scripts";
+}
+
+function getProjectScriptCount(projectId?: string): number {
+  return currentScriptsState.scripts.filter((script) => script.projectId === projectId).length;
+}
+
+function renderProjectList(): void {
+  if (!projectList) {
+    return;
+  }
+
+  projectList.textContent = "";
+
+  for (const project of currentScriptsState.projects) {
+    const row = document.createElement("div");
+    const button = document.createElement("button");
+    const menuButton = document.createElement("button");
+    row.className = openProjectMenuId === project.id ? "project-list-row has-open-menu" : "project-list-row";
+    button.type = "button";
+    button.className = selectedProjectId === project.id ? "project-list-item active" : "project-list-item";
+    button.innerHTML = `
+      <span class="project-list-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg></span>
+      <span class="project-list-name"></span>
+      <span class="project-list-count">${getProjectScriptCount(project.id)}</span>
+    `;
+    button.querySelector<HTMLElement>(".project-list-name")!.textContent = project.name;
+    button.addEventListener("click", () => {
+      selectedProjectId = project.id;
+      openProjectMenuId = undefined;
+      renderAllScriptsButton();
+      renderProjectList();
+      renderScriptsList();
+    });
+
+    menuButton.type = "button";
+    menuButton.className = "project-menu-button";
+    menuButton.setAttribute("aria-label", `More actions for ${project.name}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", openProjectMenuId === project.id ? "true" : "false");
+    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openProjectMenuId = openProjectMenuId === project.id ? undefined : project.id;
+      renderProjectList();
+    });
+
+    row.append(button, menuButton);
+
+    if (openProjectMenuId === project.id) {
+      row.append(buildProjectActionMenu(project));
+    }
+
+    projectList.append(row);
+  }
+}
+
+function renderAllScriptsButton(): void {
+  allScriptsButton?.classList.toggle("active", selectedProjectId === undefined);
+
+  if (allScriptsCount) {
+    allScriptsCount.textContent = String(currentScriptsState.scripts.length);
+  }
+}
+
+function buildProjectActionMenu(project: ProjectRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "project-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const renameAction = document.createElement("button");
+  renameAction.type = "button";
+  renameAction.className = "project-action-menu-item";
+  renameAction.setAttribute("role", "menuitem");
+  renameAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="m16.5 3.5 4 4L7 21H3v-4z" /></svg><span>Rename project</span>';
+  renameAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    openProjectDialog(project);
+  });
+
+  const deleteMoveAction = document.createElement("button");
+  deleteMoveAction.type = "button";
+  deleteMoveAction.className = "project-action-menu-item";
+  deleteMoveAction.setAttribute("role", "menuitem");
+  deleteMoveAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete project only</span>';
+  deleteMoveAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "moveScripts");
+  });
+
+  const deleteAllAction = document.createElement("button");
+  deleteAllAction.type = "button";
+  deleteAllAction.className = "project-action-menu-item danger";
+  deleteAllAction.setAttribute("role", "menuitem");
+  deleteAllAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete with scripts</span>';
+  deleteAllAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "deleteScripts");
+  });
+
+  menu.append(renameAction, deleteMoveAction, deleteAllAction);
+  return menu;
+}
+
+function getDuplicateProject(name: string, ignoredProjectId?: string): ProjectRecord | undefined {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return currentScriptsState.projects.find((project) => {
+    return project.id !== ignoredProjectId && project.name.trim().toLocaleLowerCase() === normalizedName;
+  });
+}
+
+function setProjectDialogError(message: string): void {
+  if (projectDialogError) {
+    projectDialogError.textContent = message;
+  }
+}
+
+function openProjectDialog(project?: ProjectRecord): void {
+  editingProjectId = project?.id;
+  openProjectMenuId = undefined;
+  renderProjectList();
+
+  if (projectDialogTitle) {
+    projectDialogTitle.textContent = project ? "Rename project" : "Create project";
+  }
+
+  if (submitProjectDialogButton) {
+    submitProjectDialogButton.textContent = project ? "Save" : "Create";
+  }
+
+  if (projectNameInput) {
+    projectNameInput.value = project?.name ?? "";
+  }
+
+  setProjectDialogError("");
+  projectDialog?.classList.add("is-open");
+  projectDialog?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => projectNameInput?.focus(), 0);
+  projectNameInput?.select();
+}
+
+function closeProjectDialog(): void {
+  editingProjectId = undefined;
+  setProjectDialogError("");
+  projectDialog?.classList.remove("is-open");
+  projectDialog?.setAttribute("aria-hidden", "true");
+  newProjectButton?.focus();
+}
+
+async function submitProjectDialog(): Promise<void> {
+  const name = projectNameInput?.value.trim() ?? "";
+
+  if (!name) {
+    setProjectDialogError("Enter a project name.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (getDuplicateProject(name, editingProjectId)) {
+    setProjectDialogError("A project with this name already exists.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (editingProjectId) {
+    const currentProject = currentScriptsState.projects.find((project) => project.id === editingProjectId);
+
+    if (!currentProject || currentProject.name === name) {
+      closeProjectDialog();
+      renderProjectList();
+      return;
+    }
+
+    const state = await requireTeleprompterApi().renameProject(editingProjectId, name);
+    closeProjectDialog();
+    renderScriptsState(state);
+    return;
+  }
+
+  const state = await requireTeleprompterApi().createProject(name);
+  const createdProject = state.projects[state.projects.length - 1];
+
+  if (createdProject) {
+    selectedProjectId = createdProject.id;
+  }
+
+  closeProjectDialog();
+  renderScriptsState(state);
+}
+
+async function deleteProjectWithConfirmation(project: ProjectRecord, mode: DeleteProjectMode): Promise<void> {
+  const scriptCount = getProjectScriptCount(project.id);
+  const message = mode === "deleteScripts"
+    ? `Delete "${project.name}" and ${scriptCount} script${scriptCount === 1 ? "" : "s"}? This cannot be undone.`
+    : `Delete "${project.name}" and move its ${scriptCount} script${scriptCount === 1 ? "" : "s"} to Uncategorised?`;
+
+  if (!window.confirm(message)) {
+    renderProjectList();
+    return;
+  }
+
+  const state = await requireTeleprompterApi().deleteProject(project.id, mode);
+
+  if (selectedProjectId === project.id) {
+    selectedProjectId = undefined;
+  }
+
+  renderScriptsState(state);
 }
 
 function renderScriptsList(): void {
   if (!scriptList) {
     return;
+  }
+
+  if (historyHeading) {
+    historyHeading.textContent = getCurrentProjectName();
   }
 
   scriptList.textContent = "";
@@ -368,7 +616,11 @@ function renderScriptsList(): void {
   if (scripts.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "script-list-empty";
-    emptyItem.textContent = currentScriptsState.scripts.length === 0 ? "No scripts yet" : "No matching scripts";
+    emptyItem.textContent = currentScriptsState.scripts.length === 0
+      ? "No scripts yet"
+      : selectedProjectId
+        ? "No scripts in this project"
+        : "No matching scripts";
     scriptList.append(emptyItem);
     return;
   }
@@ -468,12 +720,51 @@ function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
     void deleteScriptsWithConfirmation([script.id]);
   });
 
-  menu.append(pinAction, deleteAction);
+  const moveLabel = document.createElement("div");
+  moveLabel.className = "script-action-menu-label";
+  moveLabel.textContent = "Move to";
+
+  const moveTargets: Array<{ id?: string; name: string }> = [
+    { id: undefined, name: "Uncategorised" },
+    ...currentScriptsState.projects.map((project) => ({ id: project.id, name: project.name }))
+  ];
+  const moveActions = moveTargets.map((target) => {
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = script.projectId === target.id
+      ? "script-action-menu-item is-current"
+      : "script-action-menu-item";
+    action.setAttribute("role", "menuitem");
+    action.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg><span></span>';
+    action.querySelector("span")!.textContent = target.name;
+    action.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openScriptMenuId = undefined;
+      void runEditorAction("Move script", async () => {
+        const state = await requireTeleprompterApi().moveScriptToProject(script.id, target.id);
+        renderScriptsState(state);
+      });
+    });
+    return action;
+  });
+
+  menu.append(pinAction, moveLabel, ...moveActions, deleteAction);
   return menu;
 }
 
 function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
+
+  if (selectedProjectId && !currentScriptsState.projects.some((project) => project.id === selectedProjectId)) {
+    selectedProjectId = undefined;
+  }
+
+  if (historyHeading) {
+    historyHeading.textContent = getCurrentProjectName();
+  }
+
+  renderAllScriptsButton();
+  renderProjectList();
   setEditorFromScript(state.activeScript);
   renderScriptsList();
 }
@@ -513,7 +804,8 @@ async function saveCurrentScript(): Promise<ScriptsState | undefined> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : selectedProjectId
   });
   renderScriptsState(state);
   return state;
@@ -549,7 +841,8 @@ async function autosaveCurrentScript(): Promise<void> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : selectedProjectId
   });
 
   currentScriptsState = state;
@@ -1975,6 +2268,13 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
+allScriptsButton?.addEventListener("click", () => {
+  selectedProjectId = undefined;
+  openProjectMenuId = undefined;
+  renderAllScriptsButton();
+  renderProjectList();
+  renderScriptsList();
+});
 scriptBody?.addEventListener("input", () => {
   renderScriptStats();
   scheduleAutosave();
@@ -1996,7 +2296,32 @@ newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
     renderScriptsState(state);
+    renderScriptsList();
   });
+});
+
+newProjectButton?.addEventListener("click", () => {
+  openProjectDialog();
+});
+
+projectDialogForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runEditorAction(editingProjectId ? "Rename project" : "Create project", submitProjectDialog);
+});
+
+projectNameInput?.addEventListener("input", () => {
+  setProjectDialogError("");
+});
+
+projectDialogBackdrop?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogButton?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogIconButton?.addEventListener("click", closeProjectDialog);
+
+projectDialog?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProjectDialog();
+  }
 });
 
 clearScriptButton?.addEventListener("click", () => {
@@ -2007,17 +2332,24 @@ clearScriptButton?.addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  if (!openScriptMenuId || event.target instanceof Node && scriptList?.contains(event.target)) {
+  const clickedInsideScriptList = event.target instanceof Node && scriptList?.contains(event.target);
+  const clickedInsideProjectList = event.target instanceof Node && projectList?.contains(event.target);
+
+  if ((!openScriptMenuId && !openProjectMenuId) || clickedInsideScriptList || clickedInsideProjectList) {
     return;
   }
 
   openScriptMenuId = undefined;
+  openProjectMenuId = undefined;
+  renderProjectList();
   renderScriptsList();
 });
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && openScriptMenuId) {
+  if (event.key === "Escape" && (openScriptMenuId || openProjectMenuId)) {
     openScriptMenuId = undefined;
+    openProjectMenuId = undefined;
+    renderProjectList();
     renderScriptsList();
   }
 });
