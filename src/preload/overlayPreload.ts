@@ -40,6 +40,7 @@ const teleprompterApi: TeleprompterApi = {
   saveScript: (input) => ipcRenderer.invoke(ipcChannels.scriptsSave, input),
   setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),
   renameScript: (id, title) => ipcRenderer.invoke(ipcChannels.scriptsRename, id, title),
+  setScriptPinned: (id, pinned) => ipcRenderer.invoke(ipcChannels.scriptsSetPinned, id, pinned),
   deleteScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsDelete, id),
   deleteScripts: (ids) => ipcRenderer.invoke(ipcChannels.scriptsDeleteMany, ids),
   clearActiveScript: () => ipcRenderer.invoke(ipcChannels.scriptsClearActive),

@@ -16,6 +16,7 @@ export const ipcChannels = {
   scriptsSave: "scripts:save",
   scriptsSetActive: "scripts:setActive",
   scriptsRename: "scripts:rename",
+  scriptsSetPinned: "scripts:setPinned",
   scriptsDelete: "scripts:delete",
   scriptsDeleteMany: "scripts:deleteMany",
   scriptsClearActive: "scripts:clearActive",
@@ -102,6 +103,7 @@ export type ScriptRecord = {
   updatedAt: string;
   lastOpenedAt?: string;
   archived?: boolean;
+  pinned?: boolean;
 };
 
 export type ScriptsFile = {
@@ -154,6 +156,7 @@ export type CountdownSettings = {
 export type BehaviorSettings = {
   scrollSpeed: number;
   scrollMode: "manual" | "voice";
+  hideInterfaceWhileSpeaking: boolean;
 };
 
 export type HighlightMode = "none" | "sentence" | "word";
@@ -203,6 +206,7 @@ export type TeleprompterApi = {
   saveScript: (input: SaveScriptInput) => Promise<ScriptsState>;
   setActiveScript: (id: string) => Promise<ScriptsState>;
   renameScript: (id: string, title: string) => Promise<ScriptsState>;
+  setScriptPinned: (id: string, pinned: boolean) => Promise<ScriptsState>;
   deleteScript: (id: string) => Promise<ScriptsState>;
   deleteScripts: (ids: string[]) => Promise<ScriptsState>;
   clearActiveScript: () => Promise<ScriptsState>;

@@ -70,7 +70,8 @@ const defaultAppSettings: AppSettings = {
   },
   behavior: {
     scrollSpeed: 21,
-    scrollMode: "manual"
+    scrollMode: "manual",
+    hideInterfaceWhileSpeaking: true
   },
   experimental: {
     highlightMode: "sentence"
@@ -166,7 +167,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       ),
       scrollMode: scrollModes.includes(settings.behavior.scrollMode)
         ? settings.behavior.scrollMode
-        : defaultAppSettings.behavior.scrollMode
+        : defaultAppSettings.behavior.scrollMode,
+      hideInterfaceWhileSpeaking: settings.behavior.hideInterfaceWhileSpeaking === undefined
+        ? defaultAppSettings.behavior.hideInterfaceWhileSpeaking
+        : Boolean(settings.behavior.hideInterfaceWhileSpeaking)
     },
     experimental: {
       highlightMode: highlightModes.includes(settings.experimental.highlightMode)
@@ -476,6 +480,23 @@ function normalizeTitle(title: string, body: string): string {
   return (firstContentLine ?? "Untitled script").slice(0, 120);
 }
 
+function getScriptSortTimestamp(script: ScriptRecord): number {
+  return Date.parse(script.lastOpenedAt ?? script.updatedAt ?? script.createdAt) || 0;
+}
+
+function sortScriptsForDisplay(scripts: ScriptRecord[]): ScriptRecord[] {
+  return [...scripts].sort((first, second) => {
+    const firstPinned = Boolean(first.pinned);
+    const secondPinned = Boolean(second.pinned);
+
+    if (firstPinned !== secondPinned) {
+      return firstPinned ? -1 : 1;
+    }
+
+    return getScriptSortTimestamp(second) - getScriptSortTimestamp(first);
+  });
+}
+
 export function loadScriptsFile(): ScriptsFile {
   const path = scriptsPath();
 
@@ -506,7 +527,7 @@ export function getScriptsState(): ScriptsState {
   const activeScript = file.scripts.find((script) => script.id === file.activeScriptId);
 
   return {
-    scripts: file.scripts,
+    scripts: sortScriptsForDisplay(file.scripts),
     activeScript
   };
 }
@@ -521,7 +542,8 @@ export function saveScript(input: SaveScriptInput): ScriptsState {
     body: input.body,
     createdAt: existingScript?.createdAt ?? now,
     updatedAt: now,
-    lastOpenedAt: now
+    lastOpenedAt: now,
+    pinned: existingScript?.pinned
   };
 
   const scripts = existingScript
@@ -573,6 +595,28 @@ export function renameScript(id: string, title: string): ScriptsState {
       ...script,
       title: normalizeTitle(title, script.body),
       updatedAt: now
+    };
+  });
+
+  saveScriptsFile({
+    version: 1,
+    scripts,
+    activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function setScriptPinned(id: string, pinned: boolean): ScriptsState {
+  const file = loadScriptsFile();
+  const scripts = file.scripts.map((script) => {
+    if (script.id !== id) {
+      return script;
+    }
+
+    return {
+      ...script,
+      pinned
     };
   });
 

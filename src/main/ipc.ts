@@ -32,6 +32,7 @@ import {
   resetAppSettings,
   resetOverlaySettings,
   saveScript,
+  setScriptPinned,
   setActiveScript,
   updateAppSettings
 } from "./storage";
@@ -139,6 +140,12 @@ export function registerIpcHandlers(): void {
 
   registerLoggedHandler(ipcChannels.scriptsRename, async (_event, id: string, title: string) => {
     const state = renameScript(id, title);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsSetPinned, async (_event, id: string, pinned: boolean) => {
+    const state = setScriptPinned(id, pinned);
     broadcastScriptChanged();
     return state;
   });

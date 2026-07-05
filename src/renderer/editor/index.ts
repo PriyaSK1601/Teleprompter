@@ -6,12 +6,11 @@ const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScrip
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
-const selectedScriptsLabel = document.querySelector<HTMLElement>("#selectedScriptsLabel");
-const deleteSelectedScriptsButton = document.querySelector<HTMLButtonElement>("#deleteSelectedScriptsButton");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
 const scriptStats = document.querySelector<HTMLElement>("#scriptStats");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settingsButton");
+const themeToggleButton = document.querySelector<HTMLButtonElement>("#themeToggleButton");
 const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
@@ -33,6 +32,7 @@ const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdo
 const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
+const hideInterfaceWhileSpeakingInput = document.querySelector<HTMLInputElement>("#hideInterfaceWhileSpeakingInput");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
@@ -54,7 +54,7 @@ let currentScriptsState: ScriptsState = {
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
-let selectedScriptIds = new Set<string>();
+let openScriptMenuId: string | undefined;
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
@@ -104,7 +104,6 @@ let activeOverlayDrag: OverlayDragState | null = null;
 
 const ipcBackedControls = [
   newScriptButton,
-  deleteSelectedScriptsButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -118,6 +117,7 @@ const ipcBackedControls = [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ];
 
@@ -370,74 +370,131 @@ function renderScriptsList(): void {
     emptyItem.className = "script-list-empty";
     emptyItem.textContent = currentScriptsState.scripts.length === 0 ? "No scripts yet" : "No matching scripts";
     scriptList.append(emptyItem);
-    renderScriptSelectionState();
     return;
   }
 
   for (const script of scripts) {
     const item = document.createElement("li");
     const button = document.createElement("button");
-    const checkbox = document.createElement("input");
     const content = document.createElement("span");
+    const rightMeta = document.createElement("span");
+    const menuButton = document.createElement("button");
     const date = new Date(script.updatedAt).toLocaleDateString();
-    checkbox.type = "checkbox";
-    checkbox.className = "script-select-checkbox";
-    checkbox.checked = selectedScriptIds.has(script.id);
-    checkbox.setAttribute("aria-label", `Select ${script.title}`);
+    item.className = openScriptMenuId === script.id ? "script-list-row has-open-menu" : "script-list-row";
     button.type = "button";
-    button.className = script.id === activeScriptId ? "script-list-item active" : "script-list-item";
+    button.className = [
+      "script-list-item",
+      script.id === activeScriptId ? "active" : "",
+      script.pinned ? "is-pinned" : ""
+    ].filter(Boolean).join(" ");
     const title = document.createElement("span");
     const updatedAt = document.createElement("small");
+    const titleRow = document.createElement("span");
     content.className = "script-list-item-content";
+    rightMeta.className = "script-list-item-meta";
+    titleRow.className = "script-title-row";
     title.textContent = script.title;
+    titleRow.append(title);
+
+    if (script.pinned) {
+      const pinIndicator = document.createElement("span");
+      pinIndicator.className = "script-pin-indicator";
+      pinIndicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg>';
+      pinIndicator.title = "Pinned";
+      rightMeta.append(pinIndicator);
+    }
+
     updatedAt.textContent = date;
-    content.append(title, updatedAt);
-    button.append(checkbox, content);
-    checkbox.addEventListener("click", (event) => {
+    content.append(titleRow, updatedAt);
+
+    button.append(content, rightMeta);
+    menuButton.type = "button";
+    menuButton.className = "script-menu-button";
+    menuButton.setAttribute("aria-label", `More actions for ${script.title}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", openScriptMenuId === script.id ? "true" : "false");
+    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+    menuButton.addEventListener("click", (event) => {
       event.stopPropagation();
-
-      if (checkbox.checked) {
-        selectedScriptIds.add(script.id);
-      } else {
-        selectedScriptIds.delete(script.id);
-      }
-
-      renderScriptSelectionState();
+      openScriptMenuId = openScriptMenuId === script.id ? undefined : script.id;
+      renderScriptsList();
     });
+
     button.addEventListener("click", () => {
       void runEditorAction("Open script", async () => {
         const state = await requireTeleprompterApi().setActiveScript(script.id);
         renderScriptsState(state);
       });
     });
-    item.append(button);
+    item.append(button, menuButton);
+
+    if (openScriptMenuId === script.id) {
+      item.append(buildScriptActionMenu(script));
+    }
+
     scriptList.append(item);
   }
+}
 
-  renderScriptSelectionState();
+function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "script-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const pinAction = document.createElement("button");
+  pinAction.type = "button";
+  pinAction.className = "script-action-menu-item";
+  pinAction.setAttribute("role", "menuitem");
+  pinAction.innerHTML = script.pinned
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 2 20 20" /><path d="M12 17v5" /><path d="M5 17h12" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Unpin script</span>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Pin script</span>';
+  pinAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void runEditorAction(script.pinned ? "Unpin script" : "Pin script", async () => {
+      const state = await requireTeleprompterApi().setScriptPinned(script.id, !script.pinned);
+      renderScriptsState(state);
+    });
+  });
+
+  const deleteAction = document.createElement("button");
+  deleteAction.type = "button";
+  deleteAction.className = "script-action-menu-item danger";
+  deleteAction.setAttribute("role", "menuitem");
+  deleteAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete script</span>';
+  deleteAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void deleteScriptsWithConfirmation([script.id]);
+  });
+
+  menu.append(pinAction, deleteAction);
+  return menu;
 }
 
 function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
   setEditorFromScript(state.activeScript);
   renderScriptsList();
 }
 
-function renderScriptSelectionState(): void {
-  const selectedCount = selectedScriptIds.size;
-
-  if (selectedScriptsLabel) {
-    selectedScriptsLabel.textContent = selectedCount === 0
-      ? "No scripts selected"
-      : `${selectedCount} selected`;
+async function deleteScriptsWithConfirmation(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
   }
 
-  if (deleteSelectedScriptsButton) {
-    deleteSelectedScriptsButton.disabled = selectedCount === 0;
+  const confirmed = window.confirm(
+    ids.length === 1
+      ? "Delete this saved script? This cannot be undone."
+      : `Delete ${ids.length} saved scripts? This cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
   }
+
+  const state = await requireTeleprompterApi().deleteScripts(ids);
+  renderScriptsState(state);
 }
 
 async function loadScriptsState(): Promise<void> {
@@ -497,9 +554,6 @@ async function autosaveCurrentScript(): Promise<void> {
 
   currentScriptsState = state;
   activeScriptId = state.activeScript?.id ?? activeScriptId;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
   renderScriptsList();
 }
 
@@ -872,6 +926,10 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
+  if (hideInterfaceWhileSpeakingInput) {
+    hideInterfaceWhileSpeakingInput.checked = settings.behavior.hideInterfaceWhileSpeaking;
+  }
+
   renderControlReadouts();
 
   if (scrollModeSelect) {
@@ -1004,11 +1062,26 @@ function getContrastRatio(hexA: string, hexB: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function getReadableTextColor(backgroundColor: string): string {
+  const darkText = "#1f2420";
+  const lightText = "#f9fafb";
+  return getContrastRatio(lightText, backgroundColor) >= getContrastRatio(darkText, backgroundColor)
+    ? lightText
+    : darkText;
+}
+
+function normalizeReadablePreset(preset: AppearancePreset): AppearancePreset {
+  return getContrastRatio(preset.textColor, preset.backgroundColor) >= 4.5
+    ? preset
+    : { ...preset, textColor: getReadableTextColor(preset.backgroundColor) };
+}
+
 function isPresetActive(preset: AppearancePreset): boolean {
+  const readablePreset = normalizeReadablePreset(preset);
   return (
-    (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
-    (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
-    Math.abs(Number(opacityInput?.value) - preset.opacity) < 0.005
+    (textColorInput?.value ?? "").toLowerCase() === readablePreset.textColor &&
+    (backgroundColorInput?.value ?? "").toLowerCase() === readablePreset.backgroundColor &&
+    Math.abs(Number(opacityInput?.value) - readablePreset.opacity) < 0.005
   );
 }
 
@@ -1040,16 +1113,18 @@ function updateContrastHint(): void {
 }
 
 function applyAppearancePreset(preset: AppearancePreset): void {
+  const readablePreset = normalizeReadablePreset(preset);
+
   if (textColorInput) {
-    textColorInput.value = preset.textColor;
+    textColorInput.value = readablePreset.textColor;
   }
 
   if (backgroundColorInput) {
-    backgroundColorInput.value = preset.backgroundColor;
+    backgroundColorInput.value = readablePreset.backgroundColor;
   }
 
   if (opacityInput) {
-    opacityInput.value = String(preset.opacity);
+    opacityInput.value = String(readablePreset.opacity);
   }
 
   renderSettingsPreviewFromControls();
@@ -1067,6 +1142,7 @@ function buildAppearancePresets(): void {
   appearancePresets.textContent = "";
 
   for (const preset of appearancePresetList) {
+    const readablePreset = normalizeReadablePreset(preset);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "preset-card";
@@ -1079,15 +1155,15 @@ function buildAppearancePresets(): void {
     const swatch = document.createElement("span");
     swatch.className = "preset-swatch";
     swatch.textContent = "Aa";
-    swatch.style.background = getOpaquePreviewBackground(preset.backgroundColor, preset.opacity);
-    swatch.style.color = preset.textColor;
+    swatch.style.background = getOpaquePreviewBackground(readablePreset.backgroundColor, readablePreset.opacity);
+    swatch.style.color = readablePreset.textColor;
 
     const name = document.createElement("span");
     name.className = "preset-name";
     name.textContent = preset.name;
 
     card.append(swatch, name);
-    card.addEventListener("click", () => applyAppearancePreset(preset));
+    card.addEventListener("click", () => applyAppearancePreset(readablePreset));
     appearancePresets.append(card);
   }
 
@@ -1107,7 +1183,7 @@ function buildAppearancePresets(): void {
 
     if (next && preset) {
       next.focus();
-      applyAppearancePreset(preset);
+      applyAppearancePreset(normalizeReadablePreset(preset));
     }
   });
 }
@@ -1639,7 +1715,8 @@ async function saveSettingsFromControls(): Promise<void> {
     },
     behavior: {
       scrollSpeed: Number(scrollSpeedInput?.value),
-      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"]
+      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"],
+      hideInterfaceWhileSpeaking: Boolean(hideInterfaceWhileSpeakingInput?.checked)
     },
     experimental: {
       highlightMode: highlightModeSelect?.value as AppSettings["experimental"]["highlightMode"]
@@ -1652,6 +1729,37 @@ async function saveSettingsFromControls(): Promise<void> {
 }
 
 const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
+const editorThemeStorageKey = "teleprompter:editorTheme";
+
+type EditorTheme = "light" | "dark";
+
+function setEditorTheme(theme: EditorTheme): void {
+  document.documentElement.dataset.editorTheme = theme;
+
+  if (themeToggleButton) {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    themeToggleButton.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
+    themeToggleButton.title = `Switch to ${nextTheme} mode`;
+  }
+
+  try {
+    localStorage.setItem(editorThemeStorageKey, theme);
+  } catch {
+    // Ignore storage failures; the theme simply won't persist.
+  }
+}
+
+function loadEditorTheme(): EditorTheme {
+  try {
+    return localStorage.getItem(editorThemeStorageKey) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function toggleEditorTheme(): void {
+  setEditorTheme(document.documentElement.dataset.editorTheme === "dark" ? "light" : "dark");
+}
 
 function setSidebarCollapsed(collapsed: boolean): void {
   editorApp?.classList.toggle("sidebar-collapsed", collapsed);
@@ -1757,7 +1865,9 @@ settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
 settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
 
+setEditorTheme(loadEditorTheme());
 setSidebarCollapsed(loadSidebarCollapsed());
+themeToggleButton?.addEventListener("click", toggleEditorTheme);
 toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
 });
@@ -1896,28 +2006,20 @@ clearScriptButton?.addEventListener("click", () => {
   });
 });
 
-deleteSelectedScriptsButton?.addEventListener("click", () => {
-  void runEditorAction("Delete scripts", async () => {
-    const ids = Array.from(selectedScriptIds);
+document.addEventListener("click", (event) => {
+  if (!openScriptMenuId || event.target instanceof Node && scriptList?.contains(event.target)) {
+    return;
+  }
 
-    if (ids.length === 0) {
-      return;
-    }
+  openScriptMenuId = undefined;
+  renderScriptsList();
+});
 
-    const confirmed = window.confirm(
-      ids.length === 1
-        ? "Delete this saved script? This cannot be undone."
-        : `Delete ${ids.length} saved scripts? This cannot be undone.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    const state = await requireTeleprompterApi().deleteScripts(ids);
-    selectedScriptIds = new Set();
-    renderScriptsState(state);
-  });
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && openScriptMenuId) {
+    openScriptMenuId = undefined;
+    renderScriptsList();
+  }
 });
 
 startTeleprompterButton?.addEventListener("click", () => {
@@ -1945,6 +2047,7 @@ for (const control of [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
