@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import {
   ipcChannels,
   type AppPingResponse,
+  type DeleteProjectMode,
   type IpcChannel,
   type SaveScriptInput,
   type SettingsUpdate,
@@ -12,6 +13,7 @@ import {
   createOverlayWindow,
   broadcastScriptChanged,
   broadcastSettingsChanged,
+  broadcastShortcutsChanged,
   closeOverlayWindow,
   closeOverlayForRecovery,
   getOverlayState,
@@ -22,15 +24,20 @@ import {
 } from "./windows";
 import {
   clearActiveScript,
+  createProject,
+  deleteProject,
   deleteScript,
   deleteScripts,
   loadAppSettings,
+  moveScriptToProject,
   getScriptsState,
   getStorageInfo,
   renameScript,
+  renameProject,
   resetAppSettings,
   resetOverlaySettings,
   saveScript,
+  setScriptPinned,
   setActiveScript,
   updateAppSettings
 } from "./storage";
@@ -109,11 +116,15 @@ export function registerIpcHandlers(): void {
   });
 
   registerLoggedHandler(ipcChannels.shortcutsUpdate, async (_event, input: ShortcutUpdateInput) => {
-    return updateGlobalShortcuts(input);
+    const statuses = updateGlobalShortcuts(input);
+    broadcastShortcutsChanged(statuses);
+    return statuses;
   });
 
   registerLoggedHandler(ipcChannels.shortcutsReset, async () => {
-    return resetGlobalShortcuts();
+    const statuses = resetGlobalShortcuts();
+    broadcastShortcutsChanged(statuses);
+    return statuses;
   });
 
   registerLoggedHandler(ipcChannels.scriptsGetState, async () => {
@@ -138,6 +149,18 @@ export function registerIpcHandlers(): void {
     return state;
   });
 
+  registerLoggedHandler(ipcChannels.scriptsSetPinned, async (_event, id: string, pinned: boolean) => {
+    const state = setScriptPinned(id, pinned);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsMoveToProject, async (_event, id: string, projectId?: string) => {
+    const state = moveScriptToProject(id, projectId);
+    broadcastScriptChanged();
+    return state;
+  });
+
   registerLoggedHandler(ipcChannels.scriptsDelete, async (_event, id: string) => {
     const state = deleteScript(id);
     broadcastScriptChanged();
@@ -152,6 +175,24 @@ export function registerIpcHandlers(): void {
 
   registerLoggedHandler(ipcChannels.scriptsClearActive, async () => {
     const state = clearActiveScript();
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.projectsCreate, async (_event, name: string) => {
+    const state = createProject(name);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.projectsRename, async (_event, id: string, name: string) => {
+    const state = renameProject(id, name);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.projectsDelete, async (_event, id: string, mode: DeleteProjectMode) => {
+    const state = deleteProject(id, mode);
     broadcastScriptChanged();
     return state;
   });

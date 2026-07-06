@@ -5,13 +5,26 @@ const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptBut
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
+const allScriptsButton = document.querySelector<HTMLButtonElement>("#allScriptsButton");
+const allScriptsCount = document.querySelector<HTMLElement>("#allScriptsCount");
+const newProjectButton = document.querySelector<HTMLButtonElement>("#newProjectButton");
+const projectList = document.querySelector<HTMLElement>("#projectList");
+const projectDialog = document.querySelector<HTMLElement>("#projectDialog");
+const projectDialogBackdrop = document.querySelector<HTMLElement>("#projectDialogBackdrop");
+const projectDialogForm = document.querySelector<HTMLFormElement>("#projectDialogForm");
+const projectDialogTitle = document.querySelector<HTMLElement>("#projectDialogTitle");
+const projectNameInput = document.querySelector<HTMLInputElement>("#projectNameInput");
+const projectDialogError = document.querySelector<HTMLElement>("#projectDialogError");
+const submitProjectDialogButton = document.querySelector<HTMLButtonElement>("#submitProjectDialogButton");
+const cancelProjectDialogButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogButton");
+const cancelProjectDialogIconButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogIconButton");
+const historyHeading = document.querySelector<HTMLElement>("#historyHeading");
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
-const selectedScriptsLabel = document.querySelector<HTMLElement>("#selectedScriptsLabel");
-const deleteSelectedScriptsButton = document.querySelector<HTMLButtonElement>("#deleteSelectedScriptsButton");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
 const scriptStats = document.querySelector<HTMLElement>("#scriptStats");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settingsButton");
+const themeToggleButton = document.querySelector<HTMLButtonElement>("#themeToggleButton");
 const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
@@ -33,6 +46,7 @@ const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdo
 const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
+const hideInterfaceWhileSpeakingInput = document.querySelector<HTMLInputElement>("#hideInterfaceWhileSpeakingInput");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
@@ -50,11 +64,15 @@ const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPil
 const settingsDrawer = document.querySelector<HTMLElement>(".settings-drawer");
 
 let currentScriptsState: ScriptsState = {
+  projects: [],
   scripts: []
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
-let selectedScriptIds = new Set<string>();
+let openScriptMenuId: string | undefined;
+let openProjectMenuId: string | undefined;
+let selectedProjectId: string | undefined;
+let editingProjectId: string | undefined;
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
@@ -104,7 +122,7 @@ let activeOverlayDrag: OverlayDragState | null = null;
 
 const ipcBackedControls = [
   newScriptButton,
-  deleteSelectedScriptsButton,
+  newProjectButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -118,6 +136,7 @@ const ipcBackedControls = [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ];
 
@@ -347,19 +366,248 @@ function getOpaquePreviewBackground(hexColor: string, opacity: number): string {
 
 function getFilteredScripts(): ScriptRecord[] {
   const query = scriptSearch?.value.trim().toLowerCase() ?? "";
+  const projectScopedScripts = selectedProjectId === undefined
+    ? currentScriptsState.scripts
+    : currentScriptsState.scripts.filter((script) => script.projectId === selectedProjectId);
 
   if (!query) {
-    return currentScriptsState.scripts;
+    return projectScopedScripts;
   }
 
-  return currentScriptsState.scripts.filter((script) => {
+  return projectScopedScripts.filter((script) => {
     return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
   });
+}
+
+function getProjectName(projectId?: string): string {
+  if (!projectId) {
+    return "Uncategorised";
+  }
+
+  return currentScriptsState.projects.find((project) => project.id === projectId)?.name ?? "Unknown project";
+}
+
+function getCurrentProjectName(): string {
+  return selectedProjectId ? getProjectName(selectedProjectId) : "All Scripts";
+}
+
+function getProjectScriptCount(projectId?: string): number {
+  return currentScriptsState.scripts.filter((script) => script.projectId === projectId).length;
+}
+
+function renderProjectList(): void {
+  if (!projectList) {
+    return;
+  }
+
+  projectList.textContent = "";
+
+  for (const project of currentScriptsState.projects) {
+    const row = document.createElement("div");
+    const button = document.createElement("button");
+    const menuButton = document.createElement("button");
+    row.className = openProjectMenuId === project.id ? "project-list-row has-open-menu" : "project-list-row";
+    button.type = "button";
+    button.className = selectedProjectId === project.id ? "project-list-item active" : "project-list-item";
+    button.innerHTML = `
+      <span class="project-list-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg></span>
+      <span class="project-list-name"></span>
+      <span class="project-list-count">${getProjectScriptCount(project.id)}</span>
+    `;
+    button.querySelector<HTMLElement>(".project-list-name")!.textContent = project.name;
+    button.addEventListener("click", () => {
+      selectedProjectId = project.id;
+      openProjectMenuId = undefined;
+      renderAllScriptsButton();
+      renderProjectList();
+      renderScriptsList();
+    });
+
+    menuButton.type = "button";
+    menuButton.className = "project-menu-button";
+    menuButton.setAttribute("aria-label", `More actions for ${project.name}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", openProjectMenuId === project.id ? "true" : "false");
+    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openProjectMenuId = openProjectMenuId === project.id ? undefined : project.id;
+      renderProjectList();
+    });
+
+    row.append(button, menuButton);
+
+    if (openProjectMenuId === project.id) {
+      row.append(buildProjectActionMenu(project));
+    }
+
+    projectList.append(row);
+  }
+}
+
+function renderAllScriptsButton(): void {
+  allScriptsButton?.classList.toggle("active", selectedProjectId === undefined);
+
+  if (allScriptsCount) {
+    allScriptsCount.textContent = String(currentScriptsState.scripts.length);
+  }
+}
+
+function buildProjectActionMenu(project: ProjectRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "project-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const renameAction = document.createElement("button");
+  renameAction.type = "button";
+  renameAction.className = "project-action-menu-item";
+  renameAction.setAttribute("role", "menuitem");
+  renameAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="m16.5 3.5 4 4L7 21H3v-4z" /></svg><span>Rename project</span>';
+  renameAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    openProjectDialog(project);
+  });
+
+  const deleteMoveAction = document.createElement("button");
+  deleteMoveAction.type = "button";
+  deleteMoveAction.className = "project-action-menu-item";
+  deleteMoveAction.setAttribute("role", "menuitem");
+  deleteMoveAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete project only</span>';
+  deleteMoveAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "moveScripts");
+  });
+
+  const deleteAllAction = document.createElement("button");
+  deleteAllAction.type = "button";
+  deleteAllAction.className = "project-action-menu-item danger";
+  deleteAllAction.setAttribute("role", "menuitem");
+  deleteAllAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete with scripts</span>';
+  deleteAllAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "deleteScripts");
+  });
+
+  menu.append(renameAction, deleteMoveAction, deleteAllAction);
+  return menu;
+}
+
+function getDuplicateProject(name: string, ignoredProjectId?: string): ProjectRecord | undefined {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return currentScriptsState.projects.find((project) => {
+    return project.id !== ignoredProjectId && project.name.trim().toLocaleLowerCase() === normalizedName;
+  });
+}
+
+function setProjectDialogError(message: string): void {
+  if (projectDialogError) {
+    projectDialogError.textContent = message;
+  }
+}
+
+function openProjectDialog(project?: ProjectRecord): void {
+  editingProjectId = project?.id;
+  openProjectMenuId = undefined;
+  renderProjectList();
+
+  if (projectDialogTitle) {
+    projectDialogTitle.textContent = project ? "Rename project" : "Create project";
+  }
+
+  if (submitProjectDialogButton) {
+    submitProjectDialogButton.textContent = project ? "Save" : "Create";
+  }
+
+  if (projectNameInput) {
+    projectNameInput.value = project?.name ?? "";
+  }
+
+  setProjectDialogError("");
+  projectDialog?.classList.add("is-open");
+  projectDialog?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => projectNameInput?.focus(), 0);
+  projectNameInput?.select();
+}
+
+function closeProjectDialog(): void {
+  editingProjectId = undefined;
+  setProjectDialogError("");
+  projectDialog?.classList.remove("is-open");
+  projectDialog?.setAttribute("aria-hidden", "true");
+  newProjectButton?.focus();
+}
+
+async function submitProjectDialog(): Promise<void> {
+  const name = projectNameInput?.value.trim() ?? "";
+
+  if (!name) {
+    setProjectDialogError("Enter a project name.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (getDuplicateProject(name, editingProjectId)) {
+    setProjectDialogError("A project with this name already exists.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (editingProjectId) {
+    const currentProject = currentScriptsState.projects.find((project) => project.id === editingProjectId);
+
+    if (!currentProject || currentProject.name === name) {
+      closeProjectDialog();
+      renderProjectList();
+      return;
+    }
+
+    const state = await requireTeleprompterApi().renameProject(editingProjectId, name);
+    closeProjectDialog();
+    renderScriptsState(state);
+    return;
+  }
+
+  const state = await requireTeleprompterApi().createProject(name);
+  const createdProject = state.projects[state.projects.length - 1];
+
+  if (createdProject) {
+    selectedProjectId = createdProject.id;
+  }
+
+  closeProjectDialog();
+  renderScriptsState(state);
+}
+
+async function deleteProjectWithConfirmation(project: ProjectRecord, mode: DeleteProjectMode): Promise<void> {
+  const scriptCount = getProjectScriptCount(project.id);
+  const message = mode === "deleteScripts"
+    ? `Delete "${project.name}" and ${scriptCount} script${scriptCount === 1 ? "" : "s"}? This cannot be undone.`
+    : `Delete "${project.name}" and move its ${scriptCount} script${scriptCount === 1 ? "" : "s"} to Uncategorised?`;
+
+  if (!window.confirm(message)) {
+    renderProjectList();
+    return;
+  }
+
+  const state = await requireTeleprompterApi().deleteProject(project.id, mode);
+
+  if (selectedProjectId === project.id) {
+    selectedProjectId = undefined;
+  }
+
+  renderScriptsState(state);
 }
 
 function renderScriptsList(): void {
   if (!scriptList) {
     return;
+  }
+
+  if (historyHeading) {
+    historyHeading.textContent = getCurrentProjectName();
   }
 
   scriptList.textContent = "";
@@ -368,76 +616,176 @@ function renderScriptsList(): void {
   if (scripts.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "script-list-empty";
-    emptyItem.textContent = currentScriptsState.scripts.length === 0 ? "No scripts yet" : "No matching scripts";
+    emptyItem.textContent = currentScriptsState.scripts.length === 0
+      ? "No scripts yet"
+      : selectedProjectId
+        ? "No scripts in this project"
+        : "No matching scripts";
     scriptList.append(emptyItem);
-    renderScriptSelectionState();
     return;
   }
 
   for (const script of scripts) {
     const item = document.createElement("li");
     const button = document.createElement("button");
-    const checkbox = document.createElement("input");
     const content = document.createElement("span");
+    const rightMeta = document.createElement("span");
+    const menuButton = document.createElement("button");
     const date = new Date(script.updatedAt).toLocaleDateString();
-    checkbox.type = "checkbox";
-    checkbox.className = "script-select-checkbox";
-    checkbox.checked = selectedScriptIds.has(script.id);
-    checkbox.setAttribute("aria-label", `Select ${script.title}`);
+    item.className = openScriptMenuId === script.id ? "script-list-row has-open-menu" : "script-list-row";
     button.type = "button";
-    button.className = script.id === activeScriptId ? "script-list-item active" : "script-list-item";
+    button.className = [
+      "script-list-item",
+      script.id === activeScriptId ? "active" : "",
+      script.pinned ? "is-pinned" : ""
+    ].filter(Boolean).join(" ");
     const title = document.createElement("span");
     const updatedAt = document.createElement("small");
+    const titleRow = document.createElement("span");
     content.className = "script-list-item-content";
+    rightMeta.className = "script-list-item-meta";
+    titleRow.className = "script-title-row";
     title.textContent = script.title;
+    titleRow.append(title);
+
+    if (script.pinned) {
+      const pinIndicator = document.createElement("span");
+      pinIndicator.className = "script-pin-indicator";
+      pinIndicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg>';
+      pinIndicator.title = "Pinned";
+      rightMeta.append(pinIndicator);
+    }
+
     updatedAt.textContent = date;
-    content.append(title, updatedAt);
-    button.append(checkbox, content);
-    checkbox.addEventListener("click", (event) => {
+    content.append(titleRow, updatedAt);
+
+    button.append(content, rightMeta);
+    menuButton.type = "button";
+    menuButton.className = "script-menu-button";
+    menuButton.setAttribute("aria-label", `More actions for ${script.title}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", openScriptMenuId === script.id ? "true" : "false");
+    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+    menuButton.addEventListener("click", (event) => {
       event.stopPropagation();
-
-      if (checkbox.checked) {
-        selectedScriptIds.add(script.id);
-      } else {
-        selectedScriptIds.delete(script.id);
-      }
-
-      renderScriptSelectionState();
+      openScriptMenuId = openScriptMenuId === script.id ? undefined : script.id;
+      renderScriptsList();
     });
+
     button.addEventListener("click", () => {
       void runEditorAction("Open script", async () => {
         const state = await requireTeleprompterApi().setActiveScript(script.id);
         renderScriptsState(state);
       });
     });
-    item.append(button);
+    item.append(button, menuButton);
+
+    if (openScriptMenuId === script.id) {
+      item.append(buildScriptActionMenu(script));
+    }
+
     scriptList.append(item);
   }
+}
 
-  renderScriptSelectionState();
+function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "script-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const pinAction = document.createElement("button");
+  pinAction.type = "button";
+  pinAction.className = "script-action-menu-item";
+  pinAction.setAttribute("role", "menuitem");
+  pinAction.innerHTML = script.pinned
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 2 20 20" /><path d="M12 17v5" /><path d="M5 17h12" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Unpin script</span>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Pin script</span>';
+  pinAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void runEditorAction(script.pinned ? "Unpin script" : "Pin script", async () => {
+      const state = await requireTeleprompterApi().setScriptPinned(script.id, !script.pinned);
+      renderScriptsState(state);
+    });
+  });
+
+  const deleteAction = document.createElement("button");
+  deleteAction.type = "button";
+  deleteAction.className = "script-action-menu-item danger";
+  deleteAction.setAttribute("role", "menuitem");
+  deleteAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete script</span>';
+  deleteAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void deleteScriptsWithConfirmation([script.id]);
+  });
+
+  const moveLabel = document.createElement("div");
+  moveLabel.className = "script-action-menu-label";
+  moveLabel.textContent = "Move to";
+
+  const moveTargets: Array<{ id?: string; name: string }> = [
+    { id: undefined, name: "Uncategorised" },
+    ...currentScriptsState.projects.map((project) => ({ id: project.id, name: project.name }))
+  ];
+  const moveActions = moveTargets.map((target) => {
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = script.projectId === target.id
+      ? "script-action-menu-item is-current"
+      : "script-action-menu-item";
+    action.setAttribute("role", "menuitem");
+    action.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg><span></span>';
+    action.querySelector("span")!.textContent = target.name;
+    action.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openScriptMenuId = undefined;
+      void runEditorAction("Move script", async () => {
+        const state = await requireTeleprompterApi().moveScriptToProject(script.id, target.id);
+        renderScriptsState(state);
+      });
+    });
+    return action;
+  });
+
+  menu.append(pinAction, moveLabel, ...moveActions, deleteAction);
+  return menu;
 }
 
 function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
+
+  if (selectedProjectId && !currentScriptsState.projects.some((project) => project.id === selectedProjectId)) {
+    selectedProjectId = undefined;
+  }
+
+  if (historyHeading) {
+    historyHeading.textContent = getCurrentProjectName();
+  }
+
+  renderAllScriptsButton();
+  renderProjectList();
   setEditorFromScript(state.activeScript);
   renderScriptsList();
 }
 
-function renderScriptSelectionState(): void {
-  const selectedCount = selectedScriptIds.size;
-
-  if (selectedScriptsLabel) {
-    selectedScriptsLabel.textContent = selectedCount === 0
-      ? "No scripts selected"
-      : `${selectedCount} selected`;
+async function deleteScriptsWithConfirmation(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
   }
 
-  if (deleteSelectedScriptsButton) {
-    deleteSelectedScriptsButton.disabled = selectedCount === 0;
+  const confirmed = window.confirm(
+    ids.length === 1
+      ? "Delete this saved script? This cannot be undone."
+      : `Delete ${ids.length} saved scripts? This cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
   }
+
+  const state = await requireTeleprompterApi().deleteScripts(ids);
+  renderScriptsState(state);
 }
 
 async function loadScriptsState(): Promise<void> {
@@ -456,7 +804,8 @@ async function saveCurrentScript(): Promise<ScriptsState | undefined> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : selectedProjectId
   });
   renderScriptsState(state);
   return state;
@@ -492,14 +841,12 @@ async function autosaveCurrentScript(): Promise<void> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : selectedProjectId
   });
 
   currentScriptsState = state;
   activeScriptId = state.activeScript?.id ?? activeScriptId;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
   renderScriptsList();
 }
 
@@ -872,6 +1219,10 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
+  if (hideInterfaceWhileSpeakingInput) {
+    hideInterfaceWhileSpeakingInput.checked = settings.behavior.hideInterfaceWhileSpeaking;
+  }
+
   renderControlReadouts();
 
   if (scrollModeSelect) {
@@ -1004,11 +1355,26 @@ function getContrastRatio(hexA: string, hexB: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function getReadableTextColor(backgroundColor: string): string {
+  const darkText = "#1f2420";
+  const lightText = "#f9fafb";
+  return getContrastRatio(lightText, backgroundColor) >= getContrastRatio(darkText, backgroundColor)
+    ? lightText
+    : darkText;
+}
+
+function normalizeReadablePreset(preset: AppearancePreset): AppearancePreset {
+  return getContrastRatio(preset.textColor, preset.backgroundColor) >= 4.5
+    ? preset
+    : { ...preset, textColor: getReadableTextColor(preset.backgroundColor) };
+}
+
 function isPresetActive(preset: AppearancePreset): boolean {
+  const readablePreset = normalizeReadablePreset(preset);
   return (
-    (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
-    (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
-    Math.abs(Number(opacityInput?.value) - preset.opacity) < 0.005
+    (textColorInput?.value ?? "").toLowerCase() === readablePreset.textColor &&
+    (backgroundColorInput?.value ?? "").toLowerCase() === readablePreset.backgroundColor &&
+    Math.abs(Number(opacityInput?.value) - readablePreset.opacity) < 0.005
   );
 }
 
@@ -1040,16 +1406,18 @@ function updateContrastHint(): void {
 }
 
 function applyAppearancePreset(preset: AppearancePreset): void {
+  const readablePreset = normalizeReadablePreset(preset);
+
   if (textColorInput) {
-    textColorInput.value = preset.textColor;
+    textColorInput.value = readablePreset.textColor;
   }
 
   if (backgroundColorInput) {
-    backgroundColorInput.value = preset.backgroundColor;
+    backgroundColorInput.value = readablePreset.backgroundColor;
   }
 
   if (opacityInput) {
-    opacityInput.value = String(preset.opacity);
+    opacityInput.value = String(readablePreset.opacity);
   }
 
   renderSettingsPreviewFromControls();
@@ -1067,6 +1435,7 @@ function buildAppearancePresets(): void {
   appearancePresets.textContent = "";
 
   for (const preset of appearancePresetList) {
+    const readablePreset = normalizeReadablePreset(preset);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "preset-card";
@@ -1079,15 +1448,15 @@ function buildAppearancePresets(): void {
     const swatch = document.createElement("span");
     swatch.className = "preset-swatch";
     swatch.textContent = "Aa";
-    swatch.style.background = getOpaquePreviewBackground(preset.backgroundColor, preset.opacity);
-    swatch.style.color = preset.textColor;
+    swatch.style.background = getOpaquePreviewBackground(readablePreset.backgroundColor, readablePreset.opacity);
+    swatch.style.color = readablePreset.textColor;
 
     const name = document.createElement("span");
     name.className = "preset-name";
     name.textContent = preset.name;
 
     card.append(swatch, name);
-    card.addEventListener("click", () => applyAppearancePreset(preset));
+    card.addEventListener("click", () => applyAppearancePreset(readablePreset));
     appearancePresets.append(card);
   }
 
@@ -1107,7 +1476,7 @@ function buildAppearancePresets(): void {
 
     if (next && preset) {
       next.focus();
-      applyAppearancePreset(preset);
+      applyAppearancePreset(normalizeReadablePreset(preset));
     }
   });
 }
@@ -1639,7 +2008,8 @@ async function saveSettingsFromControls(): Promise<void> {
     },
     behavior: {
       scrollSpeed: Number(scrollSpeedInput?.value),
-      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"]
+      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"],
+      hideInterfaceWhileSpeaking: Boolean(hideInterfaceWhileSpeakingInput?.checked)
     },
     experimental: {
       highlightMode: highlightModeSelect?.value as AppSettings["experimental"]["highlightMode"]
@@ -1652,6 +2022,37 @@ async function saveSettingsFromControls(): Promise<void> {
 }
 
 const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
+const editorThemeStorageKey = "teleprompter:editorTheme";
+
+type EditorTheme = "light" | "dark";
+
+function setEditorTheme(theme: EditorTheme): void {
+  document.documentElement.dataset.editorTheme = theme;
+
+  if (themeToggleButton) {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    themeToggleButton.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
+    themeToggleButton.title = `Switch to ${nextTheme} mode`;
+  }
+
+  try {
+    localStorage.setItem(editorThemeStorageKey, theme);
+  } catch {
+    // Ignore storage failures; the theme simply won't persist.
+  }
+}
+
+function loadEditorTheme(): EditorTheme {
+  try {
+    return localStorage.getItem(editorThemeStorageKey) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function toggleEditorTheme(): void {
+  setEditorTheme(document.documentElement.dataset.editorTheme === "dark" ? "light" : "dark");
+}
 
 function setSidebarCollapsed(collapsed: boolean): void {
   editorApp?.classList.toggle("sidebar-collapsed", collapsed);
@@ -1757,7 +2158,9 @@ settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
 settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
 
+setEditorTheme(loadEditorTheme());
 setSidebarCollapsed(loadSidebarCollapsed());
+themeToggleButton?.addEventListener("click", toggleEditorTheme);
 toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
 });
@@ -1865,6 +2268,13 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
+allScriptsButton?.addEventListener("click", () => {
+  selectedProjectId = undefined;
+  openProjectMenuId = undefined;
+  renderAllScriptsButton();
+  renderProjectList();
+  renderScriptsList();
+});
 scriptBody?.addEventListener("input", () => {
   renderScriptStats();
   scheduleAutosave();
@@ -1886,7 +2296,32 @@ newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
     renderScriptsState(state);
+    renderScriptsList();
   });
+});
+
+newProjectButton?.addEventListener("click", () => {
+  openProjectDialog();
+});
+
+projectDialogForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runEditorAction(editingProjectId ? "Rename project" : "Create project", submitProjectDialog);
+});
+
+projectNameInput?.addEventListener("input", () => {
+  setProjectDialogError("");
+});
+
+projectDialogBackdrop?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogButton?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogIconButton?.addEventListener("click", closeProjectDialog);
+
+projectDialog?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProjectDialog();
+  }
 });
 
 clearScriptButton?.addEventListener("click", () => {
@@ -1896,28 +2331,27 @@ clearScriptButton?.addEventListener("click", () => {
   });
 });
 
-deleteSelectedScriptsButton?.addEventListener("click", () => {
-  void runEditorAction("Delete scripts", async () => {
-    const ids = Array.from(selectedScriptIds);
+document.addEventListener("click", (event) => {
+  const clickedInsideScriptList = event.target instanceof Node && scriptList?.contains(event.target);
+  const clickedInsideProjectList = event.target instanceof Node && projectList?.contains(event.target);
 
-    if (ids.length === 0) {
-      return;
-    }
+  if ((!openScriptMenuId && !openProjectMenuId) || clickedInsideScriptList || clickedInsideProjectList) {
+    return;
+  }
 
-    const confirmed = window.confirm(
-      ids.length === 1
-        ? "Delete this saved script? This cannot be undone."
-        : `Delete ${ids.length} saved scripts? This cannot be undone.`
-    );
+  openScriptMenuId = undefined;
+  openProjectMenuId = undefined;
+  renderProjectList();
+  renderScriptsList();
+});
 
-    if (!confirmed) {
-      return;
-    }
-
-    const state = await requireTeleprompterApi().deleteScripts(ids);
-    selectedScriptIds = new Set();
-    renderScriptsState(state);
-  });
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && (openScriptMenuId || openProjectMenuId)) {
+    openScriptMenuId = undefined;
+    openProjectMenuId = undefined;
+    renderProjectList();
+    renderScriptsList();
+  }
 });
 
 startTeleprompterButton?.addEventListener("click", () => {
@@ -1945,6 +2379,7 @@ for (const control of [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {

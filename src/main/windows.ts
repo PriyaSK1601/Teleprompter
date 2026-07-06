@@ -7,9 +7,11 @@ import {
   type OverlayState,
   type ScriptChangedEvent,
   type SettingsChangedEvent,
+  type ShortcutStatus,
   type TeleprompterCommand,
   type TeleprompterCommandEvent
 } from "../shared/ipc";
+import { calculateOverlayBounds } from "../shared/overlayCore";
 import { getScriptsState, loadAppSettings, loadOverlaySettings, saveOverlaySettings } from "./storage";
 
 const rootPath = join(__dirname, "..", "..");
@@ -37,16 +39,28 @@ function rendererPath(name: "editor" | "overlay"): string {
 
 function getConfiguredOverlayBounds(): OverlayBounds {
   const { overlaySize } = loadAppSettings();
-  const area = screen.getPrimaryDisplay().bounds;
-  const width = Math.max(overlayMinSize.width, Math.min(Math.round(area.width * overlaySize.widthRatio), area.width));
-  const height = Math.max(
-    overlayMinSize.height,
-    Math.min(Math.round(area.height * overlaySize.heightRatio), area.height)
-  );
-  const x = area.x + Math.round(Math.min(Math.max(area.width * overlaySize.xRatio, 0), area.width - width));
-  const y = area.y + Math.round(Math.min(Math.max(area.height * overlaySize.yRatio, 0), area.height - height));
+  return calculateOverlayBounds(overlaySize, screen.getPrimaryDisplay().workArea, overlayMinSize);
+}
 
-  return { x, y, width, height };
+function applyConfiguredOverlayBounds(window: BrowserWindow): void {
+  if (process.platform === "darwin") {
+    if (window.isSimpleFullScreen()) {
+      window.setSimpleFullScreen(false);
+    }
+
+    if (window.isFullScreen()) {
+      // macOS leaves fullscreen asynchronously; bounds set mid-transition are dropped.
+      window.once("leave-full-screen", () => {
+        if (!window.isDestroyed()) {
+          window.setBounds(getConfiguredOverlayBounds());
+        }
+      });
+      window.setFullScreen(false);
+      return;
+    }
+  }
+
+  window.setBounds(getConfiguredOverlayBounds());
 }
 
 function getDefaultOverlayBounds(): OverlayBounds {
@@ -182,10 +196,7 @@ export function createEditorWindow(): BrowserWindow {
 
 export function createOverlayWindow(): BrowserWindow {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
-    if (!overlayWindow.isVisible()) {
-      overlayWindow.setBounds(getConfiguredOverlayBounds());
-    }
-
+    applyConfiguredOverlayBounds(overlayWindow);
     overlayWindow.show();
     hideEditorWindow();
     applyClickThrough(loadOverlaySettings().clickThroughEnabled);
@@ -208,7 +219,11 @@ export function createOverlayWindow(): BrowserWindow {
     transparent: true,
     backgroundColor: "#00000000",
     alwaysOnTop: true,
+    fullscreenable: false,
+    fullscreen: false,
+    maximizable: false,
     resizable: true,
+    show: false,
     skipTaskbar: true,
     webPreferences: {
       preload: preloadPath("overlay"),
@@ -223,9 +238,13 @@ export function createOverlayWindow(): BrowserWindow {
   applyClickThrough(loadOverlaySettings().clickThroughEnabled);
   hideEditorWindow();
   overlayWindow.loadFile(rendererPath("overlay"));
-  overlayWindow.webContents.once("did-finish-load", () => {
-    sendScriptChangedEvent();
-    sendSettingsChangedEvent();
+  overlayWindow.once("ready-to-show", () => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return;
+    }
+
+    applyConfiguredOverlayBounds(overlayWindow);
+    overlayWindow.show();
   });
   overlayWindow.on("move", scheduleOverlayBoundsSave);
   overlayWindow.on("resize", scheduleOverlayBoundsSave);
@@ -341,4 +360,12 @@ export function broadcastScriptChanged(): void {
 
 export function broadcastSettingsChanged(settings?: AppSettings): void {
   sendSettingsChangedEvent(settings);
+}
+
+export function broadcastShortcutsChanged(statuses: ShortcutStatus[]): void {
+  for (const window of [editorWindow, overlayWindow]) {
+    if (window && !window.isDestroyed() && !window.webContents.isLoading()) {
+      window.webContents.send(ipcChannels.shortcutsChangedEvent, statuses);
+    }
+  }
 }
