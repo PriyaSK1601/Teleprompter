@@ -705,6 +705,10 @@ function applySettings(settings: AppSettings): void {
   );
   document.documentElement.style.setProperty("--prompt-font-size", `${settings.text.fontSize}px`);
   document.documentElement.style.setProperty("--prompt-text-color", settings.text.textColor);
+  document.documentElement.style.setProperty(
+    "--prompt-active-text-color",
+    overlayCore.deriveActiveTextColor(settings.text.textColor, settings.overlayAppearance.backgroundColor)
+  );
   document.documentElement.style.setProperty("--prompt-line-height", String(settings.text.lineHeight));
   document.documentElement.style.setProperty("--prompt-text-align", settings.text.alignment);
 

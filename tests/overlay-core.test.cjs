@@ -3,12 +3,21 @@ const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
   calculateSynchronizedTimerTotalSeconds,
+  deriveActiveTextColor,
+  getContrastRatio,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
   getSynchronizedTimerSeconds,
   preserveScrollProgress
 } = require("../dist/shared/overlayCore.js");
+
+const appearancePresets = [
+  { textColor: "#f9fafb", backgroundColor: "#111827" },
+  { textColor: "#ffffff", backgroundColor: "#000000" },
+  { textColor: "#26221b", backgroundColor: "#f4efe2" },
+  { textColor: "#eef4ec", backgroundColor: "#2f4636" }
+];
 
 test("overlay bounds use saved ratios inside the display work area", () => {
   assert.deepEqual(
@@ -79,4 +88,19 @@ test("shortcut eligibility follows the persisted action toggle", () => {
   assert.equal(isShortcutActionEnabled(statuses, "startPause"), false);
   assert.equal(isShortcutActionEnabled(statuses, "restart"), true);
   assert.equal(isShortcutActionEnabled(statuses, "speedUp"), false);
+});
+
+test("appearance presets retain accessible text contrast", () => {
+  for (const preset of appearancePresets) {
+    assert.ok(getContrastRatio(preset.textColor, preset.backgroundColor) >= 4.5);
+  }
+});
+
+test("active text is darker while retaining preset contrast", () => {
+  for (const preset of appearancePresets) {
+    const activeColor = deriveActiveTextColor(preset.textColor, preset.backgroundColor);
+
+    assert.notEqual(activeColor, preset.textColor);
+    assert.ok(getContrastRatio(activeColor, preset.backgroundColor) >= 4.5);
+  }
 });

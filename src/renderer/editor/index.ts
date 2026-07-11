@@ -66,6 +66,7 @@ let previewScrollRaf: number | undefined;
 let previewScrollOffset = 0;
 let previewScrollLastTs = 0;
 let previewScrollPaused = false;
+let selectedAppearancePresetId: string | null | undefined;
 
 const autosaveDelayMs = 600;
 const settingsSaveDelayMs = 200;
@@ -926,6 +927,10 @@ function applyPreviewStyles(values: {
   if (sizeWindow) {
     sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
     sizeWindow.style.setProperty("--preview-scale", String(getPreviewScale()));
+    sizeWindow.style.setProperty(
+      "--prompt-active-text-color",
+      overlayCore.deriveActiveTextColor(values.textColor, values.backgroundColor)
+    );
   }
 
   if (settingsPreview) {
@@ -938,6 +943,10 @@ function applyPreviewStyles(values: {
   if (livePreviewPane) {
     livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
     livePreviewPane.dataset.highlight = values.highlightMode;
+    livePreviewPane.style.setProperty(
+      "--prompt-active-text-color",
+      overlayCore.deriveActiveTextColor(values.textColor, values.backgroundColor)
+    );
   }
 
   for (const text of livePreviewTexts) {
@@ -989,22 +998,7 @@ const appearancePresetList: AppearancePreset[] = [
   { id: "sage", name: "Sage", textColor: "#eef4ec", backgroundColor: "#2f4636", opacity: 0.86 }
 ];
 
-function relativeLuminance(hexColor: string): number {
-  const { red, green, blue } = hexToPreviewRgb(hexColor);
-  const channels = [red, green, blue].map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-function getContrastRatio(hexA: string, hexB: string): number {
-  const lighter = Math.max(relativeLuminance(hexA), relativeLuminance(hexB));
-  const darker = Math.min(relativeLuminance(hexA), relativeLuminance(hexB));
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function isPresetActive(preset: AppearancePreset): boolean {
+function matchesPresetPalette(preset: AppearancePreset): boolean {
   return (
     (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
     (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
@@ -1018,11 +1012,17 @@ function updateActivePreset(): void {
   }
 
   const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
-  const anyActive = appearancePresetList.some(isPresetActive);
+  if (selectedAppearancePresetId === undefined) {
+    selectedAppearancePresetId = appearancePresetList.find(matchesPresetPalette)?.id ?? null;
+  }
+
+  const anyActive = selectedAppearancePresetId !== null;
 
   cards.forEach((card, index) => {
     const preset = appearancePresetList.find((entry) => entry.id === card.dataset.preset);
-    const active = preset ? isPresetActive(preset) : false;
+    const active = Boolean(
+      preset && preset.id === selectedAppearancePresetId && matchesPresetPalette(preset)
+    );
     card.setAttribute("aria-checked", active ? "true" : "false");
     // Keep one card keyboard-reachable: the active one, or the first when on custom colours.
     card.tabIndex = active || (!anyActive && index === 0) ? 0 : -1;
@@ -1036,10 +1036,11 @@ function updateContrastHint(): void {
 
   const textColor = textColorInput?.value ?? "#ffffff";
   const backgroundColor = backgroundColorInput?.value ?? "#000000";
-  contrastHint.hidden = getContrastRatio(textColor, backgroundColor) >= 3;
+  contrastHint.hidden = overlayCore.getContrastRatio(textColor, backgroundColor) >= 3;
 }
 
 function applyAppearancePreset(preset: AppearancePreset): void {
+  selectedAppearancePresetId = preset.id;
   if (textColorInput) {
     textColorInput.value = preset.textColor;
   }
@@ -1933,6 +1934,15 @@ startTeleprompterButton?.addEventListener("click", () => {
   });
 });
 
+const appearanceCustomizationControls = new Set<EventTarget | null>([
+  fontSizeInput,
+  lineHeightInput,
+  textColorInput,
+  alignmentSelect,
+  opacityInput,
+  backgroundColorInput
+]);
+
 for (const control of [
   fontSizeInput,
   lineHeightInput,
@@ -1947,6 +1957,10 @@ for (const control of [
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
+    if (appearanceCustomizationControls.has(control)) {
+      selectedAppearancePresetId = null;
+    }
+
     renderSettingsPreviewFromControls();
     renderControlReadouts();
     updateActivePreset();
@@ -1956,6 +1970,10 @@ for (const control of [
   });
 
   control?.addEventListener("change", () => {
+    if (appearanceCustomizationControls.has(control)) {
+      selectedAppearancePresetId = null;
+    }
+
     renderSettingsPreviewFromControls();
     renderControlReadouts();
     updateActivePreset();
@@ -1977,6 +1995,7 @@ resetSettingsButton?.addEventListener("click", () => {
   void runEditorAction("Reset settings", async () => {
     const api = requireTeleprompterApi();
     const settings = await api.resetSettings();
+    selectedAppearancePresetId = undefined;
     renderSettings(settings);
     const statuses = await api.resetShortcuts();
     renderShortcuts(statuses);

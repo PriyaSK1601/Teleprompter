@@ -11,6 +11,7 @@
   --prompt-line-height: 1.5;
   --prompt-text-align: center;
   --prompt-text-color: #f8fafc;
+  --prompt-active-text-color: #c2c3c5;
   --ed-cream: #f5f4ed;
   --ed-surface: #ffffff;
   --ed-accent: #afc8ad;
@@ -662,13 +663,13 @@ h3 {
 }
 
 .live-preview-track.is-focus-tracking .lp-word.is-active {
+  color: var(--prompt-active-text-color);
   opacity: 1;
 }
 
 .live-preview-pane[data-highlight="word"] .lp-word.is-active {
-  background: rgb(255 255 255 / 0.14);
-  /* Spread shadow (no blur) gives the pill some breathing room without taking layout space, so words never reflow. */
-  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.14);
+  background: transparent;
+  box-shadow: none;
 }
 
 .live-preview-text {
@@ -1887,7 +1888,7 @@ h3 {
 
 .prompt-line {
   color: var(--prompt-text-color);
-  font-size: clamp(20px, 2.6vw, 34px);
+  font-size: var(--prompt-font-size);
   font-weight: 700;
   line-height: 1.2;
   margin: 0 auto clamp(12px, 2.6vh, 24px);
@@ -1913,12 +1914,12 @@ h3 {
 }
 
 .prompt-line.active {
-  color: #ffffff;
+  color: var(--prompt-active-text-color);
   font-weight: 700;
   line-height: 1.2;
   opacity: 1;
   overflow-wrap: anywhere;
-  text-shadow: 0 0 18px rgb(255 255 255 / 0.24);
+  text-shadow: none;
 }
 
 .prompt-line [data-highlight-kind="word"] {
@@ -1949,12 +1950,10 @@ h3 {
 .prompt-text.word-focus-mode .prompt-focus-active {
   background: transparent;
   box-shadow: none;
-  color: #ffffff;
+  color: var(--prompt-active-text-color);
   opacity: 1;
   padding: 0;
-  text-shadow:
-    0 0 24px rgb(255 255 255 / 0.38),
-    0 0 18px rgb(var(--overlay-accent-rgb) / 0.24);
+  text-shadow: none;
   z-index: 2;
 }
 
