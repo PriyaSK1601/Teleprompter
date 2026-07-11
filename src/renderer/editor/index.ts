@@ -1265,8 +1265,8 @@ function updatePreviewWordHighlight(words: HTMLElement[]): void {
 
   // Sweep the active word left-to-right as the line crosses the band, so it keeps pace with the scroll.
   const span = Math.max(1, activeLine.bottom - activeLine.top);
-  const through = Math.min(0.999, Math.max(0, (bandWithinLoop - activeLine.top) / span));
-  const activeIndex = activeLine.indices[Math.floor(through * activeLine.indices.length)];
+  const through = Math.min(1, Math.max(0, (bandWithinLoop - activeLine.top) / span));
+  const activeIndex = activeLine.indices[overlayCore.getProgressIndex(through, activeLine.indices.length)];
 
   words.forEach((word, index) => {
     word.classList.toggle("is-active", index % wordsPerCopy === activeIndex);

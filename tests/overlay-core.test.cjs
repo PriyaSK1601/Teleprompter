@@ -7,6 +7,7 @@ const {
   deriveActiveTextColor,
   getCenteredLineScrollRange,
   getContrastRatio,
+  getProgressIndex,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
@@ -68,6 +69,15 @@ test("zero-range scripts report completion only after playback starts", () => {
 
 test("resize anchoring preserves proportional progress", () => {
   assert.equal(preserveScrollProgress(250, 0, 1000, 0, 400), 100);
+});
+
+test("word progress includes the first and final indices", () => {
+  assert.equal(getProgressIndex(0, 5), 0);
+  assert.equal(getProgressIndex(0.5, 5), 2);
+  assert.equal(getProgressIndex(1, 5), 4);
+  assert.equal(getProgressIndex(2, 5), 4);
+  assert.equal(getProgressIndex(-1, 5), 0);
+  assert.equal(getProgressIndex(0.5, 0), -1);
 });
 
 test("elapsed and remaining timers stay complementary", () => {

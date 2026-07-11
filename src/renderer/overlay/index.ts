@@ -479,7 +479,7 @@ function getHighlightIndex(elementCount: number): number {
     }
   }
 
-  return Math.min(elementCount - 1, Math.floor(getProgress() * elementCount));
+  return overlayCore.getProgressIndex(getProgress(), elementCount);
 }
 
 function getLineDistanceFromFocus(line: HighlightLineCandidate, focusY: number): number {

@@ -160,6 +160,14 @@ export function calculateScrollProgress(
 
   return clamp((position - minimum) / range, 0, 1);
 }
+
+export function getProgressIndex(progress: number, elementCount: number): number {
+  if (elementCount <= 0) {
+    return -1;
+  }
+
+  return Math.min(elementCount - 1, Math.floor(clamp(progress, 0, 1) * elementCount));
+}
 export function calculateSynchronizedTimerTotalSeconds(
   elapsedMilliseconds: number,
   remainingDistance: number,

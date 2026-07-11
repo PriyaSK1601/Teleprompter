@@ -1943,6 +1943,10 @@ h3 {
   opacity: 0.34;
 }
 
+.prompt-text.word-focus-mode .prompt-line {
+  opacity: 1;
+}
+
 .prompt-text.word-focus-mode .prompt-focus-past {
   opacity: 0.18;
 }
