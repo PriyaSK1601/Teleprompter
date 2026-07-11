@@ -981,23 +981,6 @@ h3 {
   pointer-events: none;
 }
 
-/* Keep a stable width so the label can swap without the button resizing. */
-#resetSettingsButton {
-  min-width: 11rem;
-}
-
-.secondary-button.is-arming {
-  background: #c2554f;
-  border-color: #c2554f;
-  color: #ffffff;
-  box-shadow: 0 10px 22px rgb(194 85 79 / 0.3);
-}
-
-.secondary-button.is-arming:hover {
-  background: #b4453e;
-  border-color: #b4453e;
-}
-
 .shortcut-list {
   display: grid;
   gap: 6px;

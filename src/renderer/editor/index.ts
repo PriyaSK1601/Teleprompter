@@ -1735,7 +1735,6 @@ function openSettings(): void {
 
 function closeSettings(): void {
   flushSettingsSave();
-  disarmReset();
   settingsModal?.classList.remove("is-open");
   cancelShortcutCapture();
   stopPreviewCountdown();
@@ -1966,58 +1965,15 @@ for (const control of [
   });
 }
 
-const resetDefaultLabel = "Reset to defaults";
-const resetArmedLabel = "Reset?";
-const resetArmDurationMs = 4000;
-let resetArmTimer: number | undefined;
-
-function handleResetOutsideClick(event: Event): void {
-  if (event.target instanceof Node && resetSettingsButton?.contains(event.target)) {
-    return;
-  }
-
-  disarmReset();
-}
-
-function disarmReset(): void {
-  if (resetArmTimer !== undefined) {
-    window.clearTimeout(resetArmTimer);
-    resetArmTimer = undefined;
-  }
-
-  document.removeEventListener("pointerdown", handleResetOutsideClick, true);
-
-  if (resetSettingsButton) {
-    resetSettingsButton.classList.remove("is-arming");
-    resetSettingsButton.textContent = resetDefaultLabel;
-  }
-}
-
-function armReset(): void {
-  if (!resetSettingsButton) {
-    return;
-  }
-
-  resetSettingsButton.classList.add("is-arming");
-  resetSettingsButton.textContent = resetArmedLabel;
-
-  if (resetArmTimer !== undefined) {
-    window.clearTimeout(resetArmTimer);
-  }
-
-  // Auto-disarm so the button never lingers in its red confirm state.
-  resetArmTimer = window.setTimeout(disarmReset, resetArmDurationMs);
-  // Clicking anywhere outside the button cancels the pending reset.
-  document.addEventListener("pointerdown", handleResetOutsideClick, true);
-}
-
 resetSettingsButton?.addEventListener("click", () => {
-  if (!resetSettingsButton.classList.contains("is-arming")) {
-    armReset();
+  const confirmed = window.confirm(
+    "Reset all settings and keyboard shortcuts to defaults? This can’t be undone."
+  );
+
+  if (!confirmed) {
     return;
   }
 
-  disarmReset();
   void runEditorAction("Reset settings", async () => {
     const api = requireTeleprompterApi();
     const settings = await api.resetSettings();
