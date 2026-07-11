@@ -122,6 +122,18 @@ export function getCenteredLineScrollPosition(lineTop: number, lineHeight: numbe
   return lineTop + lineHeight / 2 - viewportHeight / 2;
 }
 
+export function getCenteredLineScrollRange(
+  firstLineTop: number,
+  firstLineHeight: number,
+  finalLineTop: number,
+  finalLineHeight: number,
+  viewportHeight: number
+): { min: number; max: number } {
+  const min = getCenteredLineScrollPosition(firstLineTop, firstLineHeight, viewportHeight);
+  const final = getCenteredLineScrollPosition(finalLineTop, finalLineHeight, viewportHeight);
+  return { min, max: Math.max(min, final) };
+}
+
 export function preserveScrollProgress(
   previousPosition: number,
   previousMin: number,
@@ -134,6 +146,20 @@ export function preserveScrollProgress(
   return nextMin + progress * Math.max(0, nextMax - nextMin);
 }
 
+export function calculateScrollProgress(
+  position: number,
+  minimum: number,
+  maximum: number,
+  playbackStarted: boolean
+): number {
+  const range = maximum - minimum;
+
+  if (range <= 0) {
+    return playbackStarted ? 1 : 0;
+  }
+
+  return clamp((position - minimum) / range, 0, 1);
+}
 export function calculateSynchronizedTimerTotalSeconds(
   elapsedMilliseconds: number,
   remainingDistance: number,

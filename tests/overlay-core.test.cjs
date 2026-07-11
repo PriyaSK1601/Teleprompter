@@ -2,8 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
+  calculateScrollProgress,
   calculateSynchronizedTimerTotalSeconds,
   deriveActiveTextColor,
+  getCenteredLineScrollRange,
   getContrastRatio,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
@@ -43,6 +45,25 @@ test("overlay bounds clamp minimum size and off-screen placement", () => {
 
 test("the active script line is centered in the prompt viewport", () => {
   assert.equal(getCenteredLineScrollPosition(20, 40, 400), -160);
+});
+
+test("scroll range ends with the final measured line centered", () => {
+  assert.deepEqual(getCenteredLineScrollRange(20, 40, 980, 60, 400), {
+    min: -160,
+    max: 810
+  });
+});
+
+test("short scripts keep a stable centered endpoint", () => {
+  assert.deepEqual(getCenteredLineScrollRange(20, 40, 20, 40, 400), {
+    min: -160,
+    max: -160
+  });
+});
+
+test("zero-range scripts report completion only after playback starts", () => {
+  assert.equal(calculateScrollProgress(-160, -160, -160, false), 0);
+  assert.equal(calculateScrollProgress(-160, -160, -160, true), 1);
 });
 
 test("resize anchoring preserves proportional progress", () => {

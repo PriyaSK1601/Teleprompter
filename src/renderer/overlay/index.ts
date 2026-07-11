@@ -205,25 +205,25 @@ function setState(nextState: ScrollState): void {
   updateControls();
 }
 
-function getNaturalPromptScrollTop(): number {
-  if (!promptViewport) {
-    return 0;
+function getPromptScrollRange(): { min: number; max: number } {
+  const firstLine = scriptSentences[0]?.element;
+
+  if (!firstLine || !promptViewport) {
+    return { min: 0, max: 0 };
   }
 
-  return Math.max(0, promptViewport.scrollHeight - promptViewport.clientHeight);
-}
-
-function getLineCenteredScrollTop(lineElement: HTMLElement): number {
-  return overlayCore.getCenteredLineScrollPosition(
-    lineElement.offsetTop,
-    lineElement.offsetHeight,
-    promptViewport ? promptViewport.clientHeight : 0
+  const finalLine = scriptSentences[scriptSentences.length - 1]?.element ?? firstLine;
+  return overlayCore.getCenteredLineScrollRange(
+    firstLine.offsetTop,
+    firstLine.offsetHeight,
+    finalLine.offsetTop,
+    finalLine.offsetHeight,
+    promptViewport.clientHeight
   );
 }
 
 function getMinPromptScrollTop(): number {
-  const firstLine = scriptSentences[0]?.element;
-  return firstLine ? getLineCenteredScrollTop(firstLine) : 0;
+  return getPromptScrollRange().min;
 }
 
 function getViewportReadingFocusOffset(): number {
@@ -234,75 +234,8 @@ function getViewportReadingFocusOffset(): number {
   return promptViewport.clientHeight * 0.5;
 }
 
-function getContentLineCandidates(): HighlightLineCandidate[] {
-  if (!promptViewport || scriptWordElements.length === 0) {
-    return [];
-  }
-
-  const viewportRect = promptViewport.getBoundingClientRect();
-  const currentScrollPosition = Math.max(0, scrollPositionY);
-  const lineMergeTolerance = 2;
-  const lines: HighlightLineCandidate[] = [];
-  let currentLine: HighlightLineCandidate | null = null;
-
-  for (let index = 0; index < scriptWordElements.length; index += 1) {
-    const word = scriptWordElements[index];
-    const rect = word.getBoundingClientRect();
-
-    if (rect.height <= 0 || rect.width <= 0) {
-      continue;
-    }
-
-    const top = rect.top - viewportRect.top + currentScrollPosition;
-    const bottom = rect.bottom - viewportRect.top + currentScrollPosition;
-
-    if (!currentLine || Math.abs(top - currentLine.top) > lineMergeTolerance) {
-      if (currentLine) {
-        lines.push(currentLine);
-      }
-
-      currentLine = {
-        start: index,
-        end: index,
-        top,
-        bottom
-      };
-      continue;
-    }
-
-    currentLine.end = index;
-    currentLine.top = Math.min(currentLine.top, top);
-    currentLine.bottom = Math.max(currentLine.bottom, bottom);
-  }
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-}
-
-function getFinalHighlightScrollTop(): number {
-  const finalSentence = scriptSentences[scriptSentences.length - 1];
-
-  if (finalSentence) {
-    return getLineCenteredScrollTop(finalSentence.element);
-  }
-
-  const lines = getContentLineCandidates();
-  const finalLine = lines[lines.length - 1];
-
-  if (!finalLine) {
-    return 0;
-  }
-
-  const finalLineCenter = finalLine.top + (finalLine.bottom - finalLine.top) / 2;
-  return Math.max(0, finalLineCenter - getViewportReadingFocusOffset());
-}
-
 function getMaxPromptScrollTop(): number {
-  const minScrollTop = getMinPromptScrollTop();
-  return Math.max(minScrollTop, getFinalHighlightScrollTop());
+  return getPromptScrollRange().max;
 }
 
 function getPromptScrollPosition(): number {
@@ -364,8 +297,13 @@ function getProgress(): number {
 
   const minScrollTop = getMinPromptScrollTop();
   const maxScrollTop = getMaxPromptScrollTop();
-  const scrollRange = Math.max(1, maxScrollTop - minScrollTop);
-  return Math.min(1, Math.max(0, (getPromptScrollPosition() - minScrollTop) / scrollRange));
+  const playbackStarted = state !== "idle" && state !== "countdown";
+  return overlayCore.calculateScrollProgress(
+    getPromptScrollPosition(),
+    minScrollTop,
+    maxScrollTop,
+    playbackStarted
+  );
 }
 
 function updateProgress(): void {
@@ -1045,17 +983,9 @@ function scrollFrame(timestamp: number): void {
     setPromptScrollPosition(maxScrollTop);
     updateProgress();
     updateHighlight();
-    updateActiveSentenceHighlight();
-    const finalLineIndex = scriptSentences.length - 1;
-    const finalLineIsActive = finalLineIndex < 0 || activeSentenceIndex === finalLineIndex;
+    endHoldElapsedMilliseconds += deltaSeconds * 1000;
 
-    if (finalLineIsActive) {
-      endHoldElapsedMilliseconds += deltaSeconds * 1000;
-    } else {
-      endHoldElapsedMilliseconds = 0;
-    }
-
-    if (finalLineIsActive && endHoldElapsedMilliseconds >= getFinalLineHoldDurationMilliseconds()) {
+    if (endHoldElapsedMilliseconds >= getFinalLineHoldDurationMilliseconds()) {
       stopVoiceTracking();
       setState("completed");
       animationFrameId = null;
