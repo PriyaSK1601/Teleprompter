@@ -4,6 +4,8 @@
   --overlay-accent-rgb: 180 198 174;
   --overlay-control-size: 36px;
   --overlay-control-icon-size: 19px;
+  --overlay-primary-control-size: 48.6px;
+  --overlay-primary-icon-size: 25.65px;
   --overlay-footer-gap: clamp(8px, 1.4vw, 16px);
   --prompt-font-size: 32px;
   --prompt-line-height: 1.5;
@@ -1743,10 +1745,10 @@ h3 {
 }
 
 #playPauseButton {
-  height: calc(var(--overlay-control-size) + 14px);
-  min-height: calc(var(--overlay-control-size) + 14px);
-  min-width: calc(var(--overlay-control-size) + 14px);
-  width: calc(var(--overlay-control-size) + 14px);
+  height: var(--overlay-primary-control-size);
+  min-height: var(--overlay-primary-control-size);
+  min-width: var(--overlay-primary-control-size);
+  width: var(--overlay-primary-control-size);
 }
 
 .overlay-control.is-active {
@@ -1759,15 +1761,17 @@ h3 {
 
 .overlay-play-pause-icons {
   display: block;
-  height: 18px;
+  height: var(--overlay-primary-icon-size);
   pointer-events: none;
   position: relative;
-  width: 18px;
+  width: var(--overlay-primary-icon-size);
 }
 
 .overlay-play-pause-icons .overlay-control-icon {
+  height: 100%;
   inset: 0;
   position: absolute;
+  width: 100%;
 }
 
 .overlay-play-icon {
@@ -2160,6 +2164,8 @@ h3 {
   :root {
     --overlay-control-size: clamp(36px, 7vw, 42px);
     --overlay-control-icon-size: clamp(15px, 3.2vw, 18px);
+    --overlay-primary-control-size: clamp(48.6px, 9.45vw, 56.7px);
+    --overlay-primary-icon-size: clamp(20.25px, 4.32vw, 24.3px);
     --overlay-footer-gap: clamp(6px, 1.3vw, 10px);
   }
 
@@ -2181,6 +2187,8 @@ h3 {
   :root {
     --overlay-control-size: clamp(34px, 8.5vw, 38px);
     --overlay-control-icon-size: clamp(14px, 4vw, 16px);
+    --overlay-primary-control-size: clamp(45.9px, 11.475vw, 51.3px);
+    --overlay-primary-icon-size: clamp(18.9px, 5.4vw, 21.6px);
     --overlay-footer-gap: 6px;
   }
 
