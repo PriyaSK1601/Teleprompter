@@ -1,4 +1,4 @@
-import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import {
   ipcChannels,
   type AppPingResponse,
@@ -211,6 +211,16 @@ export function registerIpcHandlers(): void {
     const settings = resetAppSettings();
     broadcastSettingsChanged(settings);
     return settings;
+  });
+
+  registerLoggedHandler(ipcChannels.authOpenExternalUrl, async (_event, url: string) => {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.protocol !== "https:") {
+      throw new Error("Only HTTPS authentication URLs can be opened.");
+    }
+
+    await shell.openExternal(parsedUrl.toString());
   });
 
   registerLoggedHandler(ipcChannels.recoveryReset, async () => {

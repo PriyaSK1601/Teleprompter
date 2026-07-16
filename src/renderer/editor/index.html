@@ -6,8 +6,147 @@
     <title>Teleprompter</title>
     <link rel="stylesheet" href="../shared.css" />
   </head>
-  <body>
+  <body class="auth-loading">
     <div class="window-titlebar"></div>
+    <section id="authShell" class="auth-shell" aria-live="polite">
+      <div class="auth-brand">
+        <div class="auth-logo" aria-hidden="true">T</div>
+        <div>
+          <p class="eyebrow">Teleprompter</p>
+          <h1>Read naturally on every call.</h1>
+        </div>
+      </div>
+
+      <div id="authLoadingCard" class="auth-card auth-state-card">
+        <div class="auth-spinner" aria-hidden="true"></div>
+        <h2>Checking your session</h2>
+        <p>Loading your workspace securely.</p>
+      </div>
+
+      <div id="authConfigCard" class="auth-card auth-state-card is-hidden">
+        <h2>Supabase needs configuration</h2>
+        <p id="authConfigMessage">Add Supabase environment variables to continue.</p>
+      </div>
+
+      <form id="loginForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Welcome back</p>
+          <h2>Sign in</h2>
+          <p>Access your scripts and teleprompter settings.</p>
+        </div>
+        <label class="auth-field" for="loginEmailInput">
+          <span>Email</span>
+          <input id="loginEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <label class="auth-field" for="loginPasswordInput">
+          <span>Password</span>
+          <span class="password-field">
+            <input id="loginPasswordInput" class="text-input" type="password" autocomplete="current-password" required />
+            <button id="loginPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="auth-row">
+          <label class="auth-checkbox">
+            <input id="rememberMeInput" type="checkbox" checked />
+            <span>Remember me</span>
+          </label>
+          <button id="showForgotPasswordButton" class="link-button" type="button">Forgot password?</button>
+        </div>
+        <p id="loginError" class="auth-error" role="alert"></p>
+        <button id="loginSubmitButton" class="primary-button auth-submit" type="submit">Sign In</button>
+        <button id="googleLoginButton" class="secondary-button auth-submit" type="button">Continue with Google</button>
+        <p class="auth-switch">New here? <button id="showSignupButton" class="link-button" type="button">Create an account</button></p>
+      </form>
+
+      <form id="signupForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Create account</p>
+          <h2>Start prompting</h2>
+          <p>Use a secure account for future sync-ready workflows.</p>
+        </div>
+        <label class="auth-field" for="signupNameInput">
+          <span>Full name</span>
+          <input id="signupNameInput" class="text-input" type="text" autocomplete="name" required />
+        </label>
+        <label class="auth-field" for="signupEmailInput">
+          <span>Email</span>
+          <input id="signupEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <label class="auth-field" for="signupPasswordInput">
+          <span>Password</span>
+          <span class="password-field">
+            <input id="signupPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="signupPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="password-strength" aria-live="polite">
+          <span id="signupPasswordStrengthBar"></span>
+          <small id="signupPasswordStrengthText">Use 8+ characters with a mix of letters and numbers.</small>
+        </div>
+        <label class="auth-field" for="signupConfirmPasswordInput">
+          <span>Confirm password</span>
+          <span class="password-field">
+            <input id="signupConfirmPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="signupConfirmPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <p id="signupError" class="auth-error" role="alert"></p>
+        <button id="signupSubmitButton" class="primary-button auth-submit" type="submit">Create Account</button>
+        <button id="googleSignupButton" class="secondary-button auth-submit" type="button">Continue with Google</button>
+        <p class="auth-switch">Already have an account? <button id="showLoginFromSignupButton" class="link-button" type="button">Sign in</button></p>
+      </form>
+
+      <form id="forgotPasswordForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Password reset</p>
+          <h2>Send reset link</h2>
+          <p>Enter your email and we’ll send a secure reset link if an account exists.</p>
+        </div>
+        <label class="auth-field" for="forgotEmailInput">
+          <span>Email</span>
+          <input id="forgotEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <p id="forgotPasswordMessage" class="auth-message" role="status"></p>
+        <p id="forgotPasswordError" class="auth-error" role="alert"></p>
+        <button id="forgotPasswordSubmitButton" class="primary-button auth-submit" type="submit">Send Reset Link</button>
+        <button id="showLoginFromForgotButton" class="link-button auth-back" type="button">Back to sign in</button>
+      </form>
+
+      <form id="resetPasswordForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Recovery</p>
+          <h2>Create new password</h2>
+          <p>Choose a strong password to finish account recovery.</p>
+        </div>
+        <label class="auth-field" for="resetPasswordInput">
+          <span>New password</span>
+          <span class="password-field">
+            <input id="resetPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="resetPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="password-strength" aria-live="polite">
+          <span id="resetPasswordStrengthBar"></span>
+          <small id="resetPasswordStrengthText">Use 8+ characters with a mix of letters and numbers.</small>
+        </div>
+        <label class="auth-field" for="resetConfirmPasswordInput">
+          <span>Confirm password</span>
+          <span class="password-field">
+            <input id="resetConfirmPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="resetConfirmPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <p id="resetPasswordError" class="auth-error" role="alert"></p>
+        <button id="resetPasswordSubmitButton" class="primary-button auth-submit" type="submit">Update Password</button>
+      </form>
+
+      <div id="checkEmailCard" class="auth-card auth-state-card is-hidden">
+        <h2>Check your email</h2>
+        <p>Confirm your account from the link we sent, then return to Teleprompter.</p>
+        <button id="showLoginFromCheckEmailButton" class="primary-button auth-submit" type="button">Back to Sign In</button>
+      </div>
+    </section>
+
     <main class="editor-app">
       <aside class="scripts-sidebar">
         <div class="sidebar-header">
@@ -351,6 +490,7 @@
 
         <section class="settings-section settings-footer">
           <div class="settings-actions">
+            <button id="logoutButton" class="secondary-button" type="button">Log out</button>
             <button id="resetSettingsButton" class="secondary-button" type="button">Reset to defaults</button>
           </div>
         </section>

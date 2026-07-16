@@ -58,5 +58,8 @@
     "electron": "^31.2.1",
     "electron-builder": "^24.13.3",
     "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.6"
   }
 }

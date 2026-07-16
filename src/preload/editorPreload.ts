@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { teleprompterAuthApi } from "./auth";
 import {
   ipcChannels,
   type ScriptChangedEvent,
@@ -78,3 +79,4 @@ const teleprompterApi: TeleprompterApi = {
 };
 
 contextBridge.exposeInMainWorld("teleprompter", teleprompterApi);
+contextBridge.exposeInMainWorld("teleprompterAuth", teleprompterAuthApi);

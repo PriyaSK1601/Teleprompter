@@ -29,6 +29,8 @@ export const ipcChannels = {
   settingsUpdate: "settings:update",
   settingsReset: "settings:reset",
   settingsChangedEvent: "settings:changed",
+  authOpenExternalUrl: "auth:openExternalUrl",
+  authCallbackEvent: "auth:callback",
   recoveryReset: "recovery:reset",
   storageGetInfo: "storage:getInfo"
 } as const;

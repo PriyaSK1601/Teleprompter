@@ -1,4 +1,48 @@
 const statusElement = document.querySelector<HTMLElement>("#status");
+const authShell = document.querySelector<HTMLElement>("#authShell");
+const authLoadingCard = document.querySelector<HTMLElement>("#authLoadingCard");
+const authConfigCard = document.querySelector<HTMLElement>("#authConfigCard");
+const authConfigMessage = document.querySelector<HTMLElement>("#authConfigMessage");
+const loginForm = document.querySelector<HTMLFormElement>("#loginForm");
+const loginEmailInput = document.querySelector<HTMLInputElement>("#loginEmailInput");
+const loginPasswordInput = document.querySelector<HTMLInputElement>("#loginPasswordInput");
+const loginPasswordToggle = document.querySelector<HTMLButtonElement>("#loginPasswordToggle");
+const rememberMeInput = document.querySelector<HTMLInputElement>("#rememberMeInput");
+const loginError = document.querySelector<HTMLElement>("#loginError");
+const loginSubmitButton = document.querySelector<HTMLButtonElement>("#loginSubmitButton");
+const googleLoginButton = document.querySelector<HTMLButtonElement>("#googleLoginButton");
+const showForgotPasswordButton = document.querySelector<HTMLButtonElement>("#showForgotPasswordButton");
+const showSignupButton = document.querySelector<HTMLButtonElement>("#showSignupButton");
+const signupForm = document.querySelector<HTMLFormElement>("#signupForm");
+const signupNameInput = document.querySelector<HTMLInputElement>("#signupNameInput");
+const signupEmailInput = document.querySelector<HTMLInputElement>("#signupEmailInput");
+const signupPasswordInput = document.querySelector<HTMLInputElement>("#signupPasswordInput");
+const signupPasswordToggle = document.querySelector<HTMLButtonElement>("#signupPasswordToggle");
+const signupConfirmPasswordInput = document.querySelector<HTMLInputElement>("#signupConfirmPasswordInput");
+const signupConfirmPasswordToggle = document.querySelector<HTMLButtonElement>("#signupConfirmPasswordToggle");
+const signupPasswordStrengthBar = document.querySelector<HTMLElement>("#signupPasswordStrengthBar");
+const signupPasswordStrengthText = document.querySelector<HTMLElement>("#signupPasswordStrengthText");
+const signupError = document.querySelector<HTMLElement>("#signupError");
+const signupSubmitButton = document.querySelector<HTMLButtonElement>("#signupSubmitButton");
+const googleSignupButton = document.querySelector<HTMLButtonElement>("#googleSignupButton");
+const showLoginFromSignupButton = document.querySelector<HTMLButtonElement>("#showLoginFromSignupButton");
+const forgotPasswordForm = document.querySelector<HTMLFormElement>("#forgotPasswordForm");
+const forgotEmailInput = document.querySelector<HTMLInputElement>("#forgotEmailInput");
+const forgotPasswordMessage = document.querySelector<HTMLElement>("#forgotPasswordMessage");
+const forgotPasswordError = document.querySelector<HTMLElement>("#forgotPasswordError");
+const forgotPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#forgotPasswordSubmitButton");
+const showLoginFromForgotButton = document.querySelector<HTMLButtonElement>("#showLoginFromForgotButton");
+const resetPasswordForm = document.querySelector<HTMLFormElement>("#resetPasswordForm");
+const resetPasswordInput = document.querySelector<HTMLInputElement>("#resetPasswordInput");
+const resetPasswordToggle = document.querySelector<HTMLButtonElement>("#resetPasswordToggle");
+const resetConfirmPasswordInput = document.querySelector<HTMLInputElement>("#resetConfirmPasswordInput");
+const resetConfirmPasswordToggle = document.querySelector<HTMLButtonElement>("#resetConfirmPasswordToggle");
+const resetPasswordStrengthBar = document.querySelector<HTMLElement>("#resetPasswordStrengthBar");
+const resetPasswordStrengthText = document.querySelector<HTMLElement>("#resetPasswordStrengthText");
+const resetPasswordError = document.querySelector<HTMLElement>("#resetPasswordError");
+const resetPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#resetPasswordSubmitButton");
+const checkEmailCard = document.querySelector<HTMLElement>("#checkEmailCard");
+const showLoginFromCheckEmailButton = document.querySelector<HTMLButtonElement>("#showLoginFromCheckEmailButton");
 const editorApp = document.querySelector<HTMLElement>(".editor-app");
 const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
@@ -29,6 +73,7 @@ const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const logoutButton = document.querySelector<HTMLButtonElement>("#logoutButton");
 const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
@@ -87,6 +132,10 @@ let previewScrollPaused = false;
 
 const autosaveDelayMs = 600;
 const settingsSaveDelayMs = 200;
+type AuthView = "loading" | "login" | "signup" | "forgot" | "reset" | "checkEmail" | "config";
+
+let authInitialized = false;
+let authSubmitting = false;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -162,6 +211,354 @@ function requireTeleprompterApi(): TeleprompterApi {
   }
 
   return api;
+}
+
+function getAuthApi(): TeleprompterAuthApi | undefined {
+  return window.teleprompterAuth;
+}
+
+function requireAuthApi(): TeleprompterAuthApi {
+  const api = getAuthApi();
+
+  if (!api) {
+    throw new Error("Authentication bridge unavailable. Start the desktop app with npm run dev.");
+  }
+
+  return api;
+}
+
+function getAuthForms(): HTMLElement[] {
+  return [
+    authLoadingCard,
+    authConfigCard,
+    loginForm,
+    signupForm,
+    forgotPasswordForm,
+    resetPasswordForm,
+    checkEmailCard
+  ].filter((element): element is HTMLElement => Boolean(element));
+}
+
+function setAuthView(view: AuthView): void {
+  const viewMap = new Map<AuthView, HTMLElement | null>([
+    ["loading", authLoadingCard],
+    ["config", authConfigCard],
+    ["login", loginForm],
+    ["signup", signupForm],
+    ["forgot", forgotPasswordForm],
+    ["reset", resetPasswordForm],
+    ["checkEmail", checkEmailCard]
+  ]);
+
+  for (const form of getAuthForms()) {
+    form.classList.add("is-hidden");
+  }
+
+  viewMap.get(view)?.classList.remove("is-hidden");
+  document.body.classList.toggle("auth-loading", view === "loading");
+  document.body.classList.toggle("auth-required", view !== "loading");
+  document.body.classList.remove("auth-ready");
+
+  if (view === "login") {
+    window.setTimeout(() => loginEmailInput?.focus(), 0);
+  } else if (view === "signup") {
+    window.setTimeout(() => signupNameInput?.focus(), 0);
+  } else if (view === "forgot") {
+    window.setTimeout(() => forgotEmailInput?.focus(), 0);
+  } else if (view === "reset") {
+    window.setTimeout(() => resetPasswordInput?.focus(), 0);
+  }
+}
+
+function showAuthenticatedApp(): void {
+  document.body.classList.remove("auth-loading", "auth-required");
+  document.body.classList.add("auth-ready");
+}
+
+function setAuthError(element: HTMLElement | null, message = ""): void {
+  if (element) {
+    element.textContent = message;
+  }
+}
+
+function setAuthLoading(loading: boolean): void {
+  authSubmitting = loading;
+
+  for (const button of [
+    loginSubmitButton,
+    googleLoginButton,
+    signupSubmitButton,
+    googleSignupButton,
+    forgotPasswordSubmitButton,
+    resetPasswordSubmitButton
+  ]) {
+    if (button) {
+      button.disabled = loading;
+    }
+  }
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function getPasswordScore(password: string): number {
+  let score = 0;
+
+  if (password.length >= 8) {
+    score += 1;
+  }
+
+  if (/[a-z]/i.test(password) && /\d/.test(password)) {
+    score += 1;
+  }
+
+  if (/[^a-z0-9]/i.test(password)) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function getPasswordValidationMessage(password: string): string {
+  if (password.length < 8) {
+    return "Password must be at least 8 characters.";
+  }
+
+  if (!/[a-z]/i.test(password) || !/\d/.test(password)) {
+    return "Use at least one letter and one number.";
+  }
+
+  return "";
+}
+
+function renderPasswordStrength(
+  password: string,
+  bar: HTMLElement | null,
+  label: HTMLElement | null
+): void {
+  const score = getPasswordScore(password);
+  const strength = password ? score : 0;
+  const labels = ["Use 8+ characters with a mix of letters and numbers.", "Weak", "Good", "Strong"];
+
+  if (bar) {
+    bar.style.width = `${Math.max(8, strength * 33.33)}%`;
+    bar.dataset.strength = String(strength);
+  }
+
+  if (label) {
+    label.textContent = labels[strength] ?? labels[0];
+  }
+}
+
+function togglePasswordVisibility(input: HTMLInputElement | null, button: HTMLButtonElement | null): void {
+  if (!input || !button) {
+    return;
+  }
+
+  const shouldShow = input.type === "password";
+  input.type = shouldShow ? "text" : "password";
+  button.textContent = shouldShow ? "Hide" : "Show";
+  button.setAttribute("aria-label", shouldShow ? "Hide password" : "Show password");
+}
+
+async function runAuthAction(action: () => Promise<void>): Promise<void> {
+  if (authSubmitting) {
+    return;
+  }
+
+  try {
+    setAuthLoading(true);
+    await action();
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+function applyAuthState(state: AuthState): void {
+  if (!state.config.configured) {
+    if (authConfigMessage) {
+      authConfigMessage.textContent = state.config.message ?? "Supabase configuration is missing.";
+    }
+
+    setAuthView("config");
+    return;
+  }
+
+  if (state.user) {
+    showAuthenticatedApp();
+
+    if (!authInitialized) {
+      authInitialized = true;
+      void runEditorAction("Load local scripts", loadScriptsState);
+      void runEditorAction("Load settings", loadSettings);
+      void runEditorAction("Load shortcuts", loadShortcuts);
+    }
+
+    return;
+  }
+
+  setAuthView("login");
+}
+
+async function initializeAuth(): Promise<void> {
+  const api = getAuthApi();
+
+  if (!api) {
+    if (authConfigMessage) {
+      authConfigMessage.textContent = "Authentication bridge unavailable. Start the desktop app with npm run dev.";
+    }
+
+    setAuthView("config");
+    return;
+  }
+
+  api.onAuthEvent((event: AuthEvent) => {
+    if (event.type === "recovery") {
+      setAuthView("reset");
+      return;
+    }
+
+    if (event.type === "error") {
+      setAuthError(loginError, event.message);
+      setAuthView("login");
+      return;
+    }
+
+    applyAuthState(event.state);
+  });
+
+  const state = await api.getState();
+  applyAuthState(state);
+}
+
+async function submitLogin(): Promise<void> {
+  const email = loginEmailInput?.value.trim() ?? "";
+  const password = loginPasswordInput?.value ?? "";
+
+  setAuthError(loginError);
+
+  if (!email || !password) {
+    setAuthError(loginError, "Enter your email and password.");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    setAuthError(loginError, "Enter a valid email address.");
+    return;
+  }
+
+  const result = await requireAuthApi().signIn({
+    email,
+    password,
+    remember: rememberMeInput?.checked ?? true
+  });
+
+  if (!result.ok) {
+    setAuthError(loginError, result.message ?? "Sign in failed.");
+  }
+}
+
+async function submitSignup(): Promise<void> {
+  const fullName = signupNameInput?.value.trim() ?? "";
+  const email = signupEmailInput?.value.trim() ?? "";
+  const password = signupPasswordInput?.value ?? "";
+  const confirmPassword = signupConfirmPasswordInput?.value ?? "";
+
+  setAuthError(signupError);
+
+  if (!fullName || !email || !password || !confirmPassword) {
+    setAuthError(signupError, "Complete all fields.");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    setAuthError(signupError, "Enter a valid email address.");
+    return;
+  }
+
+  const passwordMessage = getPasswordValidationMessage(password);
+
+  if (passwordMessage) {
+    setAuthError(signupError, passwordMessage);
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setAuthError(signupError, "Passwords do not match.");
+    return;
+  }
+
+  const result = await requireAuthApi().signUp({
+    fullName,
+    email,
+    password,
+    remember: true
+  });
+
+  if (!result.ok) {
+    setAuthError(signupError, result.message ?? "Account creation failed.");
+    return;
+  }
+
+  if (result.needsEmailConfirmation) {
+    setAuthView("checkEmail");
+  }
+}
+
+async function submitForgotPassword(): Promise<void> {
+  const email = forgotEmailInput?.value.trim() ?? "";
+
+  setAuthError(forgotPasswordError);
+
+  if (forgotPasswordMessage) {
+    forgotPasswordMessage.textContent = "";
+  }
+
+  if (!email || !isValidEmail(email)) {
+    setAuthError(forgotPasswordError, "Enter a valid email address.");
+    return;
+  }
+
+  const result = await requireAuthApi().sendPasswordReset(email);
+
+  if (!result.ok) {
+    setAuthError(forgotPasswordError, result.message ?? "Could not send reset link.");
+    return;
+  }
+
+  if (forgotPasswordMessage) {
+    forgotPasswordMessage.textContent = "If an account exists, a reset link has been sent. You can resend after a short wait.";
+  }
+}
+
+async function submitResetPassword(): Promise<void> {
+  const password = resetPasswordInput?.value ?? "";
+  const confirmPassword = resetConfirmPasswordInput?.value ?? "";
+
+  setAuthError(resetPasswordError);
+
+  const passwordMessage = getPasswordValidationMessage(password);
+
+  if (passwordMessage) {
+    setAuthError(resetPasswordError, passwordMessage);
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setAuthError(resetPasswordError, "Passwords do not match.");
+    return;
+  }
+
+  const result = await requireAuthApi().updatePassword(password);
+
+  if (!result.ok) {
+    setAuthError(resetPasswordError, result.message ?? "Password update failed.");
+    return;
+  }
+
+  const state = await requireAuthApi().getState();
+  applyAuthState(state);
 }
 
 function setIpcControlsDisabled(disabled: boolean): void {
@@ -2165,6 +2562,65 @@ toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
 });
 
+loginForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitLogin);
+});
+
+signupForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitSignup);
+});
+
+forgotPasswordForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitForgotPassword);
+});
+
+resetPasswordForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitResetPassword);
+});
+
+googleLoginButton?.addEventListener("click", () => {
+  void runAuthAction(async () => {
+    setAuthError(loginError);
+    const result = await requireAuthApi().signInWithGoogle();
+
+    if (!result.ok) {
+      setAuthError(loginError, result.message ?? "Google sign in failed.");
+    } else if (result.message) {
+      setAuthError(loginError, result.message);
+    }
+  });
+});
+
+googleSignupButton?.addEventListener("click", () => {
+  void runAuthAction(async () => {
+    setAuthError(signupError);
+    const result = await requireAuthApi().signInWithGoogle();
+
+    if (!result.ok) {
+      setAuthError(signupError, result.message ?? "Google sign in failed.");
+    } else if (result.message) {
+      setAuthError(signupError, result.message);
+    }
+  });
+});
+
+showSignupButton?.addEventListener("click", () => setAuthView("signup"));
+showLoginFromSignupButton?.addEventListener("click", () => setAuthView("login"));
+showForgotPasswordButton?.addEventListener("click", () => setAuthView("forgot"));
+showLoginFromForgotButton?.addEventListener("click", () => setAuthView("login"));
+showLoginFromCheckEmailButton?.addEventListener("click", () => setAuthView("login"));
+loginPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(loginPasswordInput, loginPasswordToggle));
+signupPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(signupPasswordInput, signupPasswordToggle));
+signupConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(signupConfirmPasswordInput, signupConfirmPasswordToggle));
+resetPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(resetPasswordInput, resetPasswordToggle));
+resetConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(resetConfirmPasswordInput, resetConfirmPasswordToggle));
+signupPasswordInput?.addEventListener("input", () => renderPasswordStrength(signupPasswordInput.value, signupPasswordStrengthBar, signupPasswordStrengthText));
+resetPasswordInput?.addEventListener("input", () => renderPasswordStrength(resetPasswordInput.value, resetPasswordStrengthBar, resetPasswordStrengthText));
+
 function setupSliderBubble(input: HTMLInputElement | null, format: () => string): void {
   if (!input || !input.parentNode) {
     return;
@@ -2462,8 +2918,19 @@ resetSettingsButton?.addEventListener("click", () => {
   });
 });
 
+logoutButton?.addEventListener("click", () => {
+  void runAuthAction(async () => {
+    const result = await requireAuthApi().signOut();
+
+    if (!result.ok) {
+      setStatus(result.message ?? "Logout failed.");
+      return;
+    }
+
+    setAuthView("login");
+  });
+});
+
 if (initializePreloadApi()) {
-  void runEditorAction("Load local scripts", loadScriptsState);
-  void runEditorAction("Load settings", loadSettings);
-  void runEditorAction("Load shortcuts", loadShortcuts);
+  void initializeAuth();
 }
