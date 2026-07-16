@@ -2,6 +2,10 @@
 
 Windows-first desktop teleprompter app.
 
+## Authentication Setup
+
+Supabase Auth configuration is documented in [docs/SUPABASE_AUTH_SETUP.md](docs/SUPABASE_AUTH_SETUP.md). The app requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local`; do not use a Supabase secret or service-role key in the desktop client.
+
 ## Current Stage
 
 UI/UX refactor: professional teleprompter experience.
