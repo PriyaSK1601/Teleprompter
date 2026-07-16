@@ -9,6 +9,9 @@ export type AuthUser = {
   id: string;
   email?: string;
   fullName?: string;
+  avatarUrl?: string;
+  provider?: string;
+  createdAt?: string;
 };
 
 export type AuthSession = {
@@ -40,6 +43,7 @@ export type AuthActionResult = {
   ok: boolean;
   message?: string;
   needsEmailConfirmation?: boolean;
+  pendingEmail?: string;
 };
 
 export type AuthEvent =
@@ -55,6 +59,9 @@ export type TeleprompterAuthApi = {
   signOut: () => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (password: string) => Promise<AuthActionResult>;
+  updateProfile: (input: { fullName: string }) => Promise<AuthActionResult>;
+  updateEmail: (input: { email: string }) => Promise<AuthActionResult>;
+  updateAvatar: (input: { file: File }) => Promise<AuthActionResult>;
+  removeAvatar: () => Promise<AuthActionResult>;
   onAuthEvent: (callback: (event: AuthEvent) => void) => () => void;
 };
-

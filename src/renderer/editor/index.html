@@ -168,29 +168,65 @@
           <span class="sidebar-action-label">New script</span>
         </button>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
-        <button id="allScriptsButton" class="all-scripts-button active" type="button">
-          <span class="project-list-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></svg>
-          </span>
-          <span class="project-list-name">All Scripts</span>
-          <span id="allScriptsCount" class="project-list-count">0</span>
-        </button>
-        <section class="project-section" aria-label="Script projects">
+        <div class="sidebar-scroll-area">
+          <section class="project-section" aria-label="Script projects">
+            <div class="script-history-toolbar">
+              <span>Projects</span>
+              <button id="newProjectButton" class="sidebar-mini-button" type="button" aria-label="Create project" title="Create project">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
+            <div id="projectList" class="project-list"></div>
+          </section>
           <div class="script-history-toolbar">
-            <span>Projects</span>
-            <button id="newProjectButton" class="sidebar-mini-button" type="button" aria-label="Create project" title="Create project">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14" />
-                <path d="M5 12h14" />
-              </svg>
-            </button>
+            <span id="historyHeading">History</span>
           </div>
-          <div id="projectList" class="project-list"></div>
-        </section>
-        <div class="script-history-toolbar">
-          <span id="historyHeading">History</span>
+          <ul id="scriptList" class="script-list"></ul>
         </div>
-        <ul id="scriptList" class="script-list"></ul>
+        <section class="sidebar-profile" aria-label="Account">
+          <button id="profileButton" class="profile-button" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false">
+            <span class="profile-avatar" aria-hidden="true">
+              <img id="profileAvatarImage" alt="" hidden />
+              <span id="profileAvatarFallback">?</span>
+            </span>
+            <span class="profile-button-text">
+              <span id="profileButtonName" class="profile-button-name">Account</span>
+              <span id="profileButtonEmail" class="profile-button-email"></span>
+            </span>
+            <svg class="profile-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m18 15-6-6-6 6" />
+            </svg>
+          </button>
+          <div id="profileMenu" class="profile-menu" role="menu" hidden>
+            <div class="profile-menu-header">
+              <span class="profile-avatar profile-menu-avatar" aria-hidden="true">
+                <img id="profileMenuAvatarImage" alt="" hidden />
+                <span id="profileMenuAvatarFallback">?</span>
+              </span>
+              <span class="profile-menu-identity">
+                <strong id="profileMenuName">Account</strong>
+                <span id="profileMenuEmail"></span>
+                <small id="profileMenuProvider"></small>
+              </span>
+            </div>
+            <button id="profileMenuProfileButton" class="profile-menu-item" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+              <span>Profile</span>
+            </button>
+            <button id="profileMenuSettingsButton" class="profile-menu-item" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" /></svg>
+              <span>Account Settings</span>
+            </button>
+            <button id="profileMenuSignOutButton" class="profile-menu-item danger" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+              <span>Sign Out</span>
+            </button>
+            <p id="profileMenuError" class="profile-menu-error" role="alert"></p>
+          </div>
+        </section>
       </aside>
 
       <section class="editor-workspace">
@@ -260,6 +296,60 @@
       </form>
     </section>
 
+    <section id="profileModal" class="project-dialog" aria-hidden="true">
+      <div id="profileModalBackdrop" class="project-dialog-backdrop"></div>
+      <form id="profileForm" class="project-dialog-panel profile-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+        <header class="project-dialog-header">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2 id="profileModalTitle">Profile</h2>
+          </div>
+          <button id="closeProfileModalButton" class="icon-button" type="button" aria-label="Close profile">×</button>
+        </header>
+        <div class="profile-dialog-summary">
+          <span class="profile-avatar profile-dialog-avatar" aria-hidden="true">
+            <img id="profileDialogAvatarImage" alt="" hidden />
+            <span id="profileDialogAvatarFallback">?</span>
+          </span>
+          <div class="profile-dialog-identity">
+            <strong id="profileDialogName">Account</strong>
+            <span id="profileDialogEmail"></span>
+            <small id="profileDialogMeta"></small>
+          </div>
+        </div>
+        <div class="profile-photo-actions">
+          <input id="profileAvatarInput" class="visually-hidden-input" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" />
+          <button id="changeProfilePhotoButton" class="secondary-button" type="button">Change photo</button>
+          <button id="removeProfilePhotoButton" class="quiet-danger-button" type="button">Remove photo</button>
+        </div>
+        <label class="project-dialog-field" for="profileNameInput">
+          <span>Display name</span>
+          <input id="profileNameInput" class="text-input" type="text" autocomplete="name" maxlength="80" />
+        </label>
+        <div class="project-dialog-field">
+          <span>Email address</span>
+          <div id="profileEmailView" class="profile-email-view">
+            <span id="profileCurrentEmail"></span>
+            <button id="editProfileEmailButton" class="link-button" type="button">Edit email</button>
+          </div>
+          <div id="profileEmailEditor" class="profile-email-editor is-hidden">
+            <input id="profileEmailInput" class="text-input" type="email" autocomplete="email" />
+            <div class="project-dialog-actions compact">
+              <button id="cancelProfileEmailButton" class="secondary-button" type="button">Cancel</button>
+              <button id="saveProfileEmailButton" class="primary-button" type="button">Save email</button>
+            </div>
+          </div>
+          <small id="profilePendingEmail" class="profile-pending-email"></small>
+        </div>
+        <p id="profileModalMessage" class="auth-message" role="status"></p>
+        <p id="profileModalError" class="project-dialog-error" role="alert"></p>
+        <footer class="project-dialog-actions">
+          <button id="cancelProfileModalButton" class="secondary-button" type="button">Cancel</button>
+          <button id="saveProfileButton" class="primary-button" type="submit">Save</button>
+        </footer>
+      </form>
+    </section>
+
     <section id="settingsModal" class="settings-modal">
       <div id="settingsBackdrop" class="settings-backdrop"></div>
       <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -278,6 +368,21 @@
             <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
           </div>
         </header>
+
+        <section class="settings-section account-settings-section">
+          <h3>Account</h3>
+          <div class="account-settings-card">
+            <span class="profile-avatar account-settings-avatar" aria-hidden="true">
+              <img id="settingsAccountAvatarImage" alt="" hidden />
+              <span id="settingsAccountAvatarFallback">?</span>
+            </span>
+            <span class="account-settings-copy">
+              <strong id="settingsAccountName">Account</strong>
+              <span id="settingsAccountEmail"></span>
+              <small id="settingsAccountProvider"></small>
+            </span>
+          </div>
+        </section>
 
         <div class="settings-live-preview">
           <span class="live-preview-badge">Live preview</span>

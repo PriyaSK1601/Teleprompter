@@ -43,14 +43,56 @@ const resetPasswordError = document.querySelector<HTMLElement>("#resetPasswordEr
 const resetPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#resetPasswordSubmitButton");
 const checkEmailCard = document.querySelector<HTMLElement>("#checkEmailCard");
 const showLoginFromCheckEmailButton = document.querySelector<HTMLButtonElement>("#showLoginFromCheckEmailButton");
+const profileButton = document.querySelector<HTMLButtonElement>("#profileButton");
+const profileAvatarImage = document.querySelector<HTMLImageElement>("#profileAvatarImage");
+const profileAvatarFallback = document.querySelector<HTMLElement>("#profileAvatarFallback");
+const profileButtonName = document.querySelector<HTMLElement>("#profileButtonName");
+const profileButtonEmail = document.querySelector<HTMLElement>("#profileButtonEmail");
+const profileMenu = document.querySelector<HTMLElement>("#profileMenu");
+const profileMenuAvatarImage = document.querySelector<HTMLImageElement>("#profileMenuAvatarImage");
+const profileMenuAvatarFallback = document.querySelector<HTMLElement>("#profileMenuAvatarFallback");
+const profileMenuName = document.querySelector<HTMLElement>("#profileMenuName");
+const profileMenuEmail = document.querySelector<HTMLElement>("#profileMenuEmail");
+const profileMenuProvider = document.querySelector<HTMLElement>("#profileMenuProvider");
+const profileMenuProfileButton = document.querySelector<HTMLButtonElement>("#profileMenuProfileButton");
+const profileMenuSettingsButton = document.querySelector<HTMLButtonElement>("#profileMenuSettingsButton");
+const profileMenuSignOutButton = document.querySelector<HTMLButtonElement>("#profileMenuSignOutButton");
+const profileMenuError = document.querySelector<HTMLElement>("#profileMenuError");
+const profileModal = document.querySelector<HTMLElement>("#profileModal");
+const profileModalBackdrop = document.querySelector<HTMLElement>("#profileModalBackdrop");
+const profileForm = document.querySelector<HTMLFormElement>("#profileForm");
+const closeProfileModalButton = document.querySelector<HTMLButtonElement>("#closeProfileModalButton");
+const cancelProfileModalButton = document.querySelector<HTMLButtonElement>("#cancelProfileModalButton");
+const profileDialogAvatarImage = document.querySelector<HTMLImageElement>("#profileDialogAvatarImage");
+const profileDialogAvatarFallback = document.querySelector<HTMLElement>("#profileDialogAvatarFallback");
+const profileDialogName = document.querySelector<HTMLElement>("#profileDialogName");
+const profileDialogEmail = document.querySelector<HTMLElement>("#profileDialogEmail");
+const profileDialogMeta = document.querySelector<HTMLElement>("#profileDialogMeta");
+const profileAvatarInput = document.querySelector<HTMLInputElement>("#profileAvatarInput");
+const changeProfilePhotoButton = document.querySelector<HTMLButtonElement>("#changeProfilePhotoButton");
+const removeProfilePhotoButton = document.querySelector<HTMLButtonElement>("#removeProfilePhotoButton");
+const profileNameInput = document.querySelector<HTMLInputElement>("#profileNameInput");
+const profileCurrentEmail = document.querySelector<HTMLElement>("#profileCurrentEmail");
+const editProfileEmailButton = document.querySelector<HTMLButtonElement>("#editProfileEmailButton");
+const profileEmailEditor = document.querySelector<HTMLElement>("#profileEmailEditor");
+const profileEmailInput = document.querySelector<HTMLInputElement>("#profileEmailInput");
+const cancelProfileEmailButton = document.querySelector<HTMLButtonElement>("#cancelProfileEmailButton");
+const saveProfileEmailButton = document.querySelector<HTMLButtonElement>("#saveProfileEmailButton");
+const profilePendingEmail = document.querySelector<HTMLElement>("#profilePendingEmail");
+const profileModalMessage = document.querySelector<HTMLElement>("#profileModalMessage");
+const profileModalError = document.querySelector<HTMLElement>("#profileModalError");
+const saveProfileButton = document.querySelector<HTMLButtonElement>("#saveProfileButton");
+const settingsAccountAvatarImage = document.querySelector<HTMLImageElement>("#settingsAccountAvatarImage");
+const settingsAccountAvatarFallback = document.querySelector<HTMLElement>("#settingsAccountAvatarFallback");
+const settingsAccountName = document.querySelector<HTMLElement>("#settingsAccountName");
+const settingsAccountEmail = document.querySelector<HTMLElement>("#settingsAccountEmail");
+const settingsAccountProvider = document.querySelector<HTMLElement>("#settingsAccountProvider");
 const editorApp = document.querySelector<HTMLElement>(".editor-app");
 const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
-const allScriptsButton = document.querySelector<HTMLButtonElement>("#allScriptsButton");
-const allScriptsCount = document.querySelector<HTMLElement>("#allScriptsCount");
 const newProjectButton = document.querySelector<HTMLButtonElement>("#newProjectButton");
 const projectList = document.querySelector<HTMLElement>("#projectList");
 const projectDialog = document.querySelector<HTMLElement>("#projectDialog");
@@ -118,6 +160,10 @@ let openScriptMenuId: string | undefined;
 let openProjectMenuId: string | undefined;
 let selectedProjectId: string | undefined;
 let editingProjectId: string | undefined;
+let draggedScriptId: string | undefined;
+let activeDropProjectId: string | undefined;
+const expandedProjectsStorageKey = "teleprompter.expandedProjects";
+const expandedProjectIds = new Set<string>();
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
@@ -136,6 +182,8 @@ type AuthView = "loading" | "login" | "signup" | "forgot" | "reset" | "checkEmai
 
 let authInitialized = false;
 let authSubmitting = false;
+let profileSubmitting = false;
+let currentAuthUser: AuthState["user"] = null;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -298,6 +346,413 @@ function setAuthLoading(loading: boolean): void {
   }
 }
 
+function getUserDisplayName(user: AuthState["user"]): string {
+  const emailUsername = user?.email?.split("@")[0];
+  return user?.fullName?.trim() || emailUsername || "Account";
+}
+
+function getUserInitials(user: AuthState["user"]): string {
+  const name = user?.fullName?.trim();
+
+  if (name) {
+    return name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "?";
+  }
+
+  return user?.email?.[0]?.toUpperCase() ?? "?";
+}
+
+function formatProvider(provider?: string): string {
+  if (!provider) {
+    return "Signed in";
+  }
+
+  return `Signed in with ${provider.charAt(0).toUpperCase()}${provider.slice(1)}`;
+}
+
+function formatCreatedAt(createdAt?: string): string {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `Created ${date.toLocaleDateString()}`;
+}
+
+function renderAvatar(
+  image: HTMLImageElement | null,
+  fallback: HTMLElement | null,
+  user: AuthState["user"]
+): void {
+  const initials = getUserInitials(user);
+
+  if (fallback) {
+    fallback.textContent = initials;
+  }
+
+  if (!image) {
+    return;
+  }
+
+  image.onerror = () => {
+    image.hidden = true;
+  };
+
+  if (user?.avatarUrl) {
+    image.src = user.avatarUrl;
+    image.hidden = false;
+  } else {
+    image.removeAttribute("src");
+    image.hidden = true;
+  }
+}
+
+function renderProfileUi(user: AuthState["user"]): void {
+  currentAuthUser = user;
+  const displayName = getUserDisplayName(user);
+  const email = user?.email ?? "";
+  const provider = formatProvider(user?.provider);
+  const createdAt = formatCreatedAt(user?.createdAt);
+
+  if (profileButtonName) {
+    profileButtonName.textContent = displayName;
+  }
+
+  if (profileButtonEmail) {
+    profileButtonEmail.textContent = email;
+  }
+
+  if (profileMenuName) {
+    profileMenuName.textContent = displayName;
+  }
+
+  if (profileMenuEmail) {
+    profileMenuEmail.textContent = email;
+  }
+
+  if (profileMenuProvider) {
+    profileMenuProvider.textContent = provider;
+  }
+
+  if (profileDialogName) {
+    profileDialogName.textContent = displayName;
+  }
+
+  if (profileDialogEmail) {
+    profileDialogEmail.textContent = email;
+  }
+
+  if (profileDialogMeta) {
+    profileDialogMeta.textContent = [provider, createdAt].filter(Boolean).join(" • ");
+  }
+
+  if (settingsAccountName) {
+    settingsAccountName.textContent = displayName;
+  }
+
+  if (settingsAccountEmail) {
+    settingsAccountEmail.textContent = email;
+  }
+
+  if (settingsAccountProvider) {
+    settingsAccountProvider.textContent = provider;
+  }
+
+  if (profileNameInput) {
+    profileNameInput.value = user?.fullName?.trim() || "";
+  }
+
+  if (profileCurrentEmail) {
+    profileCurrentEmail.textContent = email;
+  }
+
+  if (profileEmailInput) {
+    profileEmailInput.value = "";
+  }
+
+  if (profilePendingEmail) {
+    profilePendingEmail.textContent = "";
+  }
+
+  if (removeProfilePhotoButton) {
+    removeProfilePhotoButton.hidden = !user?.avatarUrl;
+  }
+
+  renderAvatar(profileAvatarImage, profileAvatarFallback, user);
+  renderAvatar(profileMenuAvatarImage, profileMenuAvatarFallback, user);
+  renderAvatar(profileDialogAvatarImage, profileDialogAvatarFallback, user);
+  renderAvatar(settingsAccountAvatarImage, settingsAccountAvatarFallback, user);
+}
+
+function setProfileMenuError(message = ""): void {
+  if (profileMenuError) {
+    profileMenuError.textContent = message;
+  }
+}
+
+function setProfileModalMessage(message = ""): void {
+  if (profileModalMessage) {
+    profileModalMessage.textContent = message;
+  }
+}
+
+function setProfileModalError(message = ""): void {
+  if (profileModalError) {
+    profileModalError.textContent = message;
+  }
+}
+
+function isProfileMenuOpen(): boolean {
+  return Boolean(profileMenu && !profileMenu.hidden);
+}
+
+function openProfileMenu(): void {
+  if (!profileMenu || !profileButton) {
+    return;
+  }
+
+  setProfileMenuError();
+  profileMenu.hidden = false;
+  profileButton.setAttribute("aria-expanded", "true");
+  window.setTimeout(() => profileMenuProfileButton?.focus(), 0);
+}
+
+function closeProfileMenu(): void {
+  if (!profileMenu || !profileButton) {
+    return;
+  }
+
+  profileMenu.hidden = true;
+  profileButton.setAttribute("aria-expanded", "false");
+}
+
+function openProfileModal(): void {
+  closeProfileMenu();
+  renderProfileUi(currentAuthUser);
+  setProfileModalMessage();
+  setProfileModalError();
+  profileModal?.classList.add("is-open");
+  profileModal?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => profileNameInput?.focus(), 0);
+  profileNameInput?.select();
+}
+
+function closeProfileModal(): void {
+  profileModal?.classList.remove("is-open");
+  profileModal?.setAttribute("aria-hidden", "true");
+  setProfileModalMessage();
+  setProfileModalError();
+  profileButton?.focus();
+}
+
+function setProfileSubmitting(loading: boolean): void {
+  profileSubmitting = loading;
+
+  for (const button of [
+    saveProfileButton,
+    profileMenuSignOutButton,
+    logoutButton,
+    changeProfilePhotoButton,
+    removeProfilePhotoButton,
+    saveProfileEmailButton
+  ]) {
+    if (button) {
+      button.disabled = loading;
+    }
+  }
+}
+
+function validateEmailAddress(email: string): string {
+  if (!email) {
+    return "Enter an email address.";
+  }
+
+  if (!isValidEmail(email)) {
+    return "Enter a valid email address.";
+  }
+
+  if (email.toLowerCase() === currentAuthUser?.email?.toLowerCase()) {
+    return "Enter a different email address.";
+  }
+
+  return "";
+}
+
+function showEmailEditor(show: boolean): void {
+  profileEmailEditor?.classList.toggle("is-hidden", !show);
+
+  if (show) {
+    if (profileEmailInput) {
+      profileEmailInput.value = "";
+    }
+
+    window.setTimeout(() => profileEmailInput?.focus(), 0);
+  }
+}
+
+async function submitEmailUpdate(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  const email = profileEmailInput?.value.trim() ?? "";
+  const validationMessage = validateEmailAddress(email);
+  setProfileModalError();
+  setProfileModalMessage();
+
+  if (validationMessage) {
+    setProfileModalError(validationMessage);
+    profileEmailInput?.focus();
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateEmail({ email });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Email update failed. Try again.");
+      return;
+    }
+
+    showEmailEditor(false);
+    setProfileModalMessage(result.message ?? "Confirmation instructions have been sent.");
+
+    if (profilePendingEmail && result.pendingEmail) {
+      profilePendingEmail.textContent = `Pending confirmation: ${result.pendingEmail}`;
+    }
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function submitAvatarUpdate(file: File | undefined): Promise<void> {
+  if (!file || profileSubmitting) {
+    return;
+  }
+
+  setProfileModalError();
+  setProfileModalMessage();
+
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    setProfileModalError("Use a PNG, JPEG, or WebP image.");
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    setProfileModalError("Choose an image smaller than 5 MB.");
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateAvatar({ file });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile photo update failed.");
+      return;
+    }
+
+    setProfileModalMessage(result.message ?? "Profile photo updated.");
+  } finally {
+    setProfileSubmitting(false);
+
+    if (profileAvatarInput) {
+      profileAvatarInput.value = "";
+    }
+  }
+}
+
+async function submitAvatarRemoval(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  setProfileModalError();
+  setProfileModalMessage();
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().removeAvatar();
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile photo removal failed.");
+      return;
+    }
+
+    setProfileModalMessage(result.message ?? "Profile photo removed.");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function signOutCurrentUser(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  setProfileSubmitting(true);
+  setProfileMenuError();
+
+  try {
+    const result = await requireAuthApi().signOut();
+
+    if (!result.ok) {
+      setProfileMenuError(result.message ?? "Sign out failed. Try again.");
+      setStatus(result.message ?? "Sign out failed. Try again.");
+      return;
+    }
+
+    currentAuthUser = null;
+    closeProfileMenu();
+    closeProfileModal();
+    setAuthView("login");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function submitProfileUpdate(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  const fullName = profileNameInput?.value.trim() ?? "";
+  setProfileModalMessage();
+  setProfileModalError();
+
+  if (!fullName) {
+    setProfileModalError("Enter a display name.");
+    profileNameInput?.focus();
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateProfile({ fullName });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile update failed. Try again.");
+      return;
+    }
+
+    setProfileModalMessage("Profile updated.");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -386,6 +841,7 @@ function applyAuthState(state: AuthState): void {
   }
 
   if (state.user) {
+    renderProfileUi(state.user);
     showAuthenticatedApp();
 
     if (!authInitialized) {
@@ -398,6 +854,10 @@ function applyAuthState(state: AuthState): void {
     return;
   }
 
+  authInitialized = false;
+  currentAuthUser = null;
+  closeProfileMenu();
+  closeProfileModal();
   setAuthView("login");
 }
 
@@ -761,19 +1221,35 @@ function getOpaquePreviewBackground(hexColor: string, opacity: number): string {
   return `rgb(${red} ${green} ${blue})`;
 }
 
-function getFilteredScripts(): ScriptRecord[] {
-  const query = scriptSearch?.value.trim().toLowerCase() ?? "";
-  const projectScopedScripts = selectedProjectId === undefined
-    ? currentScriptsState.scripts
-    : currentScriptsState.scripts.filter((script) => script.projectId === selectedProjectId);
+function getSearchQuery(): string {
+  return scriptSearch?.value.trim().toLowerCase() ?? "";
+}
 
+function scriptMatchesQuery(script: ScriptRecord, query = getSearchQuery()): boolean {
   if (!query) {
-    return projectScopedScripts;
+    return true;
   }
 
-  return projectScopedScripts.filter((script) => {
-    return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
+  return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
+}
+
+function projectMatchesQuery(project: ProjectRecord, query = getSearchQuery()): boolean {
+  return !query || project.name.toLowerCase().includes(query);
+}
+
+function sortScriptsForSection(scripts: ScriptRecord[]): ScriptRecord[] {
+  return [...scripts].sort((first, second) => {
+    if (Boolean(first.pinned) !== Boolean(second.pinned)) {
+      return first.pinned ? -1 : 1;
+    }
+
+    return new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime();
   });
+}
+
+function getFilteredScripts(): ScriptRecord[] {
+  const query = scriptSearch?.value.trim().toLowerCase() ?? "";
+  return currentScriptsState.scripts.filter((script) => scriptMatchesQuery(script, query));
 }
 
 function getProjectName(projectId?: string): string {
@@ -792,32 +1268,175 @@ function getProjectScriptCount(projectId?: string): number {
   return currentScriptsState.scripts.filter((script) => script.projectId === projectId).length;
 }
 
+function loadExpandedProjects(): void {
+  try {
+    const rawValue = localStorage.getItem(expandedProjectsStorageKey);
+    const ids = rawValue ? JSON.parse(rawValue) as unknown : [];
+
+    if (Array.isArray(ids)) {
+      expandedProjectIds.clear();
+      for (const id of ids) {
+        if (typeof id === "string") {
+          expandedProjectIds.add(id);
+        }
+      }
+    }
+  } catch {
+    expandedProjectIds.clear();
+  }
+}
+
+function saveExpandedProjects(): void {
+  localStorage.setItem(expandedProjectsStorageKey, JSON.stringify([...expandedProjectIds]));
+}
+
+function setProjectExpanded(projectId: string, expanded: boolean): void {
+  if (expanded) {
+    expandedProjectIds.add(projectId);
+  } else {
+    expandedProjectIds.delete(projectId);
+  }
+
+  saveExpandedProjects();
+}
+
+async function moveScriptToProjectWithRollback(scriptId: string, projectId?: string): Promise<void> {
+  const previousState = currentScriptsState;
+  const targetExists = projectId === undefined || currentScriptsState.projects.some((project) => project.id === projectId);
+  const scriptExists = currentScriptsState.scripts.some((script) => script.id === scriptId);
+
+  if (!targetExists || !scriptExists) {
+    setStatus("Move failed. Invalid script or project.");
+    return;
+  }
+
+  currentScriptsState = {
+    ...currentScriptsState,
+    scripts: currentScriptsState.scripts.map((script) => (
+      script.id === scriptId ? { ...script, projectId } : script
+    ))
+  };
+  renderProjectList();
+  renderScriptsList();
+
+  try {
+    const state = await requireTeleprompterApi().moveScriptToProject(scriptId, projectId);
+    renderScriptsState(state);
+  } catch (error: unknown) {
+    currentScriptsState = previousState;
+    renderProjectList();
+    renderScriptsList();
+    setStatus(`Move script failed. ${formatError(error)}`);
+  }
+}
+
+function clearDropState(): void {
+  activeDropProjectId = undefined;
+  draggedScriptId = undefined;
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleScriptDragStart(event: DragEvent, script: ScriptRecord): void {
+  draggedScriptId = script.id;
+  event.dataTransfer?.setData("text/plain", script.id);
+  event.dataTransfer?.setData("application/x-teleprompter-script-id", script.id);
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+  }
+}
+
+function handleDropTargetDragOver(event: DragEvent, projectId?: string): void {
+  if (!draggedScriptId && !event.dataTransfer?.types.includes("application/x-teleprompter-script-id")) {
+    return;
+  }
+
+  event.preventDefault();
+  activeDropProjectId = projectId ?? "__root__";
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleDropTargetDragLeave(event: DragEvent): void {
+  const currentTarget = event.currentTarget as HTMLElement;
+  const relatedTarget = event.relatedTarget as Node | null;
+
+  if (relatedTarget && currentTarget.contains(relatedTarget)) {
+    return;
+  }
+
+  activeDropProjectId = undefined;
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleScriptDrop(event: DragEvent, projectId?: string): void {
+  event.preventDefault();
+  const scriptId = draggedScriptId ?? event.dataTransfer?.getData("application/x-teleprompter-script-id");
+  draggedScriptId = undefined;
+  activeDropProjectId = undefined;
+
+  if (!scriptId) {
+    renderProjectList();
+    renderScriptsList();
+    return;
+  }
+
+  if (projectId) {
+    setProjectExpanded(projectId, true);
+  }
+
+  void moveScriptToProjectWithRollback(scriptId, projectId);
+}
+
 function renderProjectList(): void {
   if (!projectList) {
     return;
   }
 
   projectList.textContent = "";
+  const query = getSearchQuery();
 
   for (const project of currentScriptsState.projects) {
+    const projectScripts = sortScriptsForSection(
+      currentScriptsState.scripts.filter((script) => script.projectId === project.id && scriptMatchesQuery(script, query))
+    );
+    const shouldShowProject = projectMatchesQuery(project, query) || projectScripts.length > 0;
+
+    if (!shouldShowProject) {
+      continue;
+    }
+
+    const wrapper = document.createElement("div");
     const row = document.createElement("div");
-    const button = document.createElement("button");
+    const toggleButton = document.createElement("button");
     const menuButton = document.createElement("button");
-    row.className = openProjectMenuId === project.id ? "project-list-row has-open-menu" : "project-list-row";
-    button.type = "button";
-    button.className = selectedProjectId === project.id ? "project-list-item active" : "project-list-item";
-    button.innerHTML = `
-      <span class="project-list-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg></span>
+    const isExpanded = query ? true : expandedProjectIds.has(project.id);
+    wrapper.className = "project-tree-group";
+    row.className = [
+      "project-list-row",
+      openProjectMenuId === project.id ? "has-open-menu" : "",
+      activeDropProjectId === project.id ? "is-drop-target" : ""
+    ].filter(Boolean).join(" ");
+    row.addEventListener("dragover", (event) => handleDropTargetDragOver(event, project.id));
+    row.addEventListener("dragleave", handleDropTargetDragLeave);
+    row.addEventListener("drop", (event) => handleScriptDrop(event, project.id));
+
+    toggleButton.type = "button";
+    toggleButton.className = "project-list-item";
+    toggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+    toggleButton.innerHTML = `
+      <span class="project-chevron-small" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${isExpanded ? "m6 9 6 6 6-6" : "m9 18 6-6-6-6"}" /></svg></span>
+      <span class="project-list-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${isExpanded ? "M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" : "M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"}" /></svg></span>
       <span class="project-list-name"></span>
       <span class="project-list-count">${getProjectScriptCount(project.id)}</span>
     `;
-    button.querySelector<HTMLElement>(".project-list-name")!.textContent = project.name;
-    button.addEventListener("click", () => {
-      selectedProjectId = project.id;
+    toggleButton.querySelector<HTMLElement>(".project-list-name")!.textContent = project.name;
+    toggleButton.addEventListener("click", () => {
       openProjectMenuId = undefined;
-      renderAllScriptsButton();
+      setProjectExpanded(project.id, !expandedProjectIds.has(project.id));
       renderProjectList();
-      renderScriptsList();
     });
 
     menuButton.type = "button";
@@ -832,21 +1451,33 @@ function renderProjectList(): void {
       renderProjectList();
     });
 
-    row.append(button, menuButton);
+    row.append(toggleButton, menuButton);
 
     if (openProjectMenuId === project.id) {
       row.append(buildProjectActionMenu(project));
     }
 
-    projectList.append(row);
-  }
-}
+    wrapper.append(row);
 
-function renderAllScriptsButton(): void {
-  allScriptsButton?.classList.toggle("active", selectedProjectId === undefined);
+    if (isExpanded) {
+      const childList = document.createElement("div");
+      childList.className = "project-script-children";
 
-  if (allScriptsCount) {
-    allScriptsCount.textContent = String(currentScriptsState.scripts.length);
+      if (projectScripts.length === 0 && !query) {
+        const empty = document.createElement("div");
+        empty.className = "script-list-empty compact";
+        empty.textContent = "No scripts";
+        childList.append(empty);
+      } else {
+        for (const script of projectScripts) {
+          childList.append(buildScriptListRow(script, true));
+        }
+      }
+
+      wrapper.append(childList);
+    }
+
+    projectList.append(wrapper);
   }
 }
 
@@ -971,7 +1602,7 @@ async function submitProjectDialog(): Promise<void> {
   const createdProject = state.projects[state.projects.length - 1];
 
   if (createdProject) {
-    selectedProjectId = createdProject.id;
+    setProjectExpanded(createdProject.id, true);
   }
 
   closeProjectDialog();
@@ -991,10 +1622,6 @@ async function deleteProjectWithConfirmation(project: ProjectRecord, mode: Delet
 
   const state = await requireTeleprompterApi().deleteProject(project.id, mode);
 
-  if (selectedProjectId === project.id) {
-    selectedProjectId = undefined;
-  }
-
   renderScriptsState(state);
 }
 
@@ -1004,85 +1631,101 @@ function renderScriptsList(): void {
   }
 
   if (historyHeading) {
-    historyHeading.textContent = getCurrentProjectName();
+    historyHeading.textContent = "All Scripts";
   }
 
   scriptList.textContent = "";
-  const scripts = getFilteredScripts();
+  const query = getSearchQuery();
+  const scripts = sortScriptsForSection(
+    currentScriptsState.scripts.filter((script) => !script.projectId && scriptMatchesQuery(script, query))
+  );
+  scriptList.classList.toggle("is-drop-target", activeDropProjectId === "__root__");
+  scriptList.addEventListener("dragover", (event) => handleDropTargetDragOver(event, undefined));
+  scriptList.addEventListener("dragleave", handleDropTargetDragLeave);
+  scriptList.addEventListener("drop", (event) => handleScriptDrop(event, undefined));
 
   if (scripts.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "script-list-empty";
-    emptyItem.textContent = currentScriptsState.scripts.length === 0
-      ? "No scripts yet"
-      : selectedProjectId
-        ? "No scripts in this project"
-        : "No matching scripts";
+    emptyItem.textContent = query ? "No matching root scripts" : "No scripts";
     scriptList.append(emptyItem);
     return;
   }
 
   for (const script of scripts) {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    const content = document.createElement("span");
-    const rightMeta = document.createElement("span");
-    const menuButton = document.createElement("button");
-    const date = new Date(script.updatedAt).toLocaleDateString();
-    item.className = openScriptMenuId === script.id ? "script-list-row has-open-menu" : "script-list-row";
-    button.type = "button";
-    button.className = [
-      "script-list-item",
-      script.id === activeScriptId ? "active" : "",
-      script.pinned ? "is-pinned" : ""
-    ].filter(Boolean).join(" ");
-    const title = document.createElement("span");
-    const updatedAt = document.createElement("small");
-    const titleRow = document.createElement("span");
-    content.className = "script-list-item-content";
-    rightMeta.className = "script-list-item-meta";
-    titleRow.className = "script-title-row";
-    title.textContent = script.title;
-    titleRow.append(title);
-
-    if (script.pinned) {
-      const pinIndicator = document.createElement("span");
-      pinIndicator.className = "script-pin-indicator";
-      pinIndicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg>';
-      pinIndicator.title = "Pinned";
-      rightMeta.append(pinIndicator);
-    }
-
-    updatedAt.textContent = date;
-    content.append(titleRow, updatedAt);
-
-    button.append(content, rightMeta);
-    menuButton.type = "button";
-    menuButton.className = "script-menu-button";
-    menuButton.setAttribute("aria-label", `More actions for ${script.title}`);
-    menuButton.setAttribute("aria-haspopup", "menu");
-    menuButton.setAttribute("aria-expanded", openScriptMenuId === script.id ? "true" : "false");
-    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
-    menuButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openScriptMenuId = openScriptMenuId === script.id ? undefined : script.id;
-      renderScriptsList();
-    });
-
-    button.addEventListener("click", () => {
-      void runEditorAction("Open script", async () => {
-        const state = await requireTeleprompterApi().setActiveScript(script.id);
-        renderScriptsState(state);
-      });
-    });
-    item.append(button, menuButton);
-
-    if (openScriptMenuId === script.id) {
-      item.append(buildScriptActionMenu(script));
-    }
-
-    scriptList.append(item);
+    scriptList.append(buildScriptListRow(script, false));
   }
+}
+
+function buildScriptListRow(script: ScriptRecord, nested: boolean): HTMLElement {
+  const item = document.createElement(nested ? "div" : "li");
+  const button = document.createElement("button");
+  const content = document.createElement("span");
+  const rightMeta = document.createElement("span");
+  const menuButton = document.createElement("button");
+  const date = new Date(script.updatedAt).toLocaleDateString();
+  item.className = [
+    "script-list-row",
+    nested ? "nested" : "",
+    openScriptMenuId === script.id ? "has-open-menu" : ""
+  ].filter(Boolean).join(" ");
+  item.draggable = true;
+  item.addEventListener("dragstart", (event) => handleScriptDragStart(event as DragEvent, script));
+  item.addEventListener("dragend", clearDropState);
+  button.type = "button";
+  button.draggable = false;
+  button.className = [
+    "script-list-item",
+    script.id === activeScriptId ? "active" : "",
+    script.pinned ? "is-pinned" : ""
+  ].filter(Boolean).join(" ");
+  const title = document.createElement("span");
+  const updatedAt = document.createElement("small");
+  const titleRow = document.createElement("span");
+  content.className = "script-list-item-content";
+  rightMeta.className = "script-list-item-meta";
+  titleRow.className = "script-title-row";
+  title.textContent = script.title;
+  titleRow.append(title);
+
+  if (script.pinned) {
+    const pinIndicator = document.createElement("span");
+    pinIndicator.className = "script-pin-indicator";
+    pinIndicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg>';
+    pinIndicator.title = "Pinned";
+    rightMeta.append(pinIndicator);
+  }
+
+  updatedAt.textContent = date;
+  content.append(titleRow, updatedAt);
+
+  button.append(content, rightMeta);
+  menuButton.type = "button";
+  menuButton.className = "script-menu-button";
+  menuButton.setAttribute("aria-label", `More actions for ${script.title}`);
+  menuButton.setAttribute("aria-haspopup", "menu");
+  menuButton.setAttribute("aria-expanded", openScriptMenuId === script.id ? "true" : "false");
+  menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = openScriptMenuId === script.id ? undefined : script.id;
+    renderProjectList();
+    renderScriptsList();
+  });
+
+  button.addEventListener("click", () => {
+    void runEditorAction("Open script", async () => {
+      const state = await requireTeleprompterApi().setActiveScript(script.id);
+      renderScriptsState(state);
+    });
+  });
+  item.append(button, menuButton);
+
+  if (openScriptMenuId === script.id) {
+    item.append(buildScriptActionMenu(script));
+  }
+
+  return item;
 }
 
 function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
@@ -1152,15 +1795,10 @@ function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
 function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
 
-  if (selectedProjectId && !currentScriptsState.projects.some((project) => project.id === selectedProjectId)) {
-    selectedProjectId = undefined;
-  }
-
   if (historyHeading) {
-    historyHeading.textContent = getCurrentProjectName();
+    historyHeading.textContent = "All Scripts";
   }
 
-  renderAllScriptsButton();
   renderProjectList();
   setEditorFromScript(state.activeScript);
   renderScriptsList();
@@ -1202,7 +1840,7 @@ async function saveCurrentScript(): Promise<ScriptsState | undefined> {
     id: activeScriptId,
     title,
     body,
-    projectId: activeScriptId ? undefined : selectedProjectId
+    projectId: activeScriptId ? undefined : undefined
   });
   renderScriptsState(state);
   return state;
@@ -1239,7 +1877,7 @@ async function autosaveCurrentScript(): Promise<void> {
     id: activeScriptId,
     title,
     body,
-    projectId: activeScriptId ? undefined : selectedProjectId
+    projectId: activeScriptId ? undefined : undefined
   });
 
   currentScriptsState = state;
@@ -2557,6 +3195,7 @@ settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
 
 setEditorTheme(loadEditorTheme());
 setSidebarCollapsed(loadSidebarCollapsed());
+loadExpandedProjects();
 themeToggleButton?.addEventListener("click", toggleEditorTheme);
 toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
@@ -2620,6 +3259,74 @@ resetPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(re
 resetConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(resetConfirmPasswordInput, resetConfirmPasswordToggle));
 signupPasswordInput?.addEventListener("input", () => renderPasswordStrength(signupPasswordInput.value, signupPasswordStrengthBar, signupPasswordStrengthText));
 resetPasswordInput?.addEventListener("input", () => renderPasswordStrength(resetPasswordInput.value, resetPasswordStrengthBar, resetPasswordStrengthText));
+profileButton?.addEventListener("click", () => {
+  if (isProfileMenuOpen()) {
+    closeProfileMenu();
+  } else {
+    openProfileMenu();
+  }
+});
+
+profileMenuProfileButton?.addEventListener("click", openProfileModal);
+profileMenuSettingsButton?.addEventListener("click", () => {
+  closeProfileMenu();
+  openSettings();
+});
+profileMenuSignOutButton?.addEventListener("click", () => {
+  void signOutCurrentUser();
+});
+profileForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void submitProfileUpdate();
+});
+changeProfilePhotoButton?.addEventListener("click", () => {
+  profileAvatarInput?.click();
+});
+profileAvatarInput?.addEventListener("change", () => {
+  void submitAvatarUpdate(profileAvatarInput.files?.[0]);
+});
+removeProfilePhotoButton?.addEventListener("click", () => {
+  void submitAvatarRemoval();
+});
+editProfileEmailButton?.addEventListener("click", () => showEmailEditor(true));
+cancelProfileEmailButton?.addEventListener("click", () => showEmailEditor(false));
+saveProfileEmailButton?.addEventListener("click", () => {
+  void submitEmailUpdate();
+});
+profileEmailInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void submitEmailUpdate();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    showEmailEditor(false);
+  }
+});
+profileModalBackdrop?.addEventListener("click", closeProfileModal);
+closeProfileModalButton?.addEventListener("click", closeProfileModal);
+cancelProfileModalButton?.addEventListener("click", closeProfileModal);
+profileModal?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProfileModal();
+  }
+});
+profileMenu?.addEventListener("keydown", (event) => {
+  const menuItems = Array.from(profileMenu.querySelectorAll<HTMLButtonElement>(".profile-menu-item"));
+  const currentIndex = menuItems.indexOf(document.activeElement as HTMLButtonElement);
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProfileMenu();
+    profileButton?.focus();
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    menuItems[(currentIndex + 1 + menuItems.length) % menuItems.length]?.focus();
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    menuItems[(currentIndex - 1 + menuItems.length) % menuItems.length]?.focus();
+  }
+});
 
 function setupSliderBubble(input: HTMLInputElement | null, format: () => string): void {
   if (!input || !input.parentNode) {
@@ -2724,13 +3431,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
-allScriptsButton?.addEventListener("click", () => {
-  selectedProjectId = undefined;
-  openProjectMenuId = undefined;
-  renderAllScriptsButton();
-  renderProjectList();
-  renderScriptsList();
-});
+scriptSearch?.addEventListener("input", renderProjectList);
 scriptBody?.addEventListener("input", () => {
   renderScriptStats();
   scheduleAutosave();
@@ -2790,18 +3491,31 @@ clearScriptButton?.addEventListener("click", () => {
 document.addEventListener("click", (event) => {
   const clickedInsideScriptList = event.target instanceof Node && scriptList?.contains(event.target);
   const clickedInsideProjectList = event.target instanceof Node && projectList?.contains(event.target);
+  const clickedInsideProfile = event.target instanceof Node &&
+    (profileMenu?.contains(event.target) || profileButton?.contains(event.target));
 
-  if ((!openScriptMenuId && !openProjectMenuId) || clickedInsideScriptList || clickedInsideProjectList) {
-    return;
+  if (isProfileMenuOpen() && !clickedInsideProfile) {
+    closeProfileMenu();
   }
 
-  openScriptMenuId = undefined;
-  openProjectMenuId = undefined;
-  renderProjectList();
-  renderScriptsList();
+  if (openScriptMenuId || openProjectMenuId) {
+    if (clickedInsideScriptList || clickedInsideProjectList) {
+      return;
+    }
+
+    openScriptMenuId = undefined;
+    openProjectMenuId = undefined;
+    renderProjectList();
+    renderScriptsList();
+  }
 });
 
 window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isProfileMenuOpen()) {
+    closeProfileMenu();
+    profileButton?.focus();
+  }
+
   if (event.key === "Escape" && (openScriptMenuId || openProjectMenuId)) {
     openScriptMenuId = undefined;
     openProjectMenuId = undefined;
@@ -2919,16 +3633,7 @@ resetSettingsButton?.addEventListener("click", () => {
 });
 
 logoutButton?.addEventListener("click", () => {
-  void runAuthAction(async () => {
-    const result = await requireAuthApi().signOut();
-
-    if (!result.ok) {
-      setStatus(result.message ?? "Logout failed.");
-      return;
-    }
-
-    setAuthView("login");
-  });
+  void signOutCurrentUser();
 });
 
 if (initializePreloadApi()) {

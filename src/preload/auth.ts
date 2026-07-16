@@ -16,6 +16,8 @@ import { ipcChannels } from "../shared/ipc";
 const callbackUrl = "teleprompter://auth/callback";
 const rememberStorageKey = "teleprompter.auth.rememberMe";
 const authStorageKeyPrefix = "sb-";
+const avatarBucket = "avatars";
+const maxAvatarSizeBytes = 5 * 1024 * 1024;
 const fallbackConfigError = "Supabase configuration is missing. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to .env.local.";
 
 let supabaseClient: SupabaseClient | null = null;
@@ -125,12 +127,25 @@ function sanitizeUser(user: User | null): AuthUser | null {
 
   const fullName = typeof user.user_metadata.full_name === "string"
     ? user.user_metadata.full_name
+    : typeof user.user_metadata.name === "string"
+      ? user.user_metadata.name
+      : undefined;
+  const avatarUrl = typeof user.user_metadata.avatar_url === "string"
+    ? user.user_metadata.avatar_url
+    : typeof user.user_metadata.picture === "string"
+      ? user.user_metadata.picture
+      : undefined;
+  const provider = typeof user.app_metadata.provider === "string"
+    ? user.app_metadata.provider
     : undefined;
 
   return {
     id: user.id,
     email: user.email,
-    fullName
+    fullName,
+    avatarUrl,
+    provider,
+    createdAt: user.created_at
   };
 }
 
@@ -155,8 +170,12 @@ function toAuthState(session: Session | null, loading = false): AuthState {
 }
 
 function friendlyAuthError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   const normalizedMessage = message.toLowerCase();
+
+  if (normalizedMessage.includes("unsupported provider") || normalizedMessage.includes("provider is not enabled")) {
+    return "Google sign-in is not configured yet. Enable Google in Supabase Authentication settings.";
+  }
 
   if (normalizedMessage.includes("invalid api key") || normalizedMessage.includes("api key")) {
     return "Supabase publishable key is invalid. Check .env.local and paste the publishable key without angle brackets.";
@@ -174,12 +193,29 @@ function friendlyAuthError(error: unknown): string {
     return "Too many attempts. Wait a moment and try again.";
   }
 
+  if (normalizedMessage.includes("requires recent login") || normalizedMessage.includes("reauthentication")) {
+    return "For security, sign out and sign back in before changing your email.";
+  }
+
   if (normalizedMessage.includes("weak password") || normalizedMessage.includes("password")) {
     return "Use a stronger password and try again.";
   }
 
   if (normalizedMessage.includes("network") || normalizedMessage.includes("fetch")) {
     return "Network error. Check your connection and try again.";
+  }
+
+  if (
+    normalizedMessage.includes("bucket not found") ||
+    normalizedMessage.includes("storage bucket") ||
+    normalizedMessage.includes("object not found") ||
+    normalizedMessage.includes("row-level security") ||
+    normalizedMessage.includes("violates row-level security") ||
+    normalizedMessage.includes("permission denied") ||
+    normalizedMessage.includes("not authorized") ||
+    normalizedMessage.includes("unauthorized")
+  ) {
+    return "Profile photo storage is not configured yet. Create the avatars bucket and storage policies from the setup guide.";
   }
 
   if (normalizedMessage.includes("expired")) {
@@ -191,6 +227,61 @@ function friendlyAuthError(error: unknown): string {
   }
 
   return "Authentication failed. Please try again.";
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object") {
+    const errorRecord = error as Record<string, unknown>;
+    const message = typeof errorRecord.message === "string"
+      ? errorRecord.message
+      : undefined;
+    const errorDescription = typeof errorRecord.error_description === "string"
+      ? errorRecord.error_description
+      : undefined;
+    const errorCode = typeof errorRecord.error === "string"
+      ? errorRecord.error
+      : typeof errorRecord.error_code === "string"
+        ? errorRecord.error_code
+        : undefined;
+
+    return [message, errorDescription, errorCode].filter(Boolean).join(" ");
+  }
+
+  return String(error);
+}
+
+async function emitCurrentAuthState(user?: User): Promise<void> {
+  const { data } = await getSupabaseClient().auth.getSession();
+  const session = user && data.session
+    ? {
+        ...data.session,
+        user
+      }
+    : data.session;
+  emitAuthEvent({
+    type: "state",
+    state: toAuthState(session)
+  });
+}
+
+function getAvatarExtension(type: string): string | undefined {
+  if (type === "image/png") {
+    return "png";
+  }
+
+  if (type === "image/jpeg") {
+    return "jpg";
+  }
+
+  if (type === "image/webp") {
+    return "webp";
+  }
+
+  return undefined;
 }
 
 function emitAuthEvent(event: AuthEvent): void {
@@ -373,6 +464,156 @@ async function updatePassword(password: string): Promise<AuthActionResult> {
   }
 }
 
+async function updateProfile(input: { fullName: string }): Promise<AuthActionResult> {
+  try {
+    const fullName = input.fullName.trim();
+
+    if (!fullName) {
+      return { ok: false, message: "Enter a display name." };
+    }
+
+    const { data, error } = await getSupabaseClient().auth.updateUser({
+      data: {
+        full_name: fullName
+      }
+    });
+
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error) };
+    }
+
+    const { data: sessionData } = await getSupabaseClient().auth.getSession();
+    const session = sessionData.session
+      ? {
+          ...sessionData.session,
+          user: data.user
+        }
+      : sessionData.session;
+
+    emitAuthEvent({
+      type: "state",
+      state: toAuthState(session)
+    });
+
+    return { ok: true, message: "Profile updated." };
+  } catch (error: unknown) {
+    return { ok: false, message: friendlyAuthError(error) };
+  }
+}
+
+async function updateEmail(input: { email: string }): Promise<AuthActionResult> {
+  try {
+    const email = input.email.trim();
+
+    if (!email) {
+      return { ok: false, message: "Enter an email address." };
+    }
+
+    const { data, error } = await getSupabaseClient().auth.updateUser(
+      { email },
+      { emailRedirectTo: callbackUrl }
+    );
+
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error) };
+    }
+
+    await emitCurrentAuthState(data.user);
+    return {
+      ok: true,
+      message: "Confirmation instructions have been sent. Your email will update after the required confirmation is completed.",
+      pendingEmail: typeof data.user?.new_email === "string" ? data.user.new_email : email
+    };
+  } catch (error: unknown) {
+    return { ok: false, message: friendlyAuthError(error) };
+  }
+}
+
+async function updateAvatar(input: { file: File }): Promise<AuthActionResult> {
+  try {
+    const file = input.file;
+    const extension = getAvatarExtension(file.type);
+
+    if (!extension) {
+      return { ok: false, message: "Use a PNG, JPEG, or WebP image." };
+    }
+
+    if (file.size > maxAvatarSizeBytes) {
+      return { ok: false, message: "Choose an image smaller than 5 MB." };
+    }
+
+    const { data: userData, error: userError } = await getSupabaseClient().auth.getUser();
+
+    if (userError || !userData.user) {
+      return { ok: false, message: friendlyAuthError(userError ?? new Error("No authenticated user.")) };
+    }
+
+    const path = `${userData.user.id}/avatar.${extension}`;
+    const { error: uploadError } = await getSupabaseClient().storage
+      .from(avatarBucket)
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "3600"
+      });
+
+    if (uploadError) {
+      return { ok: false, message: friendlyAuthError(uploadError) };
+    }
+
+    const { data: publicUrlData } = getSupabaseClient().storage
+      .from(avatarBucket)
+      .getPublicUrl(path);
+
+    const avatarUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+    const { data, error } = await getSupabaseClient().auth.updateUser({
+      data: {
+        avatar_url: avatarUrl
+      }
+    });
+
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error) };
+    }
+
+    await emitCurrentAuthState(data.user);
+    return { ok: true, message: "Profile photo updated." };
+  } catch (error: unknown) {
+    return { ok: false, message: friendlyAuthError(error) };
+  }
+}
+
+async function removeAvatar(): Promise<AuthActionResult> {
+  try {
+    const { data: userData, error: userError } = await getSupabaseClient().auth.getUser();
+
+    if (userError || !userData.user) {
+      return { ok: false, message: friendlyAuthError(userError ?? new Error("No authenticated user.")) };
+    }
+
+    await getSupabaseClient().storage.from(avatarBucket).remove([
+      `${userData.user.id}/avatar.png`,
+      `${userData.user.id}/avatar.jpg`,
+      `${userData.user.id}/avatar.webp`
+    ]);
+
+    const { data, error } = await getSupabaseClient().auth.updateUser({
+      data: {
+        avatar_url: null
+      }
+    });
+
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error) };
+    }
+
+    await emitCurrentAuthState(data.user);
+    return { ok: true, message: "Profile photo removed." };
+  } catch (error: unknown) {
+    return { ok: false, message: friendlyAuthError(error) };
+  }
+}
+
 async function handleAuthCallback(urlValue: string): Promise<void> {
   try {
     const url = new URL(urlValue);
@@ -438,6 +679,10 @@ export const teleprompterAuthApi: TeleprompterAuthApi = {
   signOut,
   sendPasswordReset,
   updatePassword,
+  updateProfile,
+  updateEmail,
+  updateAvatar,
+  removeAvatar,
   onAuthEvent: (callback) => {
     authEventCallbacks.add(callback);
     return () => {
