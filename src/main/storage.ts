@@ -6,6 +6,7 @@ import type {
   AppSettings,
   OverlaySettings,
   OverlaySizeSettings,
+  ProjectRecord,
   SaveScriptInput,
   ScriptRecord,
   ShortcutBinding,
@@ -24,6 +25,7 @@ const defaultOverlaySettings: OverlaySettings = {
 
 const defaultScriptsFile: ScriptsFile = {
   version: 1,
+  projects: [],
   scripts: []
 };
 
@@ -70,7 +72,8 @@ const defaultAppSettings: AppSettings = {
   },
   behavior: {
     scrollSpeed: 21,
-    scrollMode: "manual"
+    scrollMode: "manual",
+    hideInterfaceWhileSpeaking: true
   },
   experimental: {
     highlightMode: "sentence"
@@ -166,7 +169,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       ),
       scrollMode: scrollModes.includes(settings.behavior.scrollMode)
         ? settings.behavior.scrollMode
-        : defaultAppSettings.behavior.scrollMode
+        : defaultAppSettings.behavior.scrollMode,
+      hideInterfaceWhileSpeaking: settings.behavior.hideInterfaceWhileSpeaking === undefined
+        ? defaultAppSettings.behavior.hideInterfaceWhileSpeaking
+        : Boolean(settings.behavior.hideInterfaceWhileSpeaking)
     },
     experimental: {
       highlightMode: highlightModes.includes(settings.experimental.highlightMode)
@@ -447,6 +453,20 @@ function isScriptRecord(value: unknown): value is ScriptRecord {
   );
 }
 
+function isProjectRecord(value: unknown): value is ProjectRecord {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ProjectRecord>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.createdAt === "string" &&
+    typeof candidate.updatedAt === "string"
+  );
+}
+
 function isScriptsFile(value: unknown): value is ScriptsFile {
   if (!value || typeof value !== "object") {
     return false;
@@ -457,8 +477,38 @@ function isScriptsFile(value: unknown): value is ScriptsFile {
     candidate.version === 1 &&
     Array.isArray(candidate.scripts) &&
     candidate.scripts.every(isScriptRecord) &&
+    (candidate.projects === undefined ||
+      Array.isArray(candidate.projects) && candidate.projects.every(isProjectRecord)) &&
     (candidate.activeScriptId === undefined || typeof candidate.activeScriptId === "string")
   );
+}
+
+function normalizeProjectName(name: string): string {
+  const trimmedName = name.trim();
+  return (trimmedName || "Untitled project").slice(0, 80);
+}
+
+function hasDuplicateProjectName(projects: ProjectRecord[], name: string, ignoredProjectId?: string): boolean {
+  const normalizedName = normalizeProjectName(name).toLocaleLowerCase();
+  return projects.some((project) => {
+    return project.id !== ignoredProjectId && project.name.trim().toLocaleLowerCase() === normalizedName;
+  });
+}
+
+function normalizeScriptsFile(file: ScriptsFile): ScriptsFile {
+  const projects = file.projects ?? [];
+  const projectIds = new Set(projects.map((project) => project.id));
+  const scripts = file.scripts.map((script) => ({
+    ...script,
+    projectId: script.projectId && projectIds.has(script.projectId) ? script.projectId : undefined
+  }));
+
+  return {
+    version: 1,
+    projects,
+    scripts,
+    activeScriptId: file.activeScriptId
+  };
 }
 
 function normalizeTitle(title: string, body: string): string {
@@ -476,29 +526,51 @@ function normalizeTitle(title: string, body: string): string {
   return (firstContentLine ?? "Untitled script").slice(0, 120);
 }
 
+function getScriptSortTimestamp(script: ScriptRecord): number {
+  return Date.parse(script.lastOpenedAt ?? script.updatedAt ?? script.createdAt) || 0;
+}
+
+function sortScriptsForDisplay(scripts: ScriptRecord[]): ScriptRecord[] {
+  return [...scripts].sort((first, second) => {
+    const firstPinned = Boolean(first.pinned);
+    const secondPinned = Boolean(second.pinned);
+
+    if (firstPinned !== secondPinned) {
+      return firstPinned ? -1 : 1;
+    }
+
+    return getScriptSortTimestamp(second) - getScriptSortTimestamp(first);
+  });
+}
+
 export function loadScriptsFile(): ScriptsFile {
   const path = scriptsPath();
 
   if (!existsSync(path)) {
-    return { ...defaultScriptsFile, scripts: [] };
+    return { ...defaultScriptsFile, projects: [], scripts: [] };
   }
 
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
 
     if (isScriptsFile(parsed)) {
-      return parsed;
+      return normalizeScriptsFile({
+        version: 1,
+        projects: parsed.projects ?? [],
+        scripts: parsed.scripts,
+        activeScriptId: parsed.activeScriptId
+      });
     }
   } catch {
-    return { ...defaultScriptsFile, scripts: [] };
+    return { ...defaultScriptsFile, projects: [], scripts: [] };
   }
 
-  return { ...defaultScriptsFile, scripts: [] };
+  return { ...defaultScriptsFile, projects: [], scripts: [] };
 }
 
 export function saveScriptsFile(file: ScriptsFile): void {
   ensureAppDataDirectories();
-  writeFileSync(scriptsPath(), `${JSON.stringify(file, null, 2)}\n`, "utf8");
+  writeFileSync(scriptsPath(), `${JSON.stringify(normalizeScriptsFile(file), null, 2)}\n`, "utf8");
 }
 
 export function getScriptsState(): ScriptsState {
@@ -506,7 +578,8 @@ export function getScriptsState(): ScriptsState {
   const activeScript = file.scripts.find((script) => script.id === file.activeScriptId);
 
   return {
-    scripts: file.scripts,
+    scripts: sortScriptsForDisplay(file.scripts),
+    projects: file.projects ?? [],
     activeScript
   };
 }
@@ -521,7 +594,9 @@ export function saveScript(input: SaveScriptInput): ScriptsState {
     body: input.body,
     createdAt: existingScript?.createdAt ?? now,
     updatedAt: now,
-    lastOpenedAt: now
+    lastOpenedAt: now,
+    pinned: existingScript?.pinned,
+    projectId: input.projectId ?? existingScript?.projectId
   };
 
   const scripts = existingScript
@@ -530,6 +605,7 @@ export function saveScript(input: SaveScriptInput): ScriptsState {
 
   saveScriptsFile({
     version: 1,
+    projects: file.projects ?? [],
     scripts,
     activeScriptId: script.id
   });
@@ -554,6 +630,7 @@ export function setActiveScript(id: string): ScriptsState {
   const activeScriptId = scripts.some((script) => script.id === id) ? id : file.activeScriptId;
   saveScriptsFile({
     version: 1,
+    projects: file.projects ?? [],
     scripts,
     activeScriptId
   });
@@ -578,8 +655,135 @@ export function renameScript(id: string, title: string): ScriptsState {
 
   saveScriptsFile({
     version: 1,
+    projects: file.projects ?? [],
     scripts,
     activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function setScriptPinned(id: string, pinned: boolean): ScriptsState {
+  const file = loadScriptsFile();
+  const scripts = file.scripts.map((script) => {
+    if (script.id !== id) {
+      return script;
+    }
+
+    return {
+      ...script,
+      pinned
+    };
+  });
+
+  saveScriptsFile({
+    version: 1,
+    projects: file.projects ?? [],
+    scripts,
+    activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function moveScriptToProject(id: string, projectId?: string): ScriptsState {
+  const file = loadScriptsFile();
+  const projectExists = projectId ? file.projects?.some((project) => project.id === projectId) : true;
+  const nextProjectId = projectExists ? projectId : undefined;
+  const scripts = file.scripts.map((script) => {
+    if (script.id !== id) {
+      return script;
+    }
+
+    return {
+      ...script,
+      projectId: nextProjectId,
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  saveScriptsFile({
+    version: 1,
+    projects: file.projects ?? [],
+    scripts,
+    activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function createProject(name: string): ScriptsState {
+  const file = loadScriptsFile();
+  const now = new Date().toISOString();
+  const projects = file.projects ?? [];
+
+  if (hasDuplicateProjectName(projects, name)) {
+    throw new Error("A project with this name already exists.");
+  }
+
+  const project: ProjectRecord = {
+    id: randomUUID(),
+    name: normalizeProjectName(name),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  saveScriptsFile({
+    version: 1,
+    projects: [...projects, project],
+    scripts: file.scripts,
+    activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function renameProject(id: string, name: string): ScriptsState {
+  const file = loadScriptsFile();
+  const now = new Date().toISOString();
+  const existingProjects = file.projects ?? [];
+
+  if (hasDuplicateProjectName(existingProjects, name, id)) {
+    throw new Error("A project with this name already exists.");
+  }
+
+  const projects = existingProjects.map((project) => {
+    if (project.id !== id) {
+      return project;
+    }
+
+    return {
+      ...project,
+      name: normalizeProjectName(name),
+      updatedAt: now
+    };
+  });
+
+  saveScriptsFile({
+    version: 1,
+    projects,
+    scripts: file.scripts,
+    activeScriptId: file.activeScriptId
+  });
+
+  return getScriptsState();
+}
+
+export function deleteProject(id: string, mode: "moveScripts" | "deleteScripts"): ScriptsState {
+  const file = loadScriptsFile();
+  const projects = (file.projects ?? []).filter((project) => project.id !== id);
+  const scripts = mode === "deleteScripts"
+    ? file.scripts.filter((script) => script.projectId !== id)
+    : file.scripts.map((script) => (script.projectId === id ? { ...script, projectId: undefined } : script));
+  const activeScriptId = file.activeScriptId && !scripts.some((script) => script.id === file.activeScriptId)
+    ? scripts[0]?.id
+    : file.activeScriptId;
+
+  saveScriptsFile({
+    version: 1,
+    projects,
+    scripts,
+    activeScriptId
   });
 
   return getScriptsState();
@@ -599,6 +803,7 @@ export function deleteScripts(ids: string[]): ScriptsState {
 
   saveScriptsFile({
     version: 1,
+    projects: file.projects ?? [],
     scripts,
     activeScriptId
   });
@@ -611,6 +816,7 @@ export function clearActiveScript(): ScriptsState {
 
   saveScriptsFile({
     version: 1,
+    projects: file.projects ?? [],
     scripts: file.scripts,
     activeScriptId: undefined
   });

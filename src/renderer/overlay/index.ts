@@ -1,4 +1,5 @@
 const countdownElement = document.querySelector<HTMLElement>("#countdown");
+const overlayShell = document.querySelector<HTMLElement>(".overlay-shell");
 const promptViewport = document.querySelector<HTMLElement>("#promptViewport");
 const promptText = document.querySelector<HTMLElement>("#promptText");
 const progressBar = document.querySelector<HTMLElement>("#progressBar");
@@ -25,6 +26,7 @@ let countdownTimerId: number | null = null;
 let countdownRemaining = 0;
 let countdownEnabled = true;
 let countdownSeconds = 3;
+let hideInterfaceWhileSpeaking = true;
 let highlightMode: AppSettings["experimental"]["highlightMode"] = "sentence";
 let scrollMode: AppSettings["behavior"]["scrollMode"] = "manual";
 let currentHighlightIndex = -1;
@@ -114,6 +116,10 @@ function updateControls(): void {
   if (modeSelect) {
     modeSelect.value = scrollMode;
   }
+
+  const shouldCollapseInterface =
+    hideInterfaceWhileSpeaking && (state === "running" || state === "countdown");
+  overlayShell?.classList.toggle("is-interface-collapsed", shouldCollapseInterface);
 }
 
 function formatSeconds(seconds: number): string {
@@ -633,6 +639,7 @@ function applySettings(settings: AppSettings): void {
   const previousHighlightMode = highlightMode;
   speedPixelsPerSecond = settings.behavior.scrollSpeed;
   scrollMode = settings.behavior.scrollMode;
+  hideInterfaceWhileSpeaking = settings.behavior.hideInterfaceWhileSpeaking;
   countdownEnabled = settings.countdown.enabled;
   countdownSeconds = settings.countdown.seconds;
   highlightMode = settings.experimental.highlightMode;

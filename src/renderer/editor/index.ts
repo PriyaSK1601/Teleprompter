@@ -1,21 +1,121 @@
 const statusElement = document.querySelector<HTMLElement>("#status");
+const authShell = document.querySelector<HTMLElement>("#authShell");
+const authLoadingCard = document.querySelector<HTMLElement>("#authLoadingCard");
+const authConfigCard = document.querySelector<HTMLElement>("#authConfigCard");
+const authConfigMessage = document.querySelector<HTMLElement>("#authConfigMessage");
+const loginForm = document.querySelector<HTMLFormElement>("#loginForm");
+const loginEmailInput = document.querySelector<HTMLInputElement>("#loginEmailInput");
+const loginPasswordInput = document.querySelector<HTMLInputElement>("#loginPasswordInput");
+const loginPasswordToggle = document.querySelector<HTMLButtonElement>("#loginPasswordToggle");
+const rememberMeInput = document.querySelector<HTMLInputElement>("#rememberMeInput");
+const loginError = document.querySelector<HTMLElement>("#loginError");
+const loginSubmitButton = document.querySelector<HTMLButtonElement>("#loginSubmitButton");
+const googleLoginButton = document.querySelector<HTMLButtonElement>("#googleLoginButton");
+const showForgotPasswordButton = document.querySelector<HTMLButtonElement>("#showForgotPasswordButton");
+const showSignupButton = document.querySelector<HTMLButtonElement>("#showSignupButton");
+const signupForm = document.querySelector<HTMLFormElement>("#signupForm");
+const signupNameInput = document.querySelector<HTMLInputElement>("#signupNameInput");
+const signupEmailInput = document.querySelector<HTMLInputElement>("#signupEmailInput");
+const signupPasswordInput = document.querySelector<HTMLInputElement>("#signupPasswordInput");
+const signupPasswordToggle = document.querySelector<HTMLButtonElement>("#signupPasswordToggle");
+const signupConfirmPasswordInput = document.querySelector<HTMLInputElement>("#signupConfirmPasswordInput");
+const signupConfirmPasswordToggle = document.querySelector<HTMLButtonElement>("#signupConfirmPasswordToggle");
+const signupPasswordStrengthBar = document.querySelector<HTMLElement>("#signupPasswordStrengthBar");
+const signupPasswordStrengthText = document.querySelector<HTMLElement>("#signupPasswordStrengthText");
+const signupError = document.querySelector<HTMLElement>("#signupError");
+const signupSubmitButton = document.querySelector<HTMLButtonElement>("#signupSubmitButton");
+const googleSignupButton = document.querySelector<HTMLButtonElement>("#googleSignupButton");
+const showLoginFromSignupButton = document.querySelector<HTMLButtonElement>("#showLoginFromSignupButton");
+const forgotPasswordForm = document.querySelector<HTMLFormElement>("#forgotPasswordForm");
+const forgotEmailInput = document.querySelector<HTMLInputElement>("#forgotEmailInput");
+const forgotPasswordMessage = document.querySelector<HTMLElement>("#forgotPasswordMessage");
+const forgotPasswordError = document.querySelector<HTMLElement>("#forgotPasswordError");
+const forgotPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#forgotPasswordSubmitButton");
+const showLoginFromForgotButton = document.querySelector<HTMLButtonElement>("#showLoginFromForgotButton");
+const resetPasswordForm = document.querySelector<HTMLFormElement>("#resetPasswordForm");
+const resetPasswordInput = document.querySelector<HTMLInputElement>("#resetPasswordInput");
+const resetPasswordToggle = document.querySelector<HTMLButtonElement>("#resetPasswordToggle");
+const resetConfirmPasswordInput = document.querySelector<HTMLInputElement>("#resetConfirmPasswordInput");
+const resetConfirmPasswordToggle = document.querySelector<HTMLButtonElement>("#resetConfirmPasswordToggle");
+const resetPasswordStrengthBar = document.querySelector<HTMLElement>("#resetPasswordStrengthBar");
+const resetPasswordStrengthText = document.querySelector<HTMLElement>("#resetPasswordStrengthText");
+const resetPasswordError = document.querySelector<HTMLElement>("#resetPasswordError");
+const resetPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#resetPasswordSubmitButton");
+const checkEmailCard = document.querySelector<HTMLElement>("#checkEmailCard");
+const showLoginFromCheckEmailButton = document.querySelector<HTMLButtonElement>("#showLoginFromCheckEmailButton");
+const profileButton = document.querySelector<HTMLButtonElement>("#profileButton");
+const profileAvatarImage = document.querySelector<HTMLImageElement>("#profileAvatarImage");
+const profileAvatarFallback = document.querySelector<HTMLElement>("#profileAvatarFallback");
+const profileButtonName = document.querySelector<HTMLElement>("#profileButtonName");
+const profileButtonEmail = document.querySelector<HTMLElement>("#profileButtonEmail");
+const profileMenu = document.querySelector<HTMLElement>("#profileMenu");
+const profileMenuAvatarImage = document.querySelector<HTMLImageElement>("#profileMenuAvatarImage");
+const profileMenuAvatarFallback = document.querySelector<HTMLElement>("#profileMenuAvatarFallback");
+const profileMenuName = document.querySelector<HTMLElement>("#profileMenuName");
+const profileMenuEmail = document.querySelector<HTMLElement>("#profileMenuEmail");
+const profileMenuProvider = document.querySelector<HTMLElement>("#profileMenuProvider");
+const profileMenuProfileButton = document.querySelector<HTMLButtonElement>("#profileMenuProfileButton");
+const profileMenuSettingsButton = document.querySelector<HTMLButtonElement>("#profileMenuSettingsButton");
+const profileMenuSignOutButton = document.querySelector<HTMLButtonElement>("#profileMenuSignOutButton");
+const profileMenuError = document.querySelector<HTMLElement>("#profileMenuError");
+const profileModal = document.querySelector<HTMLElement>("#profileModal");
+const profileModalBackdrop = document.querySelector<HTMLElement>("#profileModalBackdrop");
+const profileForm = document.querySelector<HTMLFormElement>("#profileForm");
+const closeProfileModalButton = document.querySelector<HTMLButtonElement>("#closeProfileModalButton");
+const cancelProfileModalButton = document.querySelector<HTMLButtonElement>("#cancelProfileModalButton");
+const profileDialogAvatarImage = document.querySelector<HTMLImageElement>("#profileDialogAvatarImage");
+const profileDialogAvatarFallback = document.querySelector<HTMLElement>("#profileDialogAvatarFallback");
+const profileDialogName = document.querySelector<HTMLElement>("#profileDialogName");
+const profileDialogEmail = document.querySelector<HTMLElement>("#profileDialogEmail");
+const profileDialogMeta = document.querySelector<HTMLElement>("#profileDialogMeta");
+const profileAvatarInput = document.querySelector<HTMLInputElement>("#profileAvatarInput");
+const changeProfilePhotoButton = document.querySelector<HTMLButtonElement>("#changeProfilePhotoButton");
+const removeProfilePhotoButton = document.querySelector<HTMLButtonElement>("#removeProfilePhotoButton");
+const profileNameInput = document.querySelector<HTMLInputElement>("#profileNameInput");
+const profileCurrentEmail = document.querySelector<HTMLElement>("#profileCurrentEmail");
+const editProfileEmailButton = document.querySelector<HTMLButtonElement>("#editProfileEmailButton");
+const profileEmailEditor = document.querySelector<HTMLElement>("#profileEmailEditor");
+const profileEmailInput = document.querySelector<HTMLInputElement>("#profileEmailInput");
+const cancelProfileEmailButton = document.querySelector<HTMLButtonElement>("#cancelProfileEmailButton");
+const saveProfileEmailButton = document.querySelector<HTMLButtonElement>("#saveProfileEmailButton");
+const profilePendingEmail = document.querySelector<HTMLElement>("#profilePendingEmail");
+const profileModalMessage = document.querySelector<HTMLElement>("#profileModalMessage");
+const profileModalError = document.querySelector<HTMLElement>("#profileModalError");
+const saveProfileButton = document.querySelector<HTMLButtonElement>("#saveProfileButton");
+const settingsAccountAvatarImage = document.querySelector<HTMLImageElement>("#settingsAccountAvatarImage");
+const settingsAccountAvatarFallback = document.querySelector<HTMLElement>("#settingsAccountAvatarFallback");
+const settingsAccountName = document.querySelector<HTMLElement>("#settingsAccountName");
+const settingsAccountEmail = document.querySelector<HTMLElement>("#settingsAccountEmail");
+const settingsAccountProvider = document.querySelector<HTMLElement>("#settingsAccountProvider");
 const editorApp = document.querySelector<HTMLElement>(".editor-app");
 const toggleSidebarButton = document.querySelector<HTMLButtonElement>("#toggleSidebarButton");
 const newScriptButton = document.querySelector<HTMLButtonElement>("#newScriptButton");
 const clearScriptButton = document.querySelector<HTMLButtonElement>("#clearScriptButton");
 const startTeleprompterButton = document.querySelector<HTMLButtonElement>("#startTeleprompterButton");
 const scriptSearch = document.querySelector<HTMLInputElement>("#scriptSearch");
+const newProjectButton = document.querySelector<HTMLButtonElement>("#newProjectButton");
+const projectList = document.querySelector<HTMLElement>("#projectList");
+const projectDialog = document.querySelector<HTMLElement>("#projectDialog");
+const projectDialogBackdrop = document.querySelector<HTMLElement>("#projectDialogBackdrop");
+const projectDialogForm = document.querySelector<HTMLFormElement>("#projectDialogForm");
+const projectDialogTitle = document.querySelector<HTMLElement>("#projectDialogTitle");
+const projectNameInput = document.querySelector<HTMLInputElement>("#projectNameInput");
+const projectDialogError = document.querySelector<HTMLElement>("#projectDialogError");
+const submitProjectDialogButton = document.querySelector<HTMLButtonElement>("#submitProjectDialogButton");
+const cancelProjectDialogButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogButton");
+const cancelProjectDialogIconButton = document.querySelector<HTMLButtonElement>("#cancelProjectDialogIconButton");
+const historyHeading = document.querySelector<HTMLElement>("#historyHeading");
 const scriptList = document.querySelector<HTMLUListElement>("#scriptList");
-const selectedScriptsLabel = document.querySelector<HTMLElement>("#selectedScriptsLabel");
-const deleteSelectedScriptsButton = document.querySelector<HTMLButtonElement>("#deleteSelectedScriptsButton");
 const scriptTitle = document.querySelector<HTMLInputElement>("#scriptTitle");
 const scriptBody = document.querySelector<HTMLTextAreaElement>("#scriptBody");
 const scriptStats = document.querySelector<HTMLElement>("#scriptStats");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settingsButton");
+const themeToggleButton = document.querySelector<HTMLButtonElement>("#themeToggleButton");
 const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const logoutButton = document.querySelector<HTMLButtonElement>("#logoutButton");
 const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
 const fontSizeValue = document.querySelector<HTMLElement>("#fontSizeValue");
@@ -33,6 +133,7 @@ const countdownSecondsInput = document.querySelector<HTMLInputElement>("#countdo
 const scrollModeSelect = document.querySelector<HTMLSelectElement>("#scrollModeSelect");
 const scrollSpeedInput = document.querySelector<HTMLInputElement>("#scrollSpeedInput");
 const scrollSpeedValue = document.querySelector<HTMLElement>("#scrollSpeedValue");
+const hideInterfaceWhileSpeakingInput = document.querySelector<HTMLInputElement>("#hideInterfaceWhileSpeakingInput");
 const highlightModeSelect = document.querySelector<HTMLSelectElement>("#highlightModeSelect");
 const settingsPreview = document.querySelector<HTMLElement>("#settingsPreview");
 const livePreviewPane = document.querySelector<HTMLElement>("#livePreviewPane");
@@ -50,11 +151,19 @@ const settingsSavedPill = document.querySelector<HTMLElement>("#settingsSavedPil
 const settingsDrawer = document.querySelector<HTMLElement>(".settings-drawer");
 
 let currentScriptsState: ScriptsState = {
+  projects: [],
   scripts: []
 };
 let activeScriptId: string | undefined;
 let settingsRenderLocked = false;
-let selectedScriptIds = new Set<string>();
+let openScriptMenuId: string | undefined;
+let openProjectMenuId: string | undefined;
+let selectedProjectId: string | undefined;
+let editingProjectId: string | undefined;
+let draggedScriptId: string | undefined;
+let activeDropProjectId: string | undefined;
+const expandedProjectsStorageKey = "teleprompter.expandedProjects";
+const expandedProjectIds = new Set<string>();
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
 let overlayXRatio = 0.265;
@@ -66,10 +175,15 @@ let previewScrollRaf: number | undefined;
 let previewScrollOffset = 0;
 let previewScrollLastTs = 0;
 let previewScrollPaused = false;
-let selectedAppearancePresetId: string | null | undefined;
 
 const autosaveDelayMs = 600;
 const settingsSaveDelayMs = 200;
+type AuthView = "loading" | "login" | "signup" | "forgot" | "reset" | "checkEmail" | "config";
+
+let authInitialized = false;
+let authSubmitting = false;
+let profileSubmitting = false;
+let currentAuthUser: AuthState["user"] = null;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -105,7 +219,7 @@ let activeOverlayDrag: OverlayDragState | null = null;
 
 const ipcBackedControls = [
   newScriptButton,
-  deleteSelectedScriptsButton,
+  newProjectButton,
   clearScriptButton,
   startTeleprompterButton,
   resetSettingsButton,
@@ -119,6 +233,7 @@ const ipcBackedControls = [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ];
 
@@ -144,6 +259,766 @@ function requireTeleprompterApi(): TeleprompterApi {
   }
 
   return api;
+}
+
+function getAuthApi(): TeleprompterAuthApi | undefined {
+  return window.teleprompterAuth;
+}
+
+function requireAuthApi(): TeleprompterAuthApi {
+  const api = getAuthApi();
+
+  if (!api) {
+    throw new Error("Authentication bridge unavailable. Start the desktop app with npm run dev.");
+  }
+
+  return api;
+}
+
+function getAuthForms(): HTMLElement[] {
+  return [
+    authLoadingCard,
+    authConfigCard,
+    loginForm,
+    signupForm,
+    forgotPasswordForm,
+    resetPasswordForm,
+    checkEmailCard
+  ].filter((element): element is HTMLElement => Boolean(element));
+}
+
+function setAuthView(view: AuthView): void {
+  const viewMap = new Map<AuthView, HTMLElement | null>([
+    ["loading", authLoadingCard],
+    ["config", authConfigCard],
+    ["login", loginForm],
+    ["signup", signupForm],
+    ["forgot", forgotPasswordForm],
+    ["reset", resetPasswordForm],
+    ["checkEmail", checkEmailCard]
+  ]);
+
+  for (const form of getAuthForms()) {
+    form.classList.add("is-hidden");
+  }
+
+  viewMap.get(view)?.classList.remove("is-hidden");
+  document.body.classList.toggle("auth-loading", view === "loading");
+  document.body.classList.toggle("auth-required", view !== "loading");
+  document.body.classList.remove("auth-ready");
+
+  if (view === "login") {
+    window.setTimeout(() => loginEmailInput?.focus(), 0);
+  } else if (view === "signup") {
+    window.setTimeout(() => signupNameInput?.focus(), 0);
+  } else if (view === "forgot") {
+    window.setTimeout(() => forgotEmailInput?.focus(), 0);
+  } else if (view === "reset") {
+    window.setTimeout(() => resetPasswordInput?.focus(), 0);
+  }
+}
+
+function showAuthenticatedApp(): void {
+  document.body.classList.remove("auth-loading", "auth-required");
+  document.body.classList.add("auth-ready");
+}
+
+function setAuthError(element: HTMLElement | null, message = ""): void {
+  if (element) {
+    element.textContent = message;
+  }
+}
+
+function setAuthLoading(loading: boolean): void {
+  authSubmitting = loading;
+
+  for (const button of [
+    loginSubmitButton,
+    googleLoginButton,
+    signupSubmitButton,
+    googleSignupButton,
+    forgotPasswordSubmitButton,
+    resetPasswordSubmitButton
+  ]) {
+    if (button) {
+      button.disabled = loading;
+    }
+  }
+}
+
+function getUserDisplayName(user: AuthState["user"]): string {
+  const emailUsername = user?.email?.split("@")[0];
+  return user?.fullName?.trim() || emailUsername || "Account";
+}
+
+function getUserInitials(user: AuthState["user"]): string {
+  const name = user?.fullName?.trim();
+
+  if (name) {
+    return name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "?";
+  }
+
+  return user?.email?.[0]?.toUpperCase() ?? "?";
+}
+
+function formatProvider(provider?: string): string {
+  if (!provider) {
+    return "Signed in";
+  }
+
+  return `Signed in with ${provider.charAt(0).toUpperCase()}${provider.slice(1)}`;
+}
+
+function formatCreatedAt(createdAt?: string): string {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `Created ${date.toLocaleDateString()}`;
+}
+
+function renderAvatar(
+  image: HTMLImageElement | null,
+  fallback: HTMLElement | null,
+  user: AuthState["user"]
+): void {
+  const initials = getUserInitials(user);
+
+  if (fallback) {
+    fallback.textContent = initials;
+  }
+
+  if (!image) {
+    return;
+  }
+
+  image.onerror = () => {
+    image.hidden = true;
+  };
+
+  if (user?.avatarUrl) {
+    image.src = user.avatarUrl;
+    image.hidden = false;
+  } else {
+    image.removeAttribute("src");
+    image.hidden = true;
+  }
+}
+
+function renderProfileUi(user: AuthState["user"]): void {
+  currentAuthUser = user;
+  const displayName = getUserDisplayName(user);
+  const email = user?.email ?? "";
+  const provider = formatProvider(user?.provider);
+  const createdAt = formatCreatedAt(user?.createdAt);
+
+  if (profileButtonName) {
+    profileButtonName.textContent = displayName;
+  }
+
+  if (profileButtonEmail) {
+    profileButtonEmail.textContent = email;
+  }
+
+  if (profileMenuName) {
+    profileMenuName.textContent = displayName;
+  }
+
+  if (profileMenuEmail) {
+    profileMenuEmail.textContent = email;
+  }
+
+  if (profileMenuProvider) {
+    profileMenuProvider.textContent = provider;
+  }
+
+  if (profileDialogName) {
+    profileDialogName.textContent = displayName;
+  }
+
+  if (profileDialogEmail) {
+    profileDialogEmail.textContent = email;
+  }
+
+  if (profileDialogMeta) {
+    profileDialogMeta.textContent = [provider, createdAt].filter(Boolean).join(" • ");
+  }
+
+  if (settingsAccountName) {
+    settingsAccountName.textContent = displayName;
+  }
+
+  if (settingsAccountEmail) {
+    settingsAccountEmail.textContent = email;
+  }
+
+  if (settingsAccountProvider) {
+    settingsAccountProvider.textContent = provider;
+  }
+
+  if (profileNameInput) {
+    profileNameInput.value = user?.fullName?.trim() || "";
+  }
+
+  if (profileCurrentEmail) {
+    profileCurrentEmail.textContent = email;
+  }
+
+  if (profileEmailInput) {
+    profileEmailInput.value = "";
+  }
+
+  if (profilePendingEmail) {
+    profilePendingEmail.textContent = "";
+  }
+
+  if (removeProfilePhotoButton) {
+    removeProfilePhotoButton.hidden = !user?.avatarUrl;
+  }
+
+  renderAvatar(profileAvatarImage, profileAvatarFallback, user);
+  renderAvatar(profileMenuAvatarImage, profileMenuAvatarFallback, user);
+  renderAvatar(profileDialogAvatarImage, profileDialogAvatarFallback, user);
+  renderAvatar(settingsAccountAvatarImage, settingsAccountAvatarFallback, user);
+}
+
+function setProfileMenuError(message = ""): void {
+  if (profileMenuError) {
+    profileMenuError.textContent = message;
+  }
+}
+
+function setProfileModalMessage(message = ""): void {
+  if (profileModalMessage) {
+    profileModalMessage.textContent = message;
+  }
+}
+
+function setProfileModalError(message = ""): void {
+  if (profileModalError) {
+    profileModalError.textContent = message;
+  }
+}
+
+function isProfileMenuOpen(): boolean {
+  return Boolean(profileMenu && !profileMenu.hidden);
+}
+
+function openProfileMenu(): void {
+  if (!profileMenu || !profileButton) {
+    return;
+  }
+
+  setProfileMenuError();
+  profileMenu.hidden = false;
+  profileButton.setAttribute("aria-expanded", "true");
+  window.setTimeout(() => profileMenuProfileButton?.focus(), 0);
+}
+
+function closeProfileMenu(): void {
+  if (!profileMenu || !profileButton) {
+    return;
+  }
+
+  profileMenu.hidden = true;
+  profileButton.setAttribute("aria-expanded", "false");
+}
+
+function openProfileModal(): void {
+  closeProfileMenu();
+  renderProfileUi(currentAuthUser);
+  setProfileModalMessage();
+  setProfileModalError();
+  profileModal?.classList.add("is-open");
+  profileModal?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => profileNameInput?.focus(), 0);
+  profileNameInput?.select();
+}
+
+function closeProfileModal(): void {
+  profileModal?.classList.remove("is-open");
+  profileModal?.setAttribute("aria-hidden", "true");
+  setProfileModalMessage();
+  setProfileModalError();
+  profileButton?.focus();
+}
+
+function setProfileSubmitting(loading: boolean): void {
+  profileSubmitting = loading;
+
+  for (const button of [
+    saveProfileButton,
+    profileMenuSignOutButton,
+    logoutButton,
+    changeProfilePhotoButton,
+    removeProfilePhotoButton,
+    saveProfileEmailButton
+  ]) {
+    if (button) {
+      button.disabled = loading;
+    }
+  }
+}
+
+function validateEmailAddress(email: string): string {
+  if (!email) {
+    return "Enter an email address.";
+  }
+
+  if (!isValidEmail(email)) {
+    return "Enter a valid email address.";
+  }
+
+  if (email.toLowerCase() === currentAuthUser?.email?.toLowerCase()) {
+    return "Enter a different email address.";
+  }
+
+  return "";
+}
+
+function showEmailEditor(show: boolean): void {
+  profileEmailEditor?.classList.toggle("is-hidden", !show);
+
+  if (show) {
+    if (profileEmailInput) {
+      profileEmailInput.value = "";
+    }
+
+    window.setTimeout(() => profileEmailInput?.focus(), 0);
+  }
+}
+
+async function submitEmailUpdate(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  const email = profileEmailInput?.value.trim() ?? "";
+  const validationMessage = validateEmailAddress(email);
+  setProfileModalError();
+  setProfileModalMessage();
+
+  if (validationMessage) {
+    setProfileModalError(validationMessage);
+    profileEmailInput?.focus();
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateEmail({ email });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Email update failed. Try again.");
+      return;
+    }
+
+    showEmailEditor(false);
+    setProfileModalMessage(result.message ?? "Confirmation instructions have been sent.");
+
+    if (profilePendingEmail && result.pendingEmail) {
+      profilePendingEmail.textContent = `Pending confirmation: ${result.pendingEmail}`;
+    }
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function submitAvatarUpdate(file: File | undefined): Promise<void> {
+  if (!file || profileSubmitting) {
+    return;
+  }
+
+  setProfileModalError();
+  setProfileModalMessage();
+
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    setProfileModalError("Use a PNG, JPEG, or WebP image.");
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    setProfileModalError("Choose an image smaller than 5 MB.");
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateAvatar({ file });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile photo update failed.");
+      return;
+    }
+
+    setProfileModalMessage(result.message ?? "Profile photo updated.");
+  } finally {
+    setProfileSubmitting(false);
+
+    if (profileAvatarInput) {
+      profileAvatarInput.value = "";
+    }
+  }
+}
+
+async function submitAvatarRemoval(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  setProfileModalError();
+  setProfileModalMessage();
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().removeAvatar();
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile photo removal failed.");
+      return;
+    }
+
+    setProfileModalMessage(result.message ?? "Profile photo removed.");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function signOutCurrentUser(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  setProfileSubmitting(true);
+  setProfileMenuError();
+
+  try {
+    const result = await requireAuthApi().signOut();
+
+    if (!result.ok) {
+      setProfileMenuError(result.message ?? "Sign out failed. Try again.");
+      setStatus(result.message ?? "Sign out failed. Try again.");
+      return;
+    }
+
+    currentAuthUser = null;
+    closeProfileMenu();
+    closeProfileModal();
+    setAuthView("login");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+async function submitProfileUpdate(): Promise<void> {
+  if (profileSubmitting) {
+    return;
+  }
+
+  const fullName = profileNameInput?.value.trim() ?? "";
+  setProfileModalMessage();
+  setProfileModalError();
+
+  if (!fullName) {
+    setProfileModalError("Enter a display name.");
+    profileNameInput?.focus();
+    return;
+  }
+
+  setProfileSubmitting(true);
+
+  try {
+    const result = await requireAuthApi().updateProfile({ fullName });
+
+    if (!result.ok) {
+      setProfileModalError(result.message ?? "Profile update failed. Try again.");
+      return;
+    }
+
+    setProfileModalMessage("Profile updated.");
+  } finally {
+    setProfileSubmitting(false);
+  }
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function getPasswordScore(password: string): number {
+  let score = 0;
+
+  if (password.length >= 8) {
+    score += 1;
+  }
+
+  if (/[a-z]/i.test(password) && /\d/.test(password)) {
+    score += 1;
+  }
+
+  if (/[^a-z0-9]/i.test(password)) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function getPasswordValidationMessage(password: string): string {
+  if (password.length < 8) {
+    return "Password must be at least 8 characters.";
+  }
+
+  if (!/[a-z]/i.test(password) || !/\d/.test(password)) {
+    return "Use at least one letter and one number.";
+  }
+
+  return "";
+}
+
+function renderPasswordStrength(
+  password: string,
+  bar: HTMLElement | null,
+  label: HTMLElement | null
+): void {
+  const score = getPasswordScore(password);
+  const strength = password ? score : 0;
+  const labels = ["Use 8+ characters with a mix of letters and numbers.", "Weak", "Good", "Strong"];
+
+  if (bar) {
+    bar.style.width = `${Math.max(8, strength * 33.33)}%`;
+    bar.dataset.strength = String(strength);
+  }
+
+  if (label) {
+    label.textContent = labels[strength] ?? labels[0];
+  }
+}
+
+function togglePasswordVisibility(input: HTMLInputElement | null, button: HTMLButtonElement | null): void {
+  if (!input || !button) {
+    return;
+  }
+
+  const shouldShow = input.type === "password";
+  input.type = shouldShow ? "text" : "password";
+  button.textContent = shouldShow ? "Hide" : "Show";
+  button.setAttribute("aria-label", shouldShow ? "Hide password" : "Show password");
+}
+
+async function runAuthAction(action: () => Promise<void>): Promise<void> {
+  if (authSubmitting) {
+    return;
+  }
+
+  try {
+    setAuthLoading(true);
+    await action();
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+function applyAuthState(state: AuthState): void {
+  if (!state.config.configured) {
+    if (authConfigMessage) {
+      authConfigMessage.textContent = state.config.message ?? "Supabase configuration is missing.";
+    }
+
+    setAuthView("config");
+    return;
+  }
+
+  if (state.user) {
+    renderProfileUi(state.user);
+    showAuthenticatedApp();
+
+    if (!authInitialized) {
+      authInitialized = true;
+      void runEditorAction("Load local scripts", loadScriptsState);
+      void runEditorAction("Load settings", loadSettings);
+      void runEditorAction("Load shortcuts", loadShortcuts);
+    }
+
+    return;
+  }
+
+  authInitialized = false;
+  currentAuthUser = null;
+  closeProfileMenu();
+  closeProfileModal();
+  setAuthView("login");
+}
+
+async function initializeAuth(): Promise<void> {
+  const api = getAuthApi();
+
+  if (!api) {
+    if (authConfigMessage) {
+      authConfigMessage.textContent = "Authentication bridge unavailable. Start the desktop app with npm run dev.";
+    }
+
+    setAuthView("config");
+    return;
+  }
+
+  api.onAuthEvent((event: AuthEvent) => {
+    if (event.type === "recovery") {
+      setAuthView("reset");
+      return;
+    }
+
+    if (event.type === "error") {
+      setAuthError(loginError, event.message);
+      setAuthView("login");
+      return;
+    }
+
+    applyAuthState(event.state);
+  });
+
+  const state = await api.getState();
+  applyAuthState(state);
+}
+
+async function submitLogin(): Promise<void> {
+  const email = loginEmailInput?.value.trim() ?? "";
+  const password = loginPasswordInput?.value ?? "";
+
+  setAuthError(loginError);
+
+  if (!email || !password) {
+    setAuthError(loginError, "Enter your email and password.");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    setAuthError(loginError, "Enter a valid email address.");
+    return;
+  }
+
+  const result = await requireAuthApi().signIn({
+    email,
+    password,
+    remember: rememberMeInput?.checked ?? true
+  });
+
+  if (!result.ok) {
+    setAuthError(loginError, result.message ?? "Sign in failed.");
+  }
+}
+
+async function submitSignup(): Promise<void> {
+  const fullName = signupNameInput?.value.trim() ?? "";
+  const email = signupEmailInput?.value.trim() ?? "";
+  const password = signupPasswordInput?.value ?? "";
+  const confirmPassword = signupConfirmPasswordInput?.value ?? "";
+
+  setAuthError(signupError);
+
+  if (!fullName || !email || !password || !confirmPassword) {
+    setAuthError(signupError, "Complete all fields.");
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    setAuthError(signupError, "Enter a valid email address.");
+    return;
+  }
+
+  const passwordMessage = getPasswordValidationMessage(password);
+
+  if (passwordMessage) {
+    setAuthError(signupError, passwordMessage);
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setAuthError(signupError, "Passwords do not match.");
+    return;
+  }
+
+  const result = await requireAuthApi().signUp({
+    fullName,
+    email,
+    password,
+    remember: true
+  });
+
+  if (!result.ok) {
+    setAuthError(signupError, result.message ?? "Account creation failed.");
+    return;
+  }
+
+  if (result.needsEmailConfirmation) {
+    setAuthView("checkEmail");
+  }
+}
+
+async function submitForgotPassword(): Promise<void> {
+  const email = forgotEmailInput?.value.trim() ?? "";
+
+  setAuthError(forgotPasswordError);
+
+  if (forgotPasswordMessage) {
+    forgotPasswordMessage.textContent = "";
+  }
+
+  if (!email || !isValidEmail(email)) {
+    setAuthError(forgotPasswordError, "Enter a valid email address.");
+    return;
+  }
+
+  const result = await requireAuthApi().sendPasswordReset(email);
+
+  if (!result.ok) {
+    setAuthError(forgotPasswordError, result.message ?? "Could not send reset link.");
+    return;
+  }
+
+  if (forgotPasswordMessage) {
+    forgotPasswordMessage.textContent = "If an account exists, a reset link has been sent. You can resend after a short wait.";
+  }
+}
+
+async function submitResetPassword(): Promise<void> {
+  const password = resetPasswordInput?.value ?? "";
+  const confirmPassword = resetConfirmPasswordInput?.value ?? "";
+
+  setAuthError(resetPasswordError);
+
+  const passwordMessage = getPasswordValidationMessage(password);
+
+  if (passwordMessage) {
+    setAuthError(resetPasswordError, passwordMessage);
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setAuthError(resetPasswordError, "Passwords do not match.");
+    return;
+  }
+
+  const result = await requireAuthApi().updatePassword(password);
+
+  if (!result.ok) {
+    setAuthError(resetPasswordError, result.message ?? "Password update failed.");
+    return;
+  }
+
+  const state = await requireAuthApi().getState();
+  applyAuthState(state);
 }
 
 function setIpcControlsDisabled(disabled: boolean): void {
@@ -346,16 +1221,408 @@ function getOpaquePreviewBackground(hexColor: string, opacity: number): string {
   return `rgb(${red} ${green} ${blue})`;
 }
 
-function getFilteredScripts(): ScriptRecord[] {
-  const query = scriptSearch?.value.trim().toLowerCase() ?? "";
+function getSearchQuery(): string {
+  return scriptSearch?.value.trim().toLowerCase() ?? "";
+}
 
+function scriptMatchesQuery(script: ScriptRecord, query = getSearchQuery()): boolean {
   if (!query) {
-    return currentScriptsState.scripts;
+    return true;
   }
 
-  return currentScriptsState.scripts.filter((script) => {
-    return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
+  return script.title.toLowerCase().includes(query) || script.body.toLowerCase().includes(query);
+}
+
+function projectMatchesQuery(project: ProjectRecord, query = getSearchQuery()): boolean {
+  return !query || project.name.toLowerCase().includes(query);
+}
+
+function sortScriptsForSection(scripts: ScriptRecord[]): ScriptRecord[] {
+  return [...scripts].sort((first, second) => {
+    if (Boolean(first.pinned) !== Boolean(second.pinned)) {
+      return first.pinned ? -1 : 1;
+    }
+
+    return new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime();
   });
+}
+
+function getFilteredScripts(): ScriptRecord[] {
+  const query = scriptSearch?.value.trim().toLowerCase() ?? "";
+  return currentScriptsState.scripts.filter((script) => scriptMatchesQuery(script, query));
+}
+
+function getProjectName(projectId?: string): string {
+  if (!projectId) {
+    return "Uncategorised";
+  }
+
+  return currentScriptsState.projects.find((project) => project.id === projectId)?.name ?? "Unknown project";
+}
+
+function getCurrentProjectName(): string {
+  return selectedProjectId ? getProjectName(selectedProjectId) : "All Scripts";
+}
+
+function getProjectScriptCount(projectId?: string): number {
+  return currentScriptsState.scripts.filter((script) => script.projectId === projectId).length;
+}
+
+function loadExpandedProjects(): void {
+  try {
+    const rawValue = localStorage.getItem(expandedProjectsStorageKey);
+    const ids = rawValue ? JSON.parse(rawValue) as unknown : [];
+
+    if (Array.isArray(ids)) {
+      expandedProjectIds.clear();
+      for (const id of ids) {
+        if (typeof id === "string") {
+          expandedProjectIds.add(id);
+        }
+      }
+    }
+  } catch {
+    expandedProjectIds.clear();
+  }
+}
+
+function saveExpandedProjects(): void {
+  localStorage.setItem(expandedProjectsStorageKey, JSON.stringify([...expandedProjectIds]));
+}
+
+function setProjectExpanded(projectId: string, expanded: boolean): void {
+  if (expanded) {
+    expandedProjectIds.add(projectId);
+  } else {
+    expandedProjectIds.delete(projectId);
+  }
+
+  saveExpandedProjects();
+}
+
+async function moveScriptToProjectWithRollback(scriptId: string, projectId?: string): Promise<void> {
+  const previousState = currentScriptsState;
+  const targetExists = projectId === undefined || currentScriptsState.projects.some((project) => project.id === projectId);
+  const scriptExists = currentScriptsState.scripts.some((script) => script.id === scriptId);
+
+  if (!targetExists || !scriptExists) {
+    setStatus("Move failed. Invalid script or project.");
+    return;
+  }
+
+  currentScriptsState = {
+    ...currentScriptsState,
+    scripts: currentScriptsState.scripts.map((script) => (
+      script.id === scriptId ? { ...script, projectId } : script
+    ))
+  };
+  renderProjectList();
+  renderScriptsList();
+
+  try {
+    const state = await requireTeleprompterApi().moveScriptToProject(scriptId, projectId);
+    renderScriptsState(state);
+  } catch (error: unknown) {
+    currentScriptsState = previousState;
+    renderProjectList();
+    renderScriptsList();
+    setStatus(`Move script failed. ${formatError(error)}`);
+  }
+}
+
+function clearDropState(): void {
+  activeDropProjectId = undefined;
+  draggedScriptId = undefined;
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleScriptDragStart(event: DragEvent, script: ScriptRecord): void {
+  draggedScriptId = script.id;
+  event.dataTransfer?.setData("text/plain", script.id);
+  event.dataTransfer?.setData("application/x-teleprompter-script-id", script.id);
+
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+  }
+}
+
+function handleDropTargetDragOver(event: DragEvent, projectId?: string): void {
+  if (!draggedScriptId && !event.dataTransfer?.types.includes("application/x-teleprompter-script-id")) {
+    return;
+  }
+
+  event.preventDefault();
+  activeDropProjectId = projectId ?? "__root__";
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleDropTargetDragLeave(event: DragEvent): void {
+  const currentTarget = event.currentTarget as HTMLElement;
+  const relatedTarget = event.relatedTarget as Node | null;
+
+  if (relatedTarget && currentTarget.contains(relatedTarget)) {
+    return;
+  }
+
+  activeDropProjectId = undefined;
+  renderProjectList();
+  renderScriptsList();
+}
+
+function handleScriptDrop(event: DragEvent, projectId?: string): void {
+  event.preventDefault();
+  const scriptId = draggedScriptId ?? event.dataTransfer?.getData("application/x-teleprompter-script-id");
+  draggedScriptId = undefined;
+  activeDropProjectId = undefined;
+
+  if (!scriptId) {
+    renderProjectList();
+    renderScriptsList();
+    return;
+  }
+
+  if (projectId) {
+    setProjectExpanded(projectId, true);
+  }
+
+  void moveScriptToProjectWithRollback(scriptId, projectId);
+}
+
+function renderProjectList(): void {
+  if (!projectList) {
+    return;
+  }
+
+  projectList.textContent = "";
+  const query = getSearchQuery();
+
+  for (const project of currentScriptsState.projects) {
+    const projectScripts = sortScriptsForSection(
+      currentScriptsState.scripts.filter((script) => script.projectId === project.id && scriptMatchesQuery(script, query))
+    );
+    const shouldShowProject = projectMatchesQuery(project, query) || projectScripts.length > 0;
+
+    if (!shouldShowProject) {
+      continue;
+    }
+
+    const wrapper = document.createElement("div");
+    const row = document.createElement("div");
+    const toggleButton = document.createElement("button");
+    const menuButton = document.createElement("button");
+    const isExpanded = query ? true : expandedProjectIds.has(project.id);
+    wrapper.className = "project-tree-group";
+    row.className = [
+      "project-list-row",
+      openProjectMenuId === project.id ? "has-open-menu" : "",
+      activeDropProjectId === project.id ? "is-drop-target" : ""
+    ].filter(Boolean).join(" ");
+    row.addEventListener("dragover", (event) => handleDropTargetDragOver(event, project.id));
+    row.addEventListener("dragleave", handleDropTargetDragLeave);
+    row.addEventListener("drop", (event) => handleScriptDrop(event, project.id));
+
+    toggleButton.type = "button";
+    toggleButton.className = "project-list-item";
+    toggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+    toggleButton.innerHTML = `
+      <span class="project-chevron-small" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${isExpanded ? "m6 9 6 6 6-6" : "m9 18 6-6-6-6"}" /></svg></span>
+      <span class="project-list-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${isExpanded ? "M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" : "M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"}" /></svg></span>
+      <span class="project-list-name"></span>
+      <span class="project-list-count">${getProjectScriptCount(project.id)}</span>
+    `;
+    toggleButton.querySelector<HTMLElement>(".project-list-name")!.textContent = project.name;
+    toggleButton.addEventListener("click", () => {
+      openProjectMenuId = undefined;
+      setProjectExpanded(project.id, !expandedProjectIds.has(project.id));
+      renderProjectList();
+    });
+
+    menuButton.type = "button";
+    menuButton.className = "project-menu-button";
+    menuButton.setAttribute("aria-label", `More actions for ${project.name}`);
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", openProjectMenuId === project.id ? "true" : "false");
+    menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openProjectMenuId = openProjectMenuId === project.id ? undefined : project.id;
+      renderProjectList();
+    });
+
+    row.append(toggleButton, menuButton);
+
+    if (openProjectMenuId === project.id) {
+      row.append(buildProjectActionMenu(project));
+    }
+
+    wrapper.append(row);
+
+    if (isExpanded) {
+      const childList = document.createElement("div");
+      childList.className = "project-script-children";
+
+      if (projectScripts.length === 0 && !query) {
+        const empty = document.createElement("div");
+        empty.className = "script-list-empty compact";
+        empty.textContent = "No scripts";
+        childList.append(empty);
+      } else {
+        for (const script of projectScripts) {
+          childList.append(buildScriptListRow(script, true));
+        }
+      }
+
+      wrapper.append(childList);
+    }
+
+    projectList.append(wrapper);
+  }
+}
+
+function buildProjectActionMenu(project: ProjectRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "project-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const renameAction = document.createElement("button");
+  renameAction.type = "button";
+  renameAction.className = "project-action-menu-item";
+  renameAction.setAttribute("role", "menuitem");
+  renameAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="m16.5 3.5 4 4L7 21H3v-4z" /></svg><span>Rename project</span>';
+  renameAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    openProjectDialog(project);
+  });
+
+  const deleteMoveAction = document.createElement("button");
+  deleteMoveAction.type = "button";
+  deleteMoveAction.className = "project-action-menu-item";
+  deleteMoveAction.setAttribute("role", "menuitem");
+  deleteMoveAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete project only</span>';
+  deleteMoveAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "moveScripts");
+  });
+
+  const deleteAllAction = document.createElement("button");
+  deleteAllAction.type = "button";
+  deleteAllAction.className = "project-action-menu-item danger";
+  deleteAllAction.setAttribute("role", "menuitem");
+  deleteAllAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete with scripts</span>';
+  deleteAllAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProjectMenuId = undefined;
+    void deleteProjectWithConfirmation(project, "deleteScripts");
+  });
+
+  menu.append(renameAction, deleteMoveAction, deleteAllAction);
+  return menu;
+}
+
+function getDuplicateProject(name: string, ignoredProjectId?: string): ProjectRecord | undefined {
+  const normalizedName = name.trim().toLocaleLowerCase();
+  return currentScriptsState.projects.find((project) => {
+    return project.id !== ignoredProjectId && project.name.trim().toLocaleLowerCase() === normalizedName;
+  });
+}
+
+function setProjectDialogError(message: string): void {
+  if (projectDialogError) {
+    projectDialogError.textContent = message;
+  }
+}
+
+function openProjectDialog(project?: ProjectRecord): void {
+  editingProjectId = project?.id;
+  openProjectMenuId = undefined;
+  renderProjectList();
+
+  if (projectDialogTitle) {
+    projectDialogTitle.textContent = project ? "Rename project" : "Create project";
+  }
+
+  if (submitProjectDialogButton) {
+    submitProjectDialogButton.textContent = project ? "Save" : "Create";
+  }
+
+  if (projectNameInput) {
+    projectNameInput.value = project?.name ?? "";
+  }
+
+  setProjectDialogError("");
+  projectDialog?.classList.add("is-open");
+  projectDialog?.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => projectNameInput?.focus(), 0);
+  projectNameInput?.select();
+}
+
+function closeProjectDialog(): void {
+  editingProjectId = undefined;
+  setProjectDialogError("");
+  projectDialog?.classList.remove("is-open");
+  projectDialog?.setAttribute("aria-hidden", "true");
+  newProjectButton?.focus();
+}
+
+async function submitProjectDialog(): Promise<void> {
+  const name = projectNameInput?.value.trim() ?? "";
+
+  if (!name) {
+    setProjectDialogError("Enter a project name.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (getDuplicateProject(name, editingProjectId)) {
+    setProjectDialogError("A project with this name already exists.");
+    projectNameInput?.focus();
+    return;
+  }
+
+  if (editingProjectId) {
+    const currentProject = currentScriptsState.projects.find((project) => project.id === editingProjectId);
+
+    if (!currentProject || currentProject.name === name) {
+      closeProjectDialog();
+      renderProjectList();
+      return;
+    }
+
+    const state = await requireTeleprompterApi().renameProject(editingProjectId, name);
+    closeProjectDialog();
+    renderScriptsState(state);
+    return;
+  }
+
+  const state = await requireTeleprompterApi().createProject(name);
+  const createdProject = state.projects[state.projects.length - 1];
+
+  if (createdProject) {
+    setProjectExpanded(createdProject.id, true);
+  }
+
+  closeProjectDialog();
+  renderScriptsState(state);
+}
+
+async function deleteProjectWithConfirmation(project: ProjectRecord, mode: DeleteProjectMode): Promise<void> {
+  const scriptCount = getProjectScriptCount(project.id);
+  const message = mode === "deleteScripts"
+    ? `Delete "${project.name}" and ${scriptCount} script${scriptCount === 1 ? "" : "s"}? This cannot be undone.`
+    : `Delete "${project.name}" and move its ${scriptCount} script${scriptCount === 1 ? "" : "s"} to Uncategorised?`;
+
+  if (!window.confirm(message)) {
+    renderProjectList();
+    return;
+  }
+
+  const state = await requireTeleprompterApi().deleteProject(project.id, mode);
+
+  renderScriptsState(state);
 }
 
 function renderScriptsList(): void {
@@ -363,82 +1630,197 @@ function renderScriptsList(): void {
     return;
   }
 
+  if (historyHeading) {
+    historyHeading.textContent = "All Scripts";
+  }
+
   scriptList.textContent = "";
-  const scripts = getFilteredScripts();
+  const query = getSearchQuery();
+  const scripts = sortScriptsForSection(
+    currentScriptsState.scripts.filter((script) => !script.projectId && scriptMatchesQuery(script, query))
+  );
+  scriptList.classList.toggle("is-drop-target", activeDropProjectId === "__root__");
+  scriptList.addEventListener("dragover", (event) => handleDropTargetDragOver(event, undefined));
+  scriptList.addEventListener("dragleave", handleDropTargetDragLeave);
+  scriptList.addEventListener("drop", (event) => handleScriptDrop(event, undefined));
 
   if (scripts.length === 0) {
     const emptyItem = document.createElement("li");
     emptyItem.className = "script-list-empty";
-    emptyItem.textContent = currentScriptsState.scripts.length === 0 ? "No scripts yet" : "No matching scripts";
+    emptyItem.textContent = query ? "No matching root scripts" : "No scripts";
     scriptList.append(emptyItem);
-    renderScriptSelectionState();
     return;
   }
 
   for (const script of scripts) {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    const checkbox = document.createElement("input");
-    const content = document.createElement("span");
-    const date = new Date(script.updatedAt).toLocaleDateString();
-    checkbox.type = "checkbox";
-    checkbox.className = "script-select-checkbox";
-    checkbox.checked = selectedScriptIds.has(script.id);
-    checkbox.setAttribute("aria-label", `Select ${script.title}`);
-    button.type = "button";
-    button.className = script.id === activeScriptId ? "script-list-item active" : "script-list-item";
-    const title = document.createElement("span");
-    const updatedAt = document.createElement("small");
-    content.className = "script-list-item-content";
-    title.textContent = script.title;
-    updatedAt.textContent = date;
-    content.append(title, updatedAt);
-    button.append(checkbox, content);
-    checkbox.addEventListener("click", (event) => {
-      event.stopPropagation();
+    scriptList.append(buildScriptListRow(script, false));
+  }
+}
 
-      if (checkbox.checked) {
-        selectedScriptIds.add(script.id);
-      } else {
-        selectedScriptIds.delete(script.id);
-      }
+function buildScriptListRow(script: ScriptRecord, nested: boolean): HTMLElement {
+  const item = document.createElement(nested ? "div" : "li");
+  const button = document.createElement("button");
+  const content = document.createElement("span");
+  const rightMeta = document.createElement("span");
+  const menuButton = document.createElement("button");
+  const date = new Date(script.updatedAt).toLocaleDateString();
+  item.className = [
+    "script-list-row",
+    nested ? "nested" : "",
+    openScriptMenuId === script.id ? "has-open-menu" : ""
+  ].filter(Boolean).join(" ");
+  item.draggable = true;
+  item.addEventListener("dragstart", (event) => handleScriptDragStart(event as DragEvent, script));
+  item.addEventListener("dragend", clearDropState);
+  button.type = "button";
+  button.draggable = false;
+  button.className = [
+    "script-list-item",
+    script.id === activeScriptId ? "active" : "",
+    script.pinned ? "is-pinned" : ""
+  ].filter(Boolean).join(" ");
+  const title = document.createElement("span");
+  const updatedAt = document.createElement("small");
+  const titleRow = document.createElement("span");
+  content.className = "script-list-item-content";
+  rightMeta.className = "script-list-item-meta";
+  titleRow.className = "script-title-row";
+  title.textContent = script.title;
+  titleRow.append(title);
 
-      renderScriptSelectionState();
+  if (script.pinned) {
+    const pinIndicator = document.createElement("span");
+    pinIndicator.className = "script-pin-indicator";
+    pinIndicator.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg>';
+    pinIndicator.title = "Pinned";
+    rightMeta.append(pinIndicator);
+  }
+
+  updatedAt.textContent = date;
+  content.append(titleRow, updatedAt);
+
+  button.append(content, rightMeta);
+  menuButton.type = "button";
+  menuButton.className = "script-menu-button";
+  menuButton.setAttribute("aria-label", `More actions for ${script.title}`);
+  menuButton.setAttribute("aria-haspopup", "menu");
+  menuButton.setAttribute("aria-expanded", openScriptMenuId === script.id ? "true" : "false");
+  menuButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>';
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = openScriptMenuId === script.id ? undefined : script.id;
+    renderProjectList();
+    renderScriptsList();
+  });
+
+  button.addEventListener("click", () => {
+    void runEditorAction("Open script", async () => {
+      const state = await requireTeleprompterApi().setActiveScript(script.id);
+      renderScriptsState(state);
     });
-    button.addEventListener("click", () => {
-      void runEditorAction("Open script", async () => {
-        const state = await requireTeleprompterApi().setActiveScript(script.id);
+  });
+  item.append(button, menuButton);
+
+  if (openScriptMenuId === script.id) {
+    item.append(buildScriptActionMenu(script));
+  }
+
+  return item;
+}
+
+function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
+  const menu = document.createElement("div");
+  menu.className = "script-action-menu";
+  menu.setAttribute("role", "menu");
+
+  const pinAction = document.createElement("button");
+  pinAction.type = "button";
+  pinAction.className = "script-action-menu-item";
+  pinAction.setAttribute("role", "menuitem");
+  pinAction.innerHTML = script.pinned
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 2 20 20" /><path d="M12 17v5" /><path d="M5 17h12" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Unpin script</span>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5" /><path d="M5 17h14" /><path d="m6 10 2-7h8l2 7" /><path d="M8 10h8l1 7H7z" /></svg><span>Pin script</span>';
+  pinAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void runEditorAction(script.pinned ? "Unpin script" : "Pin script", async () => {
+      const state = await requireTeleprompterApi().setScriptPinned(script.id, !script.pinned);
+      renderScriptsState(state);
+    });
+  });
+
+  const deleteAction = document.createElement("button");
+  deleteAction.type = "button";
+  deleteAction.className = "script-action-menu-item danger";
+  deleteAction.setAttribute("role", "menuitem");
+  deleteAction.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M18 6l-1 14H7L6 6" /></svg><span>Delete script</span>';
+  deleteAction.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openScriptMenuId = undefined;
+    void deleteScriptsWithConfirmation([script.id]);
+  });
+
+  const moveLabel = document.createElement("div");
+  moveLabel.className = "script-action-menu-label";
+  moveLabel.textContent = "Move to";
+
+  const moveTargets: Array<{ id?: string; name: string }> = [
+    { id: undefined, name: "Uncategorised" },
+    ...currentScriptsState.projects.map((project) => ({ id: project.id, name: project.name }))
+  ];
+  const moveActions = moveTargets.map((target) => {
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = script.projectId === target.id
+      ? "script-action-menu-item is-current"
+      : "script-action-menu-item";
+    action.setAttribute("role", "menuitem");
+    action.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4H10l2 2h6.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" /></svg><span></span>';
+    action.querySelector("span")!.textContent = target.name;
+    action.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openScriptMenuId = undefined;
+      void runEditorAction("Move script", async () => {
+        const state = await requireTeleprompterApi().moveScriptToProject(script.id, target.id);
         renderScriptsState(state);
       });
     });
-    item.append(button);
-    scriptList.append(item);
-  }
+    return action;
+  });
 
-  renderScriptSelectionState();
+  menu.append(pinAction, moveLabel, ...moveActions, deleteAction);
+  return menu;
 }
 
 function renderScriptsState(state: ScriptsState): void {
   currentScriptsState = state;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
+
+  if (historyHeading) {
+    historyHeading.textContent = "All Scripts";
+  }
+
+  renderProjectList();
   setEditorFromScript(state.activeScript);
   renderScriptsList();
 }
 
-function renderScriptSelectionState(): void {
-  const selectedCount = selectedScriptIds.size;
-
-  if (selectedScriptsLabel) {
-    selectedScriptsLabel.textContent = selectedCount === 0
-      ? "No scripts selected"
-      : `${selectedCount} selected`;
+async function deleteScriptsWithConfirmation(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
   }
 
-  if (deleteSelectedScriptsButton) {
-    deleteSelectedScriptsButton.disabled = selectedCount === 0;
+  const confirmed = window.confirm(
+    ids.length === 1
+      ? "Delete this saved script? This cannot be undone."
+      : `Delete ${ids.length} saved scripts? This cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
   }
+
+  const state = await requireTeleprompterApi().deleteScripts(ids);
+  renderScriptsState(state);
 }
 
 async function loadScriptsState(): Promise<void> {
@@ -457,7 +1839,8 @@ async function saveCurrentScript(): Promise<ScriptsState | undefined> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : undefined
   });
   renderScriptsState(state);
   return state;
@@ -493,14 +1876,12 @@ async function autosaveCurrentScript(): Promise<void> {
   const state = await requireTeleprompterApi().saveScript({
     id: activeScriptId,
     title,
-    body
+    body,
+    projectId: activeScriptId ? undefined : undefined
   });
 
   currentScriptsState = state;
   activeScriptId = state.activeScript?.id ?? activeScriptId;
-  selectedScriptIds = new Set(
-    Array.from(selectedScriptIds).filter((id) => currentScriptsState.scripts.some((script) => script.id === id))
-  );
   renderScriptsList();
 }
 
@@ -873,6 +2254,10 @@ function renderSettings(settings: AppSettings): void {
     scrollSpeedInput.value = String(settings.behavior.scrollSpeed);
   }
 
+  if (hideInterfaceWhileSpeakingInput) {
+    hideInterfaceWhileSpeakingInput.checked = settings.behavior.hideInterfaceWhileSpeaking;
+  }
+
   renderControlReadouts();
 
   if (scrollModeSelect) {
@@ -927,10 +2312,6 @@ function applyPreviewStyles(values: {
   if (sizeWindow) {
     sizeWindow.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
     sizeWindow.style.setProperty("--preview-scale", String(getPreviewScale()));
-    sizeWindow.style.setProperty(
-      "--prompt-active-text-color",
-      overlayCore.deriveActiveTextColor(values.textColor, values.backgroundColor)
-    );
   }
 
   if (settingsPreview) {
@@ -943,10 +2324,6 @@ function applyPreviewStyles(values: {
   if (livePreviewPane) {
     livePreviewPane.style.background = getOpaquePreviewBackground(values.backgroundColor, values.opacity);
     livePreviewPane.dataset.highlight = values.highlightMode;
-    livePreviewPane.style.setProperty(
-      "--prompt-active-text-color",
-      overlayCore.deriveActiveTextColor(values.textColor, values.backgroundColor)
-    );
   }
 
   for (const text of livePreviewTexts) {
@@ -998,11 +2375,41 @@ const appearancePresetList: AppearancePreset[] = [
   { id: "sage", name: "Sage", textColor: "#eef4ec", backgroundColor: "#2f4636", opacity: 0.86 }
 ];
 
-function matchesPresetPalette(preset: AppearancePreset): boolean {
+function relativeLuminance(hexColor: string): number {
+  const { red, green, blue } = hexToPreviewRgb(hexColor);
+  const channels = [red, green, blue].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function getContrastRatio(hexA: string, hexB: string): number {
+  const lighter = Math.max(relativeLuminance(hexA), relativeLuminance(hexB));
+  const darker = Math.min(relativeLuminance(hexA), relativeLuminance(hexB));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getReadableTextColor(backgroundColor: string): string {
+  const darkText = "#1f2420";
+  const lightText = "#f9fafb";
+  return getContrastRatio(lightText, backgroundColor) >= getContrastRatio(darkText, backgroundColor)
+    ? lightText
+    : darkText;
+}
+
+function normalizeReadablePreset(preset: AppearancePreset): AppearancePreset {
+  return getContrastRatio(preset.textColor, preset.backgroundColor) >= 4.5
+    ? preset
+    : { ...preset, textColor: getReadableTextColor(preset.backgroundColor) };
+}
+
+function isPresetActive(preset: AppearancePreset): boolean {
+  const readablePreset = normalizeReadablePreset(preset);
   return (
-    (textColorInput?.value ?? "").toLowerCase() === preset.textColor &&
-    (backgroundColorInput?.value ?? "").toLowerCase() === preset.backgroundColor &&
-    Math.abs(Number(opacityInput?.value) - preset.opacity) < 0.005
+    (textColorInput?.value ?? "").toLowerCase() === readablePreset.textColor &&
+    (backgroundColorInput?.value ?? "").toLowerCase() === readablePreset.backgroundColor &&
+    Math.abs(Number(opacityInput?.value) - readablePreset.opacity) < 0.005
   );
 }
 
@@ -1012,17 +2419,11 @@ function updateActivePreset(): void {
   }
 
   const cards = Array.from(appearancePresets.querySelectorAll<HTMLButtonElement>(".preset-card"));
-  if (selectedAppearancePresetId === undefined) {
-    selectedAppearancePresetId = appearancePresetList.find(matchesPresetPalette)?.id ?? null;
-  }
-
-  const anyActive = selectedAppearancePresetId !== null;
+  const anyActive = appearancePresetList.some(isPresetActive);
 
   cards.forEach((card, index) => {
     const preset = appearancePresetList.find((entry) => entry.id === card.dataset.preset);
-    const active = Boolean(
-      preset && preset.id === selectedAppearancePresetId && matchesPresetPalette(preset)
-    );
+    const active = preset ? isPresetActive(preset) : false;
     card.setAttribute("aria-checked", active ? "true" : "false");
     // Keep one card keyboard-reachable: the active one, or the first when on custom colours.
     card.tabIndex = active || (!anyActive && index === 0) ? 0 : -1;
@@ -1036,21 +2437,22 @@ function updateContrastHint(): void {
 
   const textColor = textColorInput?.value ?? "#ffffff";
   const backgroundColor = backgroundColorInput?.value ?? "#000000";
-  contrastHint.hidden = overlayCore.getContrastRatio(textColor, backgroundColor) >= 3;
+  contrastHint.hidden = getContrastRatio(textColor, backgroundColor) >= 3;
 }
 
 function applyAppearancePreset(preset: AppearancePreset): void {
-  selectedAppearancePresetId = preset.id;
+  const readablePreset = normalizeReadablePreset(preset);
+
   if (textColorInput) {
-    textColorInput.value = preset.textColor;
+    textColorInput.value = readablePreset.textColor;
   }
 
   if (backgroundColorInput) {
-    backgroundColorInput.value = preset.backgroundColor;
+    backgroundColorInput.value = readablePreset.backgroundColor;
   }
 
   if (opacityInput) {
-    opacityInput.value = String(preset.opacity);
+    opacityInput.value = String(readablePreset.opacity);
   }
 
   renderSettingsPreviewFromControls();
@@ -1068,6 +2470,7 @@ function buildAppearancePresets(): void {
   appearancePresets.textContent = "";
 
   for (const preset of appearancePresetList) {
+    const readablePreset = normalizeReadablePreset(preset);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "preset-card";
@@ -1080,15 +2483,15 @@ function buildAppearancePresets(): void {
     const swatch = document.createElement("span");
     swatch.className = "preset-swatch";
     swatch.textContent = "Aa";
-    swatch.style.background = getOpaquePreviewBackground(preset.backgroundColor, preset.opacity);
-    swatch.style.color = preset.textColor;
+    swatch.style.background = getOpaquePreviewBackground(readablePreset.backgroundColor, readablePreset.opacity);
+    swatch.style.color = readablePreset.textColor;
 
     const name = document.createElement("span");
     name.className = "preset-name";
     name.textContent = preset.name;
 
     card.append(swatch, name);
-    card.addEventListener("click", () => applyAppearancePreset(preset));
+    card.addEventListener("click", () => applyAppearancePreset(readablePreset));
     appearancePresets.append(card);
   }
 
@@ -1108,7 +2511,7 @@ function buildAppearancePresets(): void {
 
     if (next && preset) {
       next.focus();
-      applyAppearancePreset(preset);
+      applyAppearancePreset(normalizeReadablePreset(preset));
     }
   });
 }
@@ -1265,8 +2668,8 @@ function updatePreviewWordHighlight(words: HTMLElement[]): void {
 
   // Sweep the active word left-to-right as the line crosses the band, so it keeps pace with the scroll.
   const span = Math.max(1, activeLine.bottom - activeLine.top);
-  const through = Math.min(1, Math.max(0, (bandWithinLoop - activeLine.top) / span));
-  const activeIndex = activeLine.indices[overlayCore.getProgressIndex(through, activeLine.indices.length)];
+  const through = Math.min(0.999, Math.max(0, (bandWithinLoop - activeLine.top) / span));
+  const activeIndex = activeLine.indices[Math.floor(through * activeLine.indices.length)];
 
   words.forEach((word, index) => {
     word.classList.toggle("is-active", index % wordsPerCopy === activeIndex);
@@ -1640,7 +3043,8 @@ async function saveSettingsFromControls(): Promise<void> {
     },
     behavior: {
       scrollSpeed: Number(scrollSpeedInput?.value),
-      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"]
+      scrollMode: scrollModeSelect?.value as AppSettings["behavior"]["scrollMode"],
+      hideInterfaceWhileSpeaking: Boolean(hideInterfaceWhileSpeakingInput?.checked)
     },
     experimental: {
       highlightMode: highlightModeSelect?.value as AppSettings["experimental"]["highlightMode"]
@@ -1653,6 +3057,37 @@ async function saveSettingsFromControls(): Promise<void> {
 }
 
 const sidebarCollapsedStorageKey = "teleprompter:sidebarCollapsed";
+const editorThemeStorageKey = "teleprompter:editorTheme";
+
+type EditorTheme = "light" | "dark";
+
+function setEditorTheme(theme: EditorTheme): void {
+  document.documentElement.dataset.editorTheme = theme;
+
+  if (themeToggleButton) {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    themeToggleButton.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
+    themeToggleButton.title = `Switch to ${nextTheme} mode`;
+  }
+
+  try {
+    localStorage.setItem(editorThemeStorageKey, theme);
+  } catch {
+    // Ignore storage failures; the theme simply won't persist.
+  }
+}
+
+function loadEditorTheme(): EditorTheme {
+  try {
+    return localStorage.getItem(editorThemeStorageKey) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function toggleEditorTheme(): void {
+  setEditorTheme(document.documentElement.dataset.editorTheme === "dark" ? "light" : "dark");
+}
 
 function setSidebarCollapsed(collapsed: boolean): void {
   editorApp?.classList.toggle("sidebar-collapsed", collapsed);
@@ -1736,6 +3171,7 @@ function openSettings(): void {
 
 function closeSettings(): void {
   flushSettingsSave();
+  disarmReset();
   settingsModal?.classList.remove("is-open");
   cancelShortcutCapture();
   stopPreviewCountdown();
@@ -1757,9 +3193,139 @@ settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
 settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
 
+setEditorTheme(loadEditorTheme());
 setSidebarCollapsed(loadSidebarCollapsed());
+loadExpandedProjects();
+themeToggleButton?.addEventListener("click", toggleEditorTheme);
 toggleSidebarButton?.addEventListener("click", () => {
   setSidebarCollapsed(!editorApp?.classList.contains("sidebar-collapsed"));
+});
+
+loginForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitLogin);
+});
+
+signupForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitSignup);
+});
+
+forgotPasswordForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitForgotPassword);
+});
+
+resetPasswordForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runAuthAction(submitResetPassword);
+});
+
+googleLoginButton?.addEventListener("click", () => {
+  void runAuthAction(async () => {
+    setAuthError(loginError);
+    const result = await requireAuthApi().signInWithGoogle();
+
+    if (!result.ok) {
+      setAuthError(loginError, result.message ?? "Google sign in failed.");
+    } else if (result.message) {
+      setAuthError(loginError, result.message);
+    }
+  });
+});
+
+googleSignupButton?.addEventListener("click", () => {
+  void runAuthAction(async () => {
+    setAuthError(signupError);
+    const result = await requireAuthApi().signInWithGoogle();
+
+    if (!result.ok) {
+      setAuthError(signupError, result.message ?? "Google sign in failed.");
+    } else if (result.message) {
+      setAuthError(signupError, result.message);
+    }
+  });
+});
+
+showSignupButton?.addEventListener("click", () => setAuthView("signup"));
+showLoginFromSignupButton?.addEventListener("click", () => setAuthView("login"));
+showForgotPasswordButton?.addEventListener("click", () => setAuthView("forgot"));
+showLoginFromForgotButton?.addEventListener("click", () => setAuthView("login"));
+showLoginFromCheckEmailButton?.addEventListener("click", () => setAuthView("login"));
+loginPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(loginPasswordInput, loginPasswordToggle));
+signupPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(signupPasswordInput, signupPasswordToggle));
+signupConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(signupConfirmPasswordInput, signupConfirmPasswordToggle));
+resetPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(resetPasswordInput, resetPasswordToggle));
+resetConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(resetConfirmPasswordInput, resetConfirmPasswordToggle));
+signupPasswordInput?.addEventListener("input", () => renderPasswordStrength(signupPasswordInput.value, signupPasswordStrengthBar, signupPasswordStrengthText));
+resetPasswordInput?.addEventListener("input", () => renderPasswordStrength(resetPasswordInput.value, resetPasswordStrengthBar, resetPasswordStrengthText));
+profileButton?.addEventListener("click", () => {
+  if (isProfileMenuOpen()) {
+    closeProfileMenu();
+  } else {
+    openProfileMenu();
+  }
+});
+
+profileMenuProfileButton?.addEventListener("click", openProfileModal);
+profileMenuSettingsButton?.addEventListener("click", () => {
+  closeProfileMenu();
+  openSettings();
+});
+profileMenuSignOutButton?.addEventListener("click", () => {
+  void signOutCurrentUser();
+});
+profileForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void submitProfileUpdate();
+});
+changeProfilePhotoButton?.addEventListener("click", () => {
+  profileAvatarInput?.click();
+});
+profileAvatarInput?.addEventListener("change", () => {
+  void submitAvatarUpdate(profileAvatarInput.files?.[0]);
+});
+removeProfilePhotoButton?.addEventListener("click", () => {
+  void submitAvatarRemoval();
+});
+editProfileEmailButton?.addEventListener("click", () => showEmailEditor(true));
+cancelProfileEmailButton?.addEventListener("click", () => showEmailEditor(false));
+saveProfileEmailButton?.addEventListener("click", () => {
+  void submitEmailUpdate();
+});
+profileEmailInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    void submitEmailUpdate();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    showEmailEditor(false);
+  }
+});
+profileModalBackdrop?.addEventListener("click", closeProfileModal);
+closeProfileModalButton?.addEventListener("click", closeProfileModal);
+cancelProfileModalButton?.addEventListener("click", closeProfileModal);
+profileModal?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProfileModal();
+  }
+});
+profileMenu?.addEventListener("keydown", (event) => {
+  const menuItems = Array.from(profileMenu.querySelectorAll<HTMLButtonElement>(".profile-menu-item"));
+  const currentIndex = menuItems.indexOf(document.activeElement as HTMLButtonElement);
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProfileMenu();
+    profileButton?.focus();
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    menuItems[(currentIndex + 1 + menuItems.length) % menuItems.length]?.focus();
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    menuItems[(currentIndex - 1 + menuItems.length) % menuItems.length]?.focus();
+  }
 });
 
 function setupSliderBubble(input: HTMLInputElement | null, format: () => string): void {
@@ -1865,6 +3431,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 scriptSearch?.addEventListener("input", renderScriptsList);
+scriptSearch?.addEventListener("input", renderProjectList);
 scriptBody?.addEventListener("input", () => {
   renderScriptStats();
   scheduleAutosave();
@@ -1886,7 +3453,32 @@ newScriptButton?.addEventListener("click", () => {
   void runEditorAction("Create script", async () => {
     const state = await requireTeleprompterApi().clearActiveScript();
     renderScriptsState(state);
+    renderScriptsList();
   });
+});
+
+newProjectButton?.addEventListener("click", () => {
+  openProjectDialog();
+});
+
+projectDialogForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runEditorAction(editingProjectId ? "Rename project" : "Create project", submitProjectDialog);
+});
+
+projectNameInput?.addEventListener("input", () => {
+  setProjectDialogError("");
+});
+
+projectDialogBackdrop?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogButton?.addEventListener("click", closeProjectDialog);
+cancelProjectDialogIconButton?.addEventListener("click", closeProjectDialog);
+
+projectDialog?.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeProjectDialog();
+  }
 });
 
 clearScriptButton?.addEventListener("click", () => {
@@ -1896,28 +3488,40 @@ clearScriptButton?.addEventListener("click", () => {
   });
 });
 
-deleteSelectedScriptsButton?.addEventListener("click", () => {
-  void runEditorAction("Delete scripts", async () => {
-    const ids = Array.from(selectedScriptIds);
+document.addEventListener("click", (event) => {
+  const clickedInsideScriptList = event.target instanceof Node && scriptList?.contains(event.target);
+  const clickedInsideProjectList = event.target instanceof Node && projectList?.contains(event.target);
+  const clickedInsideProfile = event.target instanceof Node &&
+    (profileMenu?.contains(event.target) || profileButton?.contains(event.target));
 
-    if (ids.length === 0) {
+  if (isProfileMenuOpen() && !clickedInsideProfile) {
+    closeProfileMenu();
+  }
+
+  if (openScriptMenuId || openProjectMenuId) {
+    if (clickedInsideScriptList || clickedInsideProjectList) {
       return;
     }
 
-    const confirmed = window.confirm(
-      ids.length === 1
-        ? "Delete this saved script? This cannot be undone."
-        : `Delete ${ids.length} saved scripts? This cannot be undone.`
-    );
+    openScriptMenuId = undefined;
+    openProjectMenuId = undefined;
+    renderProjectList();
+    renderScriptsList();
+  }
+});
 
-    if (!confirmed) {
-      return;
-    }
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isProfileMenuOpen()) {
+    closeProfileMenu();
+    profileButton?.focus();
+  }
 
-    const state = await requireTeleprompterApi().deleteScripts(ids);
-    selectedScriptIds = new Set();
-    renderScriptsState(state);
-  });
+  if (event.key === "Escape" && (openScriptMenuId || openProjectMenuId)) {
+    openScriptMenuId = undefined;
+    openProjectMenuId = undefined;
+    renderProjectList();
+    renderScriptsList();
+  }
 });
 
 startTeleprompterButton?.addEventListener("click", () => {
@@ -1934,15 +3538,6 @@ startTeleprompterButton?.addEventListener("click", () => {
   });
 });
 
-const appearanceCustomizationControls = new Set<EventTarget | null>([
-  fontSizeInput,
-  lineHeightInput,
-  textColorInput,
-  alignmentSelect,
-  opacityInput,
-  backgroundColorInput
-]);
-
 for (const control of [
   fontSizeInput,
   lineHeightInput,
@@ -1954,13 +3549,10 @@ for (const control of [
   countdownSecondsInput,
   scrollModeSelect,
   scrollSpeedInput,
+  hideInterfaceWhileSpeakingInput,
   highlightModeSelect
 ]) {
   control?.addEventListener("input", () => {
-    if (appearanceCustomizationControls.has(control)) {
-      selectedAppearancePresetId = null;
-    }
-
     renderSettingsPreviewFromControls();
     renderControlReadouts();
     updateActivePreset();
@@ -1970,10 +3562,6 @@ for (const control of [
   });
 
   control?.addEventListener("change", () => {
-    if (appearanceCustomizationControls.has(control)) {
-      selectedAppearancePresetId = null;
-    }
-
     renderSettingsPreviewFromControls();
     renderControlReadouts();
     updateActivePreset();
@@ -1983,27 +3571,71 @@ for (const control of [
   });
 }
 
-resetSettingsButton?.addEventListener("click", () => {
-  const confirmed = window.confirm(
-    "Reset all settings and keyboard shortcuts to defaults? This can’t be undone."
-  );
+const resetDefaultLabel = "Reset to defaults";
+const resetArmedLabel = "Reset?";
+const resetArmDurationMs = 4000;
+let resetArmTimer: number | undefined;
 
-  if (!confirmed) {
+function handleResetOutsideClick(event: Event): void {
+  if (event.target instanceof Node && resetSettingsButton?.contains(event.target)) {
     return;
   }
 
+  disarmReset();
+}
+
+function disarmReset(): void {
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+    resetArmTimer = undefined;
+  }
+
+  document.removeEventListener("pointerdown", handleResetOutsideClick, true);
+
+  if (resetSettingsButton) {
+    resetSettingsButton.classList.remove("is-arming");
+    resetSettingsButton.textContent = resetDefaultLabel;
+  }
+}
+
+function armReset(): void {
+  if (!resetSettingsButton) {
+    return;
+  }
+
+  resetSettingsButton.classList.add("is-arming");
+  resetSettingsButton.textContent = resetArmedLabel;
+
+  if (resetArmTimer !== undefined) {
+    window.clearTimeout(resetArmTimer);
+  }
+
+  // Auto-disarm so the button never lingers in its red confirm state.
+  resetArmTimer = window.setTimeout(disarmReset, resetArmDurationMs);
+  // Clicking anywhere outside the button cancels the pending reset.
+  document.addEventListener("pointerdown", handleResetOutsideClick, true);
+}
+
+resetSettingsButton?.addEventListener("click", () => {
+  if (!resetSettingsButton.classList.contains("is-arming")) {
+    armReset();
+    return;
+  }
+
+  disarmReset();
   void runEditorAction("Reset settings", async () => {
     const api = requireTeleprompterApi();
     const settings = await api.resetSettings();
-    selectedAppearancePresetId = undefined;
     renderSettings(settings);
     const statuses = await api.resetShortcuts();
     renderShortcuts(statuses);
   });
 });
 
+logoutButton?.addEventListener("click", () => {
+  void signOutCurrentUser();
+});
+
 if (initializePreloadApi()) {
-  void runEditorAction("Load local scripts", loadScriptsState);
-  void runEditorAction("Load settings", loadSettings);
-  void runEditorAction("Load shortcuts", loadShortcuts);
+  void initializeAuth();
 }
