@@ -1,11 +1,16 @@
 import { app, Menu, session } from "electron";
+import { loadLocalEnv } from "./env";
 import { registerIpcHandlers } from "./ipc";
 import { logError, logInfo } from "./logger";
 import { registerGlobalShortcuts } from "./shortcuts";
 import { ensureAppDataDirectories } from "./storage";
+import { forwardAuthCallbackUrl } from "./windows";
 import { sendTeleprompterCommand } from "./windows";
 import { createEditorWindow } from "./windows";
 
+loadLocalEnv();
+
+const authProtocol = "teleprompter";
 const remoteDebuggingPort = process.env.TELEPROMPTER_REMOTE_DEBUGGING_PORT;
 
 if (remoteDebuggingPort) {
@@ -24,6 +29,38 @@ if (!gotSingleInstanceLock) {
   app.quit();
 }
 
+function isAuthCallbackUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === `${authProtocol}:` && url.hostname === "auth" && url.pathname === "/callback";
+  } catch {
+    return false;
+  }
+}
+
+function handlePotentialAuthCallback(argv: string[]): void {
+  const callbackUrl = argv.find(isAuthCallbackUrl);
+
+  if (callbackUrl) {
+    forwardAuthCallbackUrl(callbackUrl);
+  }
+}
+
+app.setAsDefaultProtocolClient(authProtocol);
+
+app.on("open-url", (event, url) => {
+  if (!isAuthCallbackUrl(url)) {
+    return;
+  }
+
+  event.preventDefault();
+  forwardAuthCallbackUrl(url);
+});
+
+app.on("second-instance", (_event, argv) => {
+  handlePotentialAuthCallback(argv);
+});
+
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   ensureAppDataDirectories();
@@ -39,6 +76,7 @@ app.whenReady().then(() => {
     sendTeleprompterCommand(command, "shortcut");
   });
   createEditorWindow();
+  handlePotentialAuthCallback(process.argv);
 
   app.on("activate", () => {
     createEditorWindow();
