@@ -3500,3 +3500,16 @@ h3 {
   background: #ad463f;
   border-color: #ad463f;
 }
+
+/* Guest entry point on the login screen. */
+.auth-guest {
+  margin-top: 4px;
+}
+
+.auth-guest-note {
+  color: var(--ed-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 2px 0 0;
+  text-align: center;
+}

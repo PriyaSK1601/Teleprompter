@@ -120,6 +120,7 @@ const confirmTitle = document.querySelector<HTMLElement>("#confirmTitle");
 const confirmMessage = document.querySelector<HTMLElement>("#confirmMessage");
 const confirmAcceptButton = document.querySelector<HTMLButtonElement>("#confirmAcceptButton");
 const confirmCancelButton = document.querySelector<HTMLButtonElement>("#confirmCancelButton");
+const guestModeButton = document.querySelector<HTMLButtonElement>("#guestModeButton");
 const logoutButton = document.querySelector<HTMLButtonElement>("#logoutButton");
 const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
@@ -186,6 +187,7 @@ const settingsSaveDelayMs = 200;
 type AuthView = "loading" | "login" | "signup" | "forgot" | "reset" | "checkEmail" | "config";
 
 let authInitialized = false;
+let isGuest = false;
 let authSubmitting = false;
 let profileSubmitting = false;
 let currentAuthUser: AuthState["user"] = null;
@@ -702,6 +704,22 @@ async function submitAvatarRemoval(): Promise<void> {
 }
 
 async function signOutCurrentUser(): Promise<void> {
+  // Guests have no session to end — just return to the sign-in screen.
+  if (isGuest) {
+    isGuest = false;
+    authInitialized = false;
+    currentAuthUser = null;
+
+    if (logoutButton) {
+      logoutButton.textContent = "Log out";
+    }
+
+    closeProfileMenu();
+    closeProfileModal();
+    setAuthView("login");
+    return;
+  }
+
   if (profileSubmitting) {
     return;
   }
@@ -846,6 +864,12 @@ function applyAuthState(state: AuthState): void {
   }
 
   if (state.user) {
+    isGuest = false;
+
+    if (logoutButton) {
+      logoutButton.textContent = "Log out";
+    }
+
     renderProfileUi(state.user);
     showAuthenticatedApp();
 
@@ -864,6 +888,53 @@ function applyAuthState(state: AuthState): void {
   closeProfileMenu();
   closeProfileModal();
   setAuthView("login");
+}
+
+// "Continue as guest" — skip sign-in and use the app with device-local scripts.
+// Signing in later can sync them to the account.
+function renderGuestUi(): void {
+  currentAuthUser = null;
+
+  if (profileButtonName) {
+    profileButtonName.textContent = "Guest";
+  }
+
+  if (profileButtonEmail) {
+    profileButtonEmail.textContent = "Sign in";
+  }
+
+  if (profileMenuName) {
+    profileMenuName.textContent = "Guest";
+  }
+
+  if (profileMenuEmail) {
+    profileMenuEmail.textContent = "Scripts are saved on this device only.";
+  }
+
+  if (settingsAccountName) {
+    settingsAccountName.textContent = "Guest";
+  }
+
+  if (settingsAccountEmail) {
+    settingsAccountEmail.textContent = "Not signed in";
+  }
+
+  if (logoutButton) {
+    logoutButton.textContent = "Sign in";
+  }
+}
+
+function continueAsGuest(): void {
+  isGuest = true;
+  renderGuestUi();
+  showAuthenticatedApp();
+
+  if (!authInitialized) {
+    authInitialized = true;
+    void runEditorAction("Load local scripts", loadScriptsState);
+    void runEditorAction("Load settings", loadSettings);
+    void runEditorAction("Load shortcuts", loadShortcuts);
+  }
 }
 
 async function initializeAuth(): Promise<void> {
@@ -3341,6 +3412,7 @@ googleSignupButton?.addEventListener("click", () => {
 });
 
 showSignupButton?.addEventListener("click", () => setAuthView("signup"));
+guestModeButton?.addEventListener("click", continueAsGuest);
 showLoginFromSignupButton?.addEventListener("click", () => setAuthView("login"));
 showForgotPasswordButton?.addEventListener("click", () => setAuthView("forgot"));
 showLoginFromForgotButton?.addEventListener("click", () => setAuthView("login"));
@@ -3353,6 +3425,12 @@ resetConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibi
 signupPasswordInput?.addEventListener("input", () => renderPasswordStrength(signupPasswordInput.value, signupPasswordStrengthBar, signupPasswordStrengthText));
 resetPasswordInput?.addEventListener("input", () => renderPasswordStrength(resetPasswordInput.value, resetPasswordStrengthBar, resetPasswordStrengthText));
 profileButton?.addEventListener("click", () => {
+  // For a guest the chip is a shortcut back to sign-in rather than a menu.
+  if (isGuest) {
+    void signOutCurrentUser();
+    return;
+  }
+
   if (isProfileMenuOpen()) {
     closeProfileMenu();
   } else {
