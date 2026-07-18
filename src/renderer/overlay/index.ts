@@ -485,7 +485,46 @@ function getHighlightIndex(elementCount: number): number {
     }
   }
 
-  return overlayCore.getProgressIndex(getProgress(), elementCount);
+  return getActiveWordIndexFromFocus(elementCount);
+}
+
+// Choose the active word geometrically — the word on the line nearest the
+// reading band, swept left-to-right as that line crosses the band. This keeps
+// the highlight in step with the text passing the reading line, instead of
+// racing ahead on overall scroll progress (which felt unnaturally fast).
+function getActiveWordIndexFromFocus(wordCount: number): number {
+  if (!promptViewport || wordCount <= 0) {
+    return -1;
+  }
+
+  // Before any scrolling, keep the very first word active.
+  if (getPromptScrollPosition() <= 1) {
+    return 0;
+  }
+
+  const lineCandidates = getHighlightLineCandidates();
+
+  if (lineCandidates.length === 0) {
+    return -1;
+  }
+
+  const viewportRect = promptViewport.getBoundingClientRect();
+  const focusY = viewportRect.top + getViewportReadingFocusOffset();
+  let activeLine: HighlightLineCandidate | null = null;
+
+  for (const lineCandidate of lineCandidates) {
+    activeLine = selectBetterHighlightLine(lineCandidate, activeLine, focusY);
+  }
+
+  if (!activeLine) {
+    return -1;
+  }
+
+  const span = Math.max(1, activeLine.bottom - activeLine.top);
+  const through = Math.min(1, Math.max(0, (focusY - activeLine.top) / span));
+  const wordsInLine = activeLine.end - activeLine.start + 1;
+  const withinLine = Math.max(0, overlayCore.getProgressIndex(through, wordsInLine));
+  return Math.min(wordCount - 1, activeLine.start + withinLine);
 }
 
 function getLineDistanceFromFocus(line: HighlightLineCandidate, focusY: number): number {

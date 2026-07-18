@@ -115,6 +115,11 @@ const settingsModal = document.querySelector<HTMLElement>("#settingsModal");
 const settingsBackdrop = document.querySelector<HTMLElement>("#settingsBackdrop");
 const closeSettingsButton = document.querySelector<HTMLButtonElement>("#closeSettingsButton");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#resetSettingsButton");
+const confirmDialog = document.querySelector<HTMLElement>("#confirmDialog");
+const confirmTitle = document.querySelector<HTMLElement>("#confirmTitle");
+const confirmMessage = document.querySelector<HTMLElement>("#confirmMessage");
+const confirmAcceptButton = document.querySelector<HTMLButtonElement>("#confirmAcceptButton");
+const confirmCancelButton = document.querySelector<HTMLButtonElement>("#confirmCancelButton");
 const logoutButton = document.querySelector<HTMLButtonElement>("#logoutButton");
 const shortcutList = document.querySelector<HTMLElement>("#shortcutList");
 const fontSizeInput = document.querySelector<HTMLInputElement>("#fontSizeInput");
@@ -1609,13 +1614,99 @@ async function submitProjectDialog(): Promise<void> {
   renderScriptsState(state);
 }
 
+type ConfirmDialogOptions = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+};
+
+let confirmDialogResolve: ((value: boolean) => void) | null = null;
+let confirmReturnFocus: HTMLElement | null = null;
+
+function closeConfirmDialog(result: boolean): void {
+  if (!confirmDialog || confirmDialog.hidden) {
+    return;
+  }
+
+  confirmDialog.hidden = true;
+  document.removeEventListener("keydown", handleConfirmKeydown, true);
+  const resolve = confirmDialogResolve;
+  confirmDialogResolve = null;
+  confirmReturnFocus?.focus();
+  confirmReturnFocus = null;
+  resolve?.(result);
+}
+
+function handleConfirmKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeConfirmDialog(false);
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeConfirmDialog(true);
+  }
+}
+
+// Promise-based, app-styled replacement for the native window.confirm popup.
+function showConfirmDialog(options: ConfirmDialogOptions): Promise<boolean> {
+  if (!confirmDialog || !confirmAcceptButton) {
+    return Promise.resolve(window.confirm(options.message));
+  }
+
+  if (confirmDialogResolve) {
+    closeConfirmDialog(false);
+  }
+
+  if (confirmTitle) {
+    confirmTitle.textContent = options.title;
+  }
+
+  if (confirmMessage) {
+    confirmMessage.textContent = options.message;
+  }
+
+  confirmAcceptButton.textContent = options.confirmLabel ?? "Confirm";
+  confirmAcceptButton.classList.add("is-danger");
+
+  if (confirmCancelButton) {
+    confirmCancelButton.textContent = options.cancelLabel ?? "Cancel";
+  }
+
+  confirmReturnFocus = document.activeElement as HTMLElement | null;
+  confirmDialog.hidden = false;
+  document.addEventListener("keydown", handleConfirmKeydown, true);
+  // Default focus to Cancel so a stray Enter doesn't trigger a destructive action.
+  requestAnimationFrame(() => confirmCancelButton?.focus());
+
+  return new Promise<boolean>((resolve) => {
+    confirmDialogResolve = resolve;
+  });
+}
+
+confirmAcceptButton?.addEventListener("click", () => closeConfirmDialog(true));
+
+for (const dismissEl of Array.from(
+  confirmDialog?.querySelectorAll<HTMLElement>("[data-confirm-dismiss]") ?? []
+)) {
+  dismissEl.addEventListener("click", () => closeConfirmDialog(false));
+}
+
 async function deleteProjectWithConfirmation(project: ProjectRecord, mode: DeleteProjectMode): Promise<void> {
   const scriptCount = getProjectScriptCount(project.id);
   const message = mode === "deleteScripts"
     ? `Delete "${project.name}" and ${scriptCount} script${scriptCount === 1 ? "" : "s"}? This cannot be undone.`
     : `Delete "${project.name}" and move its ${scriptCount} script${scriptCount === 1 ? "" : "s"} to Uncategorised?`;
 
-  if (!window.confirm(message)) {
+  const confirmed = await showConfirmDialog({
+    title: "Delete project?",
+    message,
+    confirmLabel: "Delete"
+  });
+
+  if (!confirmed) {
     renderProjectList();
     return;
   }
@@ -1809,11 +1900,13 @@ async function deleteScriptsWithConfirmation(ids: string[]): Promise<void> {
     return;
   }
 
-  const confirmed = window.confirm(
-    ids.length === 1
+  const confirmed = await showConfirmDialog({
+    title: ids.length === 1 ? "Delete script?" : "Delete scripts?",
+    message: ids.length === 1
       ? "Delete this saved script? This cannot be undone."
-      : `Delete ${ids.length} saved scripts? This cannot be undone.`
-  );
+      : `Delete ${ids.length} saved scripts? This cannot be undone.`,
+    confirmLabel: "Delete"
+  });
 
   if (!confirmed) {
     return;
@@ -3171,7 +3264,7 @@ function openSettings(): void {
 
 function closeSettings(): void {
   flushSettingsSave();
-  disarmReset();
+  closeConfirmDialog(false);
   settingsModal?.classList.remove("is-open");
   cancelShortcutCapture();
   stopPreviewCountdown();
@@ -3571,65 +3664,26 @@ for (const control of [
   });
 }
 
-const resetDefaultLabel = "Reset to defaults";
-const resetArmedLabel = "Reset?";
-const resetArmDurationMs = 4000;
-let resetArmTimer: number | undefined;
-
-function handleResetOutsideClick(event: Event): void {
-  if (event.target instanceof Node && resetSettingsButton?.contains(event.target)) {
-    return;
-  }
-
-  disarmReset();
-}
-
-function disarmReset(): void {
-  if (resetArmTimer !== undefined) {
-    window.clearTimeout(resetArmTimer);
-    resetArmTimer = undefined;
-  }
-
-  document.removeEventListener("pointerdown", handleResetOutsideClick, true);
-
-  if (resetSettingsButton) {
-    resetSettingsButton.classList.remove("is-arming");
-    resetSettingsButton.textContent = resetDefaultLabel;
-  }
-}
-
-function armReset(): void {
-  if (!resetSettingsButton) {
-    return;
-  }
-
-  resetSettingsButton.classList.add("is-arming");
-  resetSettingsButton.textContent = resetArmedLabel;
-
-  if (resetArmTimer !== undefined) {
-    window.clearTimeout(resetArmTimer);
-  }
-
-  // Auto-disarm so the button never lingers in its red confirm state.
-  resetArmTimer = window.setTimeout(disarmReset, resetArmDurationMs);
-  // Clicking anywhere outside the button cancels the pending reset.
-  document.addEventListener("pointerdown", handleResetOutsideClick, true);
-}
-
 resetSettingsButton?.addEventListener("click", () => {
-  if (!resetSettingsButton.classList.contains("is-arming")) {
-    armReset();
-    return;
-  }
+  void (async () => {
+    const confirmed = await showConfirmDialog({
+      title: "Reset to defaults?",
+      message: "This resets all settings and keyboard shortcuts to their defaults. This can't be undone.",
+      confirmLabel: "Reset"
+    });
 
-  disarmReset();
-  void runEditorAction("Reset settings", async () => {
-    const api = requireTeleprompterApi();
-    const settings = await api.resetSettings();
-    renderSettings(settings);
-    const statuses = await api.resetShortcuts();
-    renderShortcuts(statuses);
-  });
+    if (!confirmed) {
+      return;
+    }
+
+    await runEditorAction("Reset settings", async () => {
+      const api = requireTeleprompterApi();
+      const settings = await api.resetSettings();
+      renderSettings(settings);
+      const statuses = await api.resetShortcuts();
+      renderShortcuts(statuses);
+    });
+  })();
 });
 
 logoutButton?.addEventListener("click", () => {

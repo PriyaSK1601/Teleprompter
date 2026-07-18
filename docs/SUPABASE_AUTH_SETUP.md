@@ -7,7 +7,7 @@ This application uses Supabase Auth from the Electron editor window through the 
 Create `.env.local` in the project root:
 
 ```text
-VITE_SUPABASE_URL=https://slhjkxwlpkknmbkhjlvp.supabase.co
+VITE_SUPABASE_URL=https://poqwtkntyfojyjkemwci.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
@@ -65,7 +65,7 @@ Recommended settings:
 5. Add Supabase’s Google callback URL to Google’s authorised redirect URIs:
 
 ```text
-https://slhjkxwlpkknmbkhjlvp.supabase.co/auth/v1/callback
+https://poqwtkntyfojyjkemwci.supabase.co/auth/v1/callback
 ```
 
 6. Copy the Google Client ID and Client Secret.
