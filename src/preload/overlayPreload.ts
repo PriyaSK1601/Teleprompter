@@ -40,9 +40,14 @@ const teleprompterApi: TeleprompterApi = {
   saveScript: (input) => ipcRenderer.invoke(ipcChannels.scriptsSave, input),
   setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),
   renameScript: (id, title) => ipcRenderer.invoke(ipcChannels.scriptsRename, id, title),
+  setScriptPinned: (id, pinned) => ipcRenderer.invoke(ipcChannels.scriptsSetPinned, id, pinned),
+  moveScriptToProject: (id, projectId) => ipcRenderer.invoke(ipcChannels.scriptsMoveToProject, id, projectId),
   deleteScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsDelete, id),
   deleteScripts: (ids) => ipcRenderer.invoke(ipcChannels.scriptsDeleteMany, ids),
   clearActiveScript: () => ipcRenderer.invoke(ipcChannels.scriptsClearActive),
+  createProject: (name) => ipcRenderer.invoke(ipcChannels.projectsCreate, name),
+  renameProject: (id, name) => ipcRenderer.invoke(ipcChannels.projectsRename, id, name),
+  deleteProject: (id, mode) => ipcRenderer.invoke(ipcChannels.projectsDelete, id, mode),
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, scriptEvent: ScriptChangedEvent) => {
       callback(scriptEvent);
