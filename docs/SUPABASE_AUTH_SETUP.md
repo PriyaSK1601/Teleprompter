@@ -7,8 +7,15 @@ This application uses Supabase Auth from the Electron editor window through the 
 Create `.env.local` in the project root:
 
 ```text
-VITE_SUPABASE_URL=https://slhjkxwlpkknmbkhjlvp.supabase.co
+VITE_SUPABASE_URL=https://poqwtkntyfojyjkemwci.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+The app also accepts Supabase's Next.js quickstart variable names:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Do not use a Supabase secret key or service-role key in this desktop client.
@@ -20,6 +27,12 @@ The Electron auth callback URL used by the app is:
 
 ```text
 teleprompter://auth/callback
+```
+
+The app also starts a local browser callback listener for Supabase links that are configured to return to localhost:
+
+```text
+http://localhost:3000
 ```
 
 Add this URL in:
@@ -36,6 +49,15 @@ Use the same URL for:
 - Google OAuth callback return to the app
 - password recovery links
 - email confirmation links
+
+For local development, add both redirect URLs:
+
+```text
+teleprompter://auth/callback
+http://localhost:3000
+```
+
+If Supabase sends users to `localhost:3000` and the app is not running, Chrome shows `ERR_CONNECTION_REFUSED`. Start the Teleprompter app first, then request a fresh confirmation email.
 
 ## Email and Password
 
@@ -65,7 +87,7 @@ Recommended settings:
 5. Add Supabase’s Google callback URL to Google’s authorised redirect URIs:
 
 ```text
-https://slhjkxwlpkknmbkhjlvp.supabase.co/auth/v1/callback
+https://poqwtkntyfojyjkemwci.supabase.co/auth/v1/callback
 ```
 
 6. Copy the Google Client ID and Client Secret.
@@ -83,6 +105,7 @@ Supabase Dashboard
 
 ```text
 teleprompter://auth/callback
+http://localhost:3000
 ```
 
 Do not enable Supabase’s “OAuth Server” feature. It is not required for signing users into this desktop app with Google.
@@ -200,6 +223,12 @@ Before auth is functional, replace the placeholder in `.env.local`:
 
 ```text
 VITE_SUPABASE_PUBLISHABLE_KEY=<paste-publishable-key-here>
+```
+
+or:
+
+```text
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<paste-publishable-key-here>
 ```
 
 with the project’s Supabase publishable key, without the surrounding angle brackets.

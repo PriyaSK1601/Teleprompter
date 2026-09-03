@@ -1,4 +1,5 @@
 import { app, Menu, session } from "electron";
+import { startAuthCallbackServer, stopAuthCallbackServer } from "./authCallbackServer";
 import { loadLocalEnv } from "./env";
 import { registerIpcHandlers } from "./ipc";
 import { logError, logInfo } from "./logger";
@@ -32,7 +33,21 @@ if (!gotSingleInstanceLock) {
 function isAuthCallbackUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === `${authProtocol}:` && url.hostname === "auth" && url.pathname === "/callback";
+    return (
+      url.protocol === `${authProtocol}:` &&
+      url.hostname === "auth" &&
+      url.pathname === "/callback"
+    ) || (
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+      url.port === "3000" &&
+      (
+        url.searchParams.has("code") ||
+        url.searchParams.has("error") ||
+        url.searchParams.has("error_code") ||
+        url.searchParams.has("error_description")
+      )
+    );
   } catch {
     return false;
   }
@@ -64,6 +79,7 @@ app.on("second-instance", (_event, argv) => {
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   ensureAppDataDirectories();
+  startAuthCallbackServer();
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === "media");
   });
@@ -86,6 +102,10 @@ app.whenReady().then(() => {
     error: error instanceof Error ? error.message : String(error)
   });
   app.quit();
+});
+
+app.on("before-quit", () => {
+  stopAuthCallbackServer();
 });
 
 app.on("window-all-closed", () => {
