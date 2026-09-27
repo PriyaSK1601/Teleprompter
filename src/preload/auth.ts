@@ -18,17 +18,18 @@ const rememberStorageKey = "teleprompter.auth.rememberMe";
 const authStorageKeyPrefix = "sb-";
 const avatarBucket = "avatars";
 const maxAvatarSizeBytes = 5 * 1024 * 1024;
-const fallbackConfigError = "Supabase configuration is missing. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to .env.local.";
+const fallbackConfigError =
+  "Supabase configuration is missing. Add VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY to .env.local.";
 
 let supabaseClient: SupabaseClient | null = null;
 const authEventCallbacks = new Set<(event: AuthEvent) => void>();
 
 function getSupabaseUrl(): string | undefined {
-  return process.env.VITE_SUPABASE_URL?.trim();
+  return (process.env.VITE_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)?.trim();
 }
 
 function getSupabasePublishableKey(): string | undefined {
-  const value = process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const value = (process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)?.trim();
 
   if (!value) {
     return undefined;
@@ -220,6 +221,10 @@ function friendlyAuthError(error: unknown): string {
 
   if (normalizedMessage.includes("expired")) {
     return "This authentication link is invalid or expired.";
+  }
+
+  if (normalizedMessage.includes("otp_expired") || normalizedMessage.includes("access_denied")) {
+    return "This authentication link is invalid or expired. Request a new confirmation email and use the newest link.";
   }
 
   if (message === fallbackConfigError) {
@@ -619,12 +624,14 @@ async function handleAuthCallback(urlValue: string): Promise<void> {
     const url = new URL(urlValue);
     const code = url.searchParams.get("code");
     const type = url.searchParams.get("type");
-    const errorDescription = url.searchParams.get("error_description") ?? url.searchParams.get("error");
+    const errorDescription = url.searchParams.get("error_description") ??
+      url.searchParams.get("error_code") ??
+      url.searchParams.get("error");
     const accessToken = url.hash ? new URLSearchParams(url.hash.slice(1)).get("access_token") : null;
     const refreshToken = url.hash ? new URLSearchParams(url.hash.slice(1)).get("refresh_token") : null;
 
     if (errorDescription) {
-      emitAuthEvent({ type: "error", message: errorDescription });
+      emitAuthEvent({ type: "error", message: friendlyAuthError(new Error(errorDescription)) });
       return;
     }
 
