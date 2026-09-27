@@ -6,8 +6,149 @@
     <title>Teleprompter</title>
     <link rel="stylesheet" href="../shared.css" />
   </head>
-  <body>
+  <body class="auth-loading">
     <div class="window-titlebar"></div>
+    <section id="authShell" class="auth-shell" aria-live="polite">
+      <div class="auth-brand">
+        <div class="auth-logo" aria-hidden="true">T</div>
+        <div>
+          <p class="eyebrow">Teleprompter</p>
+          <h1>Read naturally on every call.</h1>
+        </div>
+      </div>
+
+      <div id="authLoadingCard" class="auth-card auth-state-card">
+        <div class="auth-spinner" aria-hidden="true"></div>
+        <h2>Checking your session</h2>
+        <p>Loading your workspace securely.</p>
+      </div>
+
+      <div id="authConfigCard" class="auth-card auth-state-card is-hidden">
+        <h2>Supabase needs configuration</h2>
+        <p id="authConfigMessage">Add Supabase environment variables to continue.</p>
+      </div>
+
+      <form id="loginForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Welcome back</p>
+          <h2>Sign in</h2>
+          <p>Access your scripts and teleprompter settings.</p>
+        </div>
+        <label class="auth-field" for="loginEmailInput">
+          <span>Email</span>
+          <input id="loginEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <label class="auth-field" for="loginPasswordInput">
+          <span>Password</span>
+          <span class="password-field">
+            <input id="loginPasswordInput" class="text-input" type="password" autocomplete="current-password" required />
+            <button id="loginPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="auth-row">
+          <label class="auth-checkbox">
+            <input id="rememberMeInput" type="checkbox" checked />
+            <span>Remember me</span>
+          </label>
+          <button id="showForgotPasswordButton" class="link-button" type="button">Forgot password?</button>
+        </div>
+        <p id="loginError" class="auth-error" role="alert"></p>
+        <button id="loginSubmitButton" class="primary-button auth-submit" type="submit">Sign In</button>
+        <button id="googleLoginButton" class="secondary-button auth-submit" type="button">Continue with Google</button>
+        <button id="guestModeButton" class="secondary-button auth-submit auth-guest" type="button">Continue as guest</button>
+        <p class="auth-guest-note">Guest scripts stay on this device — sign in to sync them everywhere.</p>
+        <p class="auth-switch">New here? <button id="showSignupButton" class="link-button" type="button">Create an account</button></p>
+      </form>
+
+      <form id="signupForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Create account</p>
+          <h2>Start prompting</h2>
+          <p>Use a secure account for future sync-ready workflows.</p>
+        </div>
+        <label class="auth-field" for="signupNameInput">
+          <span>Full name</span>
+          <input id="signupNameInput" class="text-input" type="text" autocomplete="name" required />
+        </label>
+        <label class="auth-field" for="signupEmailInput">
+          <span>Email</span>
+          <input id="signupEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <label class="auth-field" for="signupPasswordInput">
+          <span>Password</span>
+          <span class="password-field">
+            <input id="signupPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="signupPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="password-strength" aria-live="polite">
+          <span id="signupPasswordStrengthBar"></span>
+          <small id="signupPasswordStrengthText">Use 8+ characters with a mix of letters and numbers.</small>
+        </div>
+        <label class="auth-field" for="signupConfirmPasswordInput">
+          <span>Confirm password</span>
+          <span class="password-field">
+            <input id="signupConfirmPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="signupConfirmPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <p id="signupError" class="auth-error" role="alert"></p>
+        <button id="signupSubmitButton" class="primary-button auth-submit" type="submit">Create Account</button>
+        <button id="googleSignupButton" class="secondary-button auth-submit" type="button">Continue with Google</button>
+        <p class="auth-switch">Already have an account? <button id="showLoginFromSignupButton" class="link-button" type="button">Sign in</button></p>
+      </form>
+
+      <form id="forgotPasswordForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Password reset</p>
+          <h2>Send reset link</h2>
+          <p>Enter your email and we’ll send a secure reset link if an account exists.</p>
+        </div>
+        <label class="auth-field" for="forgotEmailInput">
+          <span>Email</span>
+          <input id="forgotEmailInput" class="text-input" type="email" autocomplete="email" required />
+        </label>
+        <p id="forgotPasswordMessage" class="auth-message" role="status"></p>
+        <p id="forgotPasswordError" class="auth-error" role="alert"></p>
+        <button id="forgotPasswordSubmitButton" class="primary-button auth-submit" type="submit">Send Reset Link</button>
+        <button id="showLoginFromForgotButton" class="link-button auth-back" type="button">Back to sign in</button>
+      </form>
+
+      <form id="resetPasswordForm" class="auth-card auth-form is-hidden" novalidate>
+        <div class="auth-card-header">
+          <p class="eyebrow">Recovery</p>
+          <h2>Create new password</h2>
+          <p>Choose a strong password to finish account recovery.</p>
+        </div>
+        <label class="auth-field" for="resetPasswordInput">
+          <span>New password</span>
+          <span class="password-field">
+            <input id="resetPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="resetPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <div class="password-strength" aria-live="polite">
+          <span id="resetPasswordStrengthBar"></span>
+          <small id="resetPasswordStrengthText">Use 8+ characters with a mix of letters and numbers.</small>
+        </div>
+        <label class="auth-field" for="resetConfirmPasswordInput">
+          <span>Confirm password</span>
+          <span class="password-field">
+            <input id="resetConfirmPasswordInput" class="text-input" type="password" autocomplete="new-password" required />
+            <button id="resetConfirmPasswordToggle" class="password-toggle" type="button" aria-label="Show password">Show</button>
+          </span>
+        </label>
+        <p id="resetPasswordError" class="auth-error" role="alert"></p>
+        <button id="resetPasswordSubmitButton" class="primary-button auth-submit" type="submit">Update Password</button>
+      </form>
+
+      <div id="checkEmailCard" class="auth-card auth-state-card is-hidden">
+        <h2>Check your email</h2>
+        <p>Confirm your account from the link we sent, then return to Teleprompter.</p>
+        <button id="showLoginFromCheckEmailButton" class="primary-button auth-submit" type="button">Back to Sign In</button>
+      </div>
+    </section>
+
     <main class="editor-app">
       <aside class="scripts-sidebar">
         <div class="sidebar-header">
@@ -29,29 +170,94 @@
           <span class="sidebar-action-label">New script</span>
         </button>
         <input id="scriptSearch" class="search-input" type="search" placeholder="Search scripts" />
-        <div class="script-bulk-actions">
-          <span id="selectedScriptsLabel">No scripts selected</span>
-          <button id="deleteSelectedScriptsButton" class="quiet-danger-button" type="button" disabled>Delete</button>
+        <div class="sidebar-scroll-area">
+          <section class="project-section" aria-label="Script projects">
+            <div class="script-history-toolbar">
+              <span>Projects</span>
+              <button id="newProjectButton" class="sidebar-mini-button" type="button" aria-label="Create project" title="Create project">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
+            <div id="projectList" class="project-list"></div>
+          </section>
+          <div class="script-history-toolbar">
+            <span id="historyHeading">History</span>
+          </div>
+          <ul id="scriptList" class="script-list"></ul>
         </div>
-        <ul id="scriptList" class="script-list"></ul>
+        <section class="sidebar-profile" aria-label="Account">
+          <button id="profileButton" class="profile-button" type="button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false">
+            <span class="profile-avatar" aria-hidden="true">
+              <img id="profileAvatarImage" alt="" hidden />
+              <span id="profileAvatarFallback">?</span>
+            </span>
+            <span class="profile-button-text">
+              <span id="profileButtonName" class="profile-button-name">Account</span>
+              <span id="profileButtonEmail" class="profile-button-email"></span>
+            </span>
+            <svg class="profile-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m18 15-6-6-6 6" />
+            </svg>
+          </button>
+          <div id="profileMenu" class="profile-menu" role="menu" hidden>
+            <div class="profile-menu-header">
+              <span class="profile-avatar profile-menu-avatar" aria-hidden="true">
+                <img id="profileMenuAvatarImage" alt="" hidden />
+                <span id="profileMenuAvatarFallback">?</span>
+              </span>
+              <span class="profile-menu-identity">
+                <strong id="profileMenuName">Account</strong>
+                <span id="profileMenuEmail"></span>
+                <small id="profileMenuProvider"></small>
+              </span>
+            </div>
+            <button id="profileMenuProfileButton" class="profile-menu-item" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+              <span>Profile</span>
+            </button>
+            <button id="profileMenuSettingsButton" class="profile-menu-item" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" /></svg>
+              <span>Account Settings</span>
+            </button>
+            <button id="profileMenuSignOutButton" class="profile-menu-item danger" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+              <span>Sign Out</span>
+            </button>
+            <p id="profileMenuError" class="profile-menu-error" role="alert"></p>
+          </div>
+        </section>
       </aside>
 
       <section class="editor-workspace">
         <header class="editor-topbar">
           <p class="eyebrow">Editor Mode</p>
-          <button id="settingsButton" class="icon-button" type="button" aria-label="Settings" title="Settings">
-            <svg class="icon-button-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" y1="6" x2="11" y2="6" />
-              <line x1="15" y1="6" x2="20" y2="6" />
-              <line x1="4" y1="12" x2="8" y2="12" />
-              <line x1="12" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="18" x2="14" y2="18" />
-              <line x1="18" y1="18" x2="20" y2="18" />
-              <circle cx="13" cy="6" r="2" />
-              <circle cx="10" cy="12" r="2" />
-              <circle cx="16" cy="18" r="2" />
-            </svg>
-          </button>
+          <div class="topbar-actions">
+            <button id="themeToggleButton" class="icon-button" type="button" aria-label="Switch to dark mode" title="Switch theme">
+              <svg class="icon-button-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8Z" />
+              </svg>
+              <svg class="icon-button-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+            </button>
+            <button id="settingsButton" class="icon-button" type="button" aria-label="Settings" title="Settings">
+              <svg class="icon-button-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="6" x2="11" y2="6" />
+                <line x1="15" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="8" y2="12" />
+                <line x1="12" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="14" y2="18" />
+                <line x1="18" y1="18" x2="20" y2="18" />
+                <circle cx="13" cy="6" r="2" />
+                <circle cx="10" cy="12" r="2" />
+                <circle cx="16" cy="18" r="2" />
+              </svg>
+            </button>
+          </div>
         </header>
 
         <section class="script-card">
@@ -69,6 +275,82 @@
         </footer>
       </section>
     </main>
+
+    <section id="projectDialog" class="project-dialog" aria-hidden="true">
+      <div id="projectDialogBackdrop" class="project-dialog-backdrop"></div>
+      <form id="projectDialogForm" class="project-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="projectDialogTitle">
+        <header class="project-dialog-header">
+          <div>
+            <p class="eyebrow">Project</p>
+            <h2 id="projectDialogTitle">Create project</h2>
+          </div>
+          <button id="cancelProjectDialogIconButton" class="icon-button" type="button" aria-label="Cancel">×</button>
+        </header>
+        <label class="project-dialog-field">
+          <span>Project name</span>
+          <input id="projectNameInput" class="text-input" type="text" autocomplete="off" maxlength="80" placeholder="e.g. Interview prep" />
+        </label>
+        <p id="projectDialogError" class="project-dialog-error" role="alert"></p>
+        <footer class="project-dialog-actions">
+          <button id="cancelProjectDialogButton" class="secondary-button" type="button">Cancel</button>
+          <button id="submitProjectDialogButton" class="primary-button" type="submit">Create</button>
+        </footer>
+      </form>
+    </section>
+
+    <section id="profileModal" class="project-dialog" aria-hidden="true">
+      <div id="profileModalBackdrop" class="project-dialog-backdrop"></div>
+      <form id="profileForm" class="project-dialog-panel profile-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+        <header class="project-dialog-header">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2 id="profileModalTitle">Profile</h2>
+          </div>
+          <button id="closeProfileModalButton" class="icon-button" type="button" aria-label="Close profile">×</button>
+        </header>
+        <div class="profile-dialog-summary">
+          <span class="profile-avatar profile-dialog-avatar" aria-hidden="true">
+            <img id="profileDialogAvatarImage" alt="" hidden />
+            <span id="profileDialogAvatarFallback">?</span>
+          </span>
+          <div class="profile-dialog-identity">
+            <strong id="profileDialogName">Account</strong>
+            <span id="profileDialogEmail"></span>
+            <small id="profileDialogMeta"></small>
+          </div>
+        </div>
+        <div class="profile-photo-actions">
+          <input id="profileAvatarInput" class="visually-hidden-input" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" />
+          <button id="changeProfilePhotoButton" class="secondary-button" type="button">Change photo</button>
+          <button id="removeProfilePhotoButton" class="quiet-danger-button" type="button">Remove photo</button>
+        </div>
+        <label class="project-dialog-field" for="profileNameInput">
+          <span>Display name</span>
+          <input id="profileNameInput" class="text-input" type="text" autocomplete="name" maxlength="80" />
+        </label>
+        <div class="project-dialog-field">
+          <span>Email address</span>
+          <div id="profileEmailView" class="profile-email-view">
+            <span id="profileCurrentEmail"></span>
+            <button id="editProfileEmailButton" class="link-button" type="button">Edit email</button>
+          </div>
+          <div id="profileEmailEditor" class="profile-email-editor is-hidden">
+            <input id="profileEmailInput" class="text-input" type="email" autocomplete="email" />
+            <div class="project-dialog-actions compact">
+              <button id="cancelProfileEmailButton" class="secondary-button" type="button">Cancel</button>
+              <button id="saveProfileEmailButton" class="primary-button" type="button">Save email</button>
+            </div>
+          </div>
+          <small id="profilePendingEmail" class="profile-pending-email"></small>
+        </div>
+        <p id="profileModalMessage" class="auth-message" role="status"></p>
+        <p id="profileModalError" class="project-dialog-error" role="alert"></p>
+        <footer class="project-dialog-actions">
+          <button id="cancelProfileModalButton" class="secondary-button" type="button">Cancel</button>
+          <button id="saveProfileButton" class="primary-button" type="submit">Save</button>
+        </footer>
+      </form>
+    </section>
 
     <section id="settingsModal" class="settings-modal">
       <div id="settingsBackdrop" class="settings-backdrop"></div>
@@ -88,6 +370,21 @@
             <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Close settings">×</button>
           </div>
         </header>
+
+        <section class="settings-section account-settings-section">
+          <h3>Account</h3>
+          <div class="account-settings-card">
+            <span class="profile-avatar account-settings-avatar" aria-hidden="true">
+              <img id="settingsAccountAvatarImage" alt="" hidden />
+              <span id="settingsAccountAvatarFallback">?</span>
+            </span>
+            <span class="account-settings-copy">
+              <strong id="settingsAccountName">Account</strong>
+              <span id="settingsAccountEmail"></span>
+              <small id="settingsAccountProvider"></small>
+            </span>
+          </div>
+        </section>
 
         <div class="settings-live-preview">
           <span class="live-preview-badge">Live preview</span>
@@ -172,6 +469,13 @@
               <span class="field-hint">How fast the text moves when you're not using voice tracking.</span>
               <input id="scrollSpeedInput" class="range-input" type="range" min="8" max="160" step="1" />
               <span id="scrollSpeedValue" class="setting-value"></span>
+            </label>
+            <label class="switch-row">
+              <span>
+                Hide interface while speaking
+                <small>Show only elapsed and remaining time during playback until you hover.</small>
+              </span>
+              <input id="hideInterfaceWhileSpeakingInput" class="toggle-switch" type="checkbox" />
             </label>
             <div class="countdown-block">
               <label class="switch-row">
@@ -293,12 +597,34 @@
 
         <section class="settings-section settings-footer">
           <div class="settings-actions">
+            <button id="logoutButton" class="secondary-button" type="button">Log out</button>
             <button id="resetSettingsButton" class="secondary-button" type="button">Reset to defaults</button>
           </div>
         </section>
       </aside>
     </section>
 
+    <div id="confirmDialog" class="confirm-dialog" hidden>
+      <div class="confirm-backdrop" data-confirm-dismiss></div>
+      <div class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+        <span class="confirm-icon" id="confirmIcon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </span>
+        <h2 id="confirmTitle" class="confirm-title">Are you sure?</h2>
+        <p id="confirmMessage" class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button id="confirmCancelButton" class="secondary-button" type="button" data-confirm-dismiss>Cancel</button>
+          <button id="confirmAcceptButton" class="primary-button" type="button">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <script>var overlayCore = {}; var exports = overlayCore;</script>
+    <script src="../../../dist/shared/overlayCore.js"></script>
     <script src="../../../dist/renderer/editor/index.js"></script>
   </body>
 </html>
