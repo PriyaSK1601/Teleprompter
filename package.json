@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check:renderer": "npm run build && node scripts/check-renderer-bundles.cjs",
+    "predev": "node scripts/check-dev-dependencies.cjs",
     "dev": "npm run build && node scripts/run-electron.cjs .",
     "dist:win": "npm run build && electron-builder --win --x64",
     "pack:win": "npm run build && electron-builder --win --x64 --dir",

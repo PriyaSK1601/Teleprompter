@@ -121,6 +121,16 @@ Install dependencies:
 npm install
 ```
 
+Run `npm install` again after pulling changes or switching branches that update `package.json` or `package-lock.json`:
+
+```sh
+git pull
+npm install
+npm run dev
+```
+
+`npm run dev` checks installed dependencies before compiling. If it reports missing or out-of-date packages, run `npm install` in this directory and retry. For example, pulling the authentication changes without reinstalling leaves `@supabase/supabase-js` missing, causing a module-not-found error and implicit-`any` errors in `src/preload/auth.ts`.
+
 Run a typecheck:
 
 ```sh
