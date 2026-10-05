@@ -1176,9 +1176,20 @@ h3 {
 
 .profile-avatar img {
   display: block;
+  flex-shrink: 0;
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.profile-avatar > [hidden] {
+  display: none;
+}
+
+.profile-guest-icon {
+  display: block;
+  height: 22px;
+  width: 22px;
 }
 
 .profile-button-text,
@@ -2661,7 +2672,7 @@ h3 {
 }
 
 .overlay-shell {
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
   animation: overlay-enter 260ms cubic-bezier(0.16, 1, 0.3, 1);
   background:
     radial-gradient(circle at 50% 3%, rgb(var(--overlay-accent-rgb) / 0.16), transparent 34%),
@@ -2682,6 +2693,17 @@ h3 {
   overflow: hidden;
   padding: 10px 18px 14px;
   position: relative;
+}
+
+/* Native drag regions do not receive hover events. Keep one above the reading
+   area so every control retains its mouse hit area, even while faded out. */
+.overlay-drag-handle {
+  -webkit-app-region: drag;
+  cursor: move;
+  height: 18px;
+  inset: 0 18px auto;
+  position: absolute;
+  z-index: 4;
 }
 
 @keyframes overlay-enter {
@@ -3237,21 +3259,20 @@ h3 {
   white-space: nowrap;
 }
 
-.overlay-shell.is-interface-collapsed:not(:hover) .overlay-progress-track,
-.overlay-shell.is-interface-collapsed:not(:hover) .overlay-control-bar,
-.overlay-shell.is-interface-collapsed:not(:hover) .overlay-progress-side,
-.overlay-shell.is-interface-collapsed:not(:hover) #speedLabel,
-.overlay-shell.is-interface-collapsed:not(:hover) #feedbackLabel {
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) .overlay-progress-track,
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) .overlay-progress-side,
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) #speedLabel,
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) #feedbackLabel {
   opacity: 0;
   pointer-events: none;
   transform: translateY(8px);
 }
 
-.overlay-shell.is-interface-collapsed:not(:hover) .overlay-footer {
-  transform: translateY(2px);
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) .overlay-control-bar {
+  opacity: 0;
 }
 
-.overlay-shell.is-interface-collapsed:not(:hover) .overlay-status-row {
+.overlay-shell.is-interface-collapsed:not(:hover):not(:focus-within) .overlay-status-row {
   gap: clamp(12px, 1.8vw, 20px);
 }
 

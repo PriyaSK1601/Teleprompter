@@ -8,6 +8,7 @@ import {
 } from "../shared/ipc";
 
 const teleprompterApi: TeleprompterApi = {
+  setEditorTheme: (theme) => ipcRenderer.invoke(ipcChannels.editorSetTheme, theme),
   ping: () => ipcRenderer.invoke(ipcChannels.appPing),
   openOverlay: () => ipcRenderer.invoke(ipcChannels.overlayOpen),
   closeOverlay: () => ipcRenderer.invoke(ipcChannels.overlayClose),

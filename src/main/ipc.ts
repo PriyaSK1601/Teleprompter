@@ -11,6 +11,7 @@ import {
 } from "../shared/ipc";
 import {
   createOverlayWindow,
+  setEditorWindowTheme,
   broadcastScriptChanged,
   broadcastSettingsChanged,
   broadcastShortcutsChanged,
@@ -76,6 +77,12 @@ function registerLoggedHandler<TResult, TArgs extends unknown[]>(
 }
 
 export function registerIpcHandlers(): void {
+  registerLoggedHandler(ipcChannels.editorSetTheme, async (_event, theme: "light" | "dark") => {
+    if (theme !== "light" && theme !== "dark") {
+      throw new Error("Invalid editor theme");
+    }
+    setEditorWindowTheme(theme);
+  });
   registerLoggedHandler(ipcChannels.appPing, async (): Promise<AppPingResponse> => {
     return {
       message: "pong",
