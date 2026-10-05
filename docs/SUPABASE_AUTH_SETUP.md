@@ -78,6 +78,29 @@ Recommended settings:
 - If email confirmation is enabled, users will see the in-app “Check your email” state after sign-up.
 - Email changes are requested with `supabase.auth.updateUser({ email })`; the current email remains visible until Supabase confirmation completes.
 
+### Email delivery and Gmail inboxes
+
+Supabase's default mail service is intended for trial use. It is rate-limited and refuses delivery to addresses that are not members of the project's organisation. Configure custom SMTP before testing arbitrary Gmail inboxes or shipping the app.
+
+For production delivery, configure a custom SMTP provider in:
+
+```text
+Supabase Dashboard
+→ Authentication
+→ Emails
+→ SMTP Settings
+```
+
+Use a transactional provider (for example Resend, Postmark, or SendGrid), verify the sender domain, and set the sender name/address. If Gmail itself is used as the SMTP server, use a Google App Password rather than the account password; transactional providers are preferable for deliverability.
+
+After configuration, verify all three templates under Authentication → Email Templates:
+
+- Confirm signup
+- Reset password
+- Change email address
+
+The app includes an explicit resend action on the confirmation screen. Supabase still enforces its email send-rate limit, so wait at least a minute between repeated requests.
+
 ## Google OAuth
 
 1. Open Google Cloud Console.

@@ -190,8 +190,32 @@ function friendlyAuthError(error: unknown): string {
     return "An account with this email already exists.";
   }
 
+  if (normalizedMessage.includes("email rate limit") || normalizedMessage.includes("over_email_send_rate_limit")) {
+    return "Too many emails were requested. Wait a minute, then try again.";
+  }
+
   if (normalizedMessage.includes("rate limit") || normalizedMessage.includes("too many")) {
     return "Too many attempts. Wait a moment and try again.";
+  }
+
+  if (normalizedMessage.includes("email not confirmed") || normalizedMessage.includes("email_not_confirmed")) {
+    return "Confirm your email before signing in. You can resend the confirmation from the sign-up screen.";
+  }
+
+  if (
+    normalizedMessage.includes("email address not authorized") ||
+    normalizedMessage.includes("email_address_not_authorized")
+  ) {
+    return "This project cannot email that address until custom SMTP is configured in Supabase.";
+  }
+
+  if (
+    normalizedMessage.includes("error sending confirmation email") ||
+    normalizedMessage.includes("error sending recovery email") ||
+    normalizedMessage.includes("smtp") ||
+    normalizedMessage.includes("mailer")
+  ) {
+    return "The email could not be sent. Try again shortly; if it keeps failing, the mail service needs attention.";
   }
 
   if (normalizedMessage.includes("requires recent login") || normalizedMessage.includes("reauthentication")) {
@@ -295,7 +319,7 @@ function emitAuthEvent(event: AuthEvent): void {
   }
 }
 
-function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient {
   const config = getConfigStatus();
 
   if (!config.configured) {
@@ -320,9 +344,9 @@ function getSupabaseClient(): SupabaseClient {
     }
   );
 
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
     emitAuthEvent({
-      type: "state",
+      type: event === "PASSWORD_RECOVERY" ? "recovery" : "state",
       state: toAuthState(session)
     });
   });
@@ -361,7 +385,7 @@ async function signIn(input: SignInInput): Promise<AuthActionResult> {
     setPersistentAuthEnabled(input.remember);
     clearStoredAuthSessions();
     const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email: input.email,
+      email: input.email.trim(),
       password: input.password
     });
 
@@ -380,7 +404,7 @@ async function signUp(input: SignUpInput): Promise<AuthActionResult> {
     setPersistentAuthEnabled(input.remember);
     clearStoredAuthSessions();
     const { data, error } = await getSupabaseClient().auth.signUp({
-      email: input.email,
+      email: input.email.trim(),
       password: input.password,
       options: {
         data: {
@@ -396,8 +420,35 @@ async function signUp(input: SignUpInput): Promise<AuthActionResult> {
 
     return {
       ok: true,
-      needsEmailConfirmation: !data.session
+      needsEmailConfirmation: !data.session,
+      pendingEmail: !data.session ? input.email.trim() : undefined
     };
+  } catch (error: unknown) {
+    return { ok: false, message: friendlyAuthError(error) };
+  }
+}
+
+async function resendSignupConfirmation(emailValue: string): Promise<AuthActionResult> {
+  try {
+    const email = emailValue.trim();
+
+    if (!email) {
+      return { ok: false, message: "Enter an email address." };
+    }
+
+    const { error } = await getSupabaseClient().auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: callbackUrl
+      }
+    });
+
+    if (error) {
+      return { ok: false, message: friendlyAuthError(error) };
+    }
+
+    return { ok: true, message: "A new confirmation email has been requested. Check your inbox and spam folder." };
   } catch (error: unknown) {
     return { ok: false, message: friendlyAuthError(error) };
   }
@@ -405,6 +456,8 @@ async function signUp(input: SignUpInput): Promise<AuthActionResult> {
 
 async function signInWithGoogle(): Promise<AuthActionResult> {
   try {
+    // OAuth has no remember-me checkbox; keep its session across app launches.
+    setPersistentAuthEnabled(true);
     const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -441,7 +494,7 @@ async function signOut(): Promise<AuthActionResult> {
 
 async function sendPasswordReset(email: string): Promise<AuthActionResult> {
   try {
-    const { error } = await getSupabaseClient().auth.resetPasswordForEmail(email, {
+    const { error } = await getSupabaseClient().auth.resetPasswordForEmail(email.trim(), {
       redirectTo: callbackUrl
     });
 
@@ -646,6 +699,11 @@ async function handleAuthCallback(urlValue: string): Promise<void> {
       }
 
       session = data.session;
+      // auth-js includes redirectType at runtime, although AuthTokenResponse omits it.
+      if ("redirectType" in data && data.redirectType === "recovery") {
+        emitAuthEvent({ type: "recovery", state: toAuthState(session) });
+        return;
+      }
     } else if (accessToken && refreshToken) {
       const { data, error } = await getSupabaseClient().auth.setSession({
         access_token: accessToken,
@@ -682,6 +740,7 @@ export const teleprompterAuthApi: TeleprompterAuthApi = {
   getState,
   signIn,
   signUp,
+  resendSignupConfirmation,
   signInWithGoogle,
   signOut,
   sendPasswordReset,

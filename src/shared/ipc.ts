@@ -21,6 +21,10 @@ export const ipcChannels = {
   scriptsDelete: "scripts:delete",
   scriptsDeleteMany: "scripts:deleteMany",
   scriptsClearActive: "scripts:clearActive",
+  scriptsUseGuest: "scripts:useGuest",
+  scriptsSetCloudState: "scripts:setCloudState",
+  guestMigrationGetPayload: "guestMigration:getPayload",
+  guestMigrationComplete: "guestMigration:complete",
   projectsCreate: "projects:create",
   projectsRename: "projects:rename",
   projectsDelete: "projects:delete",
@@ -125,12 +129,20 @@ export type ScriptsFile = {
   scripts: ScriptRecord[];
   projects?: ProjectRecord[];
   activeScriptId?: string;
+  guestMigrationId?: string;
 };
 
 export type ScriptsState = {
   scripts: ScriptRecord[];
   projects: ProjectRecord[];
   activeScript?: ScriptRecord;
+  ownerId?: string;
+};
+
+export type GuestMigrationPayload = {
+  migrationId: string;
+  projects: ProjectRecord[];
+  scripts: ScriptRecord[];
 };
 
 export type SaveScriptInput = {
@@ -233,6 +245,7 @@ export type TeleprompterApi = {
   createProject: (name: string) => Promise<ScriptsState>;
   renameProject: (id: string, name: string) => Promise<ScriptsState>;
   deleteProject: (id: string, mode: DeleteProjectMode) => Promise<ScriptsState>;
+  migrateGuestDataToCurrentUser: () => Promise<{ ok: boolean; message?: string }>;
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => () => void;
   getSettings: () => Promise<AppSettings>;
   updateSettings: (update: SettingsUpdate) => Promise<AppSettings>;

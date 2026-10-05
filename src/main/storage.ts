@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   AppSettings,
+  GuestMigrationPayload,
   OverlaySettings,
   OverlaySizeSettings,
   ProjectRecord,
@@ -479,7 +480,8 @@ function isScriptsFile(value: unknown): value is ScriptsFile {
     candidate.scripts.every(isScriptRecord) &&
     (candidate.projects === undefined ||
       Array.isArray(candidate.projects) && candidate.projects.every(isProjectRecord)) &&
-    (candidate.activeScriptId === undefined || typeof candidate.activeScriptId === "string")
+    (candidate.activeScriptId === undefined || typeof candidate.activeScriptId === "string") &&
+    (candidate.guestMigrationId === undefined || typeof candidate.guestMigrationId === "string")
   );
 }
 
@@ -507,7 +509,8 @@ function normalizeScriptsFile(file: ScriptsFile): ScriptsFile {
     version: 1,
     projects,
     scripts,
-    activeScriptId: file.activeScriptId
+    activeScriptId: file.activeScriptId,
+    guestMigrationId: file.guestMigrationId
   };
 }
 
@@ -558,7 +561,8 @@ export function loadScriptsFile(): ScriptsFile {
         version: 1,
         projects: parsed.projects ?? [],
         scripts: parsed.scripts,
-        activeScriptId: parsed.activeScriptId
+        activeScriptId: parsed.activeScriptId,
+        guestMigrationId: parsed.guestMigrationId
       });
     }
   } catch {
@@ -570,7 +574,43 @@ export function loadScriptsFile(): ScriptsFile {
 
 export function saveScriptsFile(file: ScriptsFile): void {
   ensureAppDataDirectories();
-  writeFileSync(scriptsPath(), `${JSON.stringify(normalizeScriptsFile(file), null, 2)}\n`, "utf8");
+  const existingMigrationId = loadScriptsFile().guestMigrationId;
+  const normalized = normalizeScriptsFile({
+    ...file,
+    guestMigrationId: file.guestMigrationId ?? existingMigrationId ?? randomUUID()
+  });
+  writeFileSync(scriptsPath(), `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+}
+
+export function getGuestMigrationPayload(): GuestMigrationPayload {
+  const file = loadScriptsFile();
+  const migrationId = file.guestMigrationId ?? randomUUID();
+
+  if (!file.guestMigrationId) {
+    saveScriptsFile({ ...file, guestMigrationId: migrationId });
+  }
+
+  return {
+    migrationId,
+    projects: file.projects ?? [],
+    scripts: file.scripts
+  };
+}
+
+export function completeGuestMigration(migrationId: string): void {
+  const file = loadScriptsFile();
+
+  if (!file.guestMigrationId || file.guestMigrationId !== migrationId) {
+    throw new Error("Guest workspace changed before migration cleanup.");
+  }
+
+  saveScriptsFile({
+    version: 1,
+    projects: [],
+    scripts: [],
+    activeScriptId: undefined,
+    guestMigrationId: randomUUID()
+  });
 }
 
 export function getScriptsState(): ScriptsState {

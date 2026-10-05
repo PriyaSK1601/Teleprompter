@@ -5,6 +5,7 @@ import {
   type DeleteProjectMode,
   type IpcChannel,
   type SaveScriptInput,
+  type ScriptsState,
   type SettingsUpdate,
   type ShortcutUpdateInput,
   type TeleprompterCommand
@@ -16,14 +17,18 @@ import {
   broadcastShortcutsChanged,
   closeOverlayWindow,
   closeOverlayForRecovery,
+  getCurrentScriptsState,
   getOverlayState,
   hideOverlayWindow,
   resetOverlayPosition,
   sendTeleprompterCommand,
-  setOverlayClickThrough
+  setCloudScriptsState,
+  setOverlayClickThrough,
+  useGuestScriptsState
 } from "./windows";
 import {
   clearActiveScript,
+  completeGuestMigration,
   createProject,
   deleteProject,
   deleteScript,
@@ -31,6 +36,7 @@ import {
   loadAppSettings,
   moveScriptToProject,
   getScriptsState,
+  getGuestMigrationPayload,
   getStorageInfo,
   renameScript,
   renameProject,
@@ -128,7 +134,23 @@ export function registerIpcHandlers(): void {
   });
 
   registerLoggedHandler(ipcChannels.scriptsGetState, async () => {
-    return getScriptsState();
+    return getCurrentScriptsState();
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsUseGuest, async () => {
+    useGuestScriptsState();
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsSetCloudState, async (_event, state: ScriptsState) => {
+    setCloudScriptsState(state);
+  });
+
+  registerLoggedHandler(ipcChannels.guestMigrationGetPayload, async () => {
+    return getGuestMigrationPayload();
+  });
+
+  registerLoggedHandler(ipcChannels.guestMigrationComplete, async (_event, migrationId: string) => {
+    completeGuestMigration(migrationId);
   });
 
   registerLoggedHandler(ipcChannels.scriptsSave, async (_event, input: SaveScriptInput) => {
