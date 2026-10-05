@@ -58,6 +58,54 @@ if (typeof electron === "string") {
       assert.ok(avatarChecks.every(Boolean), "Guest, photo, cached photo, and failed photo must show one avatar");
       console.log("All four avatar locations pass guest/photo/fallback checks.");
 
+      const dragChecks = await evaluate(`(async () => {
+        const results = [];
+        let calls = 0;
+        let rejectMove = false;
+        const themes = [];
+        window.teleprompter = {
+          async setEditorTheme(theme) { themes.push(theme); },
+          async moveScriptToProject(id, projectId) {
+            calls++;
+            if (rejectMove) throw new Error('Test move failure');
+            return { ...currentScriptsState, scripts: currentScriptsState.scripts.map(script =>
+              script.id === id ? { ...script, projectId } : script) };
+          }
+        };
+        currentScriptsState = {
+          projects: [{ id: 'p1', name: 'Folder one' }, { id: 'p2', name: 'Folder two' }],
+          scripts: [{ id: 's1', title: 'Test script', body: 'Test', createdAt: '2026-10-05', updatedAt: '2026-10-05' }]
+        };
+        renderProjectList(); renderScriptsList(); renderScriptsList();
+        const move = async (projectId) => {
+          const source = document.querySelector('.script-list-item');
+          results.push(source.draggable);
+          const transfer = new DataTransfer();
+          source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: transfer }));
+          const target = projectId ? document.querySelector('[data-project-id="' + projectId + '"]') : scriptList;
+          for (let i = 0; i < 3; i++) {
+            target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+          }
+          results.push(target.isConnected && source.isConnected && target.classList.contains('is-drop-target'));
+          target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+          await new Promise(resolve => setTimeout(resolve, 0));
+        };
+        await move('p1');
+        results.push(currentScriptsState.scripts[0].projectId === 'p1' && expandedProjectIds.has('p1'));
+        await move('p2');
+        results.push(currentScriptsState.scripts[0].projectId === 'p2');
+        await move(undefined);
+        results.push(!currentScriptsState.scripts[0].projectId && calls === 3);
+        rejectMove = true;
+        await move('p1');
+        results.push(!currentScriptsState.scripts[0].projectId && calls === 4);
+        setEditorTheme('dark'); setEditorTheme('light');
+        results.push(themes.join(',') === 'dark,light');
+        return results;
+      })()`);
+      assert.ok(dragChecks.every(Boolean), "Dragging must preserve nodes, move between folders/root once, and roll back failures");
+      console.log("Folder/root drag-and-drop, stable drop targets, and failed-move rollback pass.");
+
       await window.loadFile(join(__dirname, "../src/renderer/overlay/index.html"));
       await evaluate(`document.querySelector('.overlay-shell').style.animation = 'none';
         document.querySelector('.overlay-shell').classList.add('is-interface-collapsed');

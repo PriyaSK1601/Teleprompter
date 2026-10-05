@@ -158,6 +158,18 @@ function restoreEditorWindow(): void {
   editorWindow.focus();
 }
 
+export function setEditorWindowTheme(theme: "light" | "dark"): void {
+  if (process.platform !== "win32" || !editorWindow || editorWindow.isDestroyed()) {
+    return;
+  }
+
+  editorWindow.setTitleBarOverlay({
+    color: theme === "dark" ? "#10120f" : "#f5f4ed",
+    symbolColor: theme === "dark" ? "#f3f5ef" : "#283029",
+    height: 36
+  });
+}
+
 export function createEditorWindow(): BrowserWindow {
   if (editorWindow && !editorWindow.isDestroyed()) {
     editorWindow.focus();

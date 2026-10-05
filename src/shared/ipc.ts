@@ -1,5 +1,6 @@
 export const ipcChannels = {
   appPing: "app:ping",
+  editorSetTheme: "editor:setTheme",
   overlayOpen: "overlay:open",
   overlayClose: "overlay:close",
   overlayHide: "overlay:hide",
@@ -208,6 +209,7 @@ export type SettingsChangedEvent = {
 };
 
 export type TeleprompterApi = {
+  setEditorTheme: (theme: "light" | "dark") => Promise<void>;
   ping: () => Promise<AppPingResponse>;
   openOverlay: () => Promise<void>;
   closeOverlay: () => Promise<void>;

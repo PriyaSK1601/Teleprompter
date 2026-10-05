@@ -1424,11 +1424,17 @@ async function moveScriptToProjectWithRollback(scriptId: string, projectId?: str
   }
 }
 
+function updateDropTargets(): void {
+  for (const row of Array.from(document.querySelectorAll<HTMLElement>(".project-list-row"))) {
+    row.classList.toggle("is-drop-target", row.dataset.projectId === activeDropProjectId);
+  }
+  scriptList?.classList.toggle("is-drop-target", activeDropProjectId === "__root__");
+}
+
 function clearDropState(): void {
   activeDropProjectId = undefined;
   draggedScriptId = undefined;
-  renderProjectList();
-  renderScriptsList();
+  updateDropTargets();
 }
 
 function handleScriptDragStart(event: DragEvent, script: ScriptRecord): void {
@@ -1447,9 +1453,11 @@ function handleDropTargetDragOver(event: DragEvent, projectId?: string): void {
   }
 
   event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = "move";
+  }
   activeDropProjectId = projectId ?? "__root__";
-  renderProjectList();
-  renderScriptsList();
+  updateDropTargets();
 }
 
 function handleDropTargetDragLeave(event: DragEvent): void {
@@ -1461,8 +1469,7 @@ function handleDropTargetDragLeave(event: DragEvent): void {
   }
 
   activeDropProjectId = undefined;
-  renderProjectList();
-  renderScriptsList();
+  updateDropTargets();
 }
 
 function handleScriptDrop(event: DragEvent, projectId?: string): void {
@@ -1470,6 +1477,7 @@ function handleScriptDrop(event: DragEvent, projectId?: string): void {
   const scriptId = draggedScriptId ?? event.dataTransfer?.getData("application/x-teleprompter-script-id");
   draggedScriptId = undefined;
   activeDropProjectId = undefined;
+  updateDropTargets();
 
   if (!scriptId) {
     renderProjectList();
@@ -1513,6 +1521,7 @@ function renderProjectList(): void {
       openProjectMenuId === project.id ? "has-open-menu" : "",
       activeDropProjectId === project.id ? "is-drop-target" : ""
     ].filter(Boolean).join(" ");
+    row.dataset.projectId = project.id;
     row.addEventListener("dragover", (event) => handleDropTargetDragOver(event, project.id));
     row.addEventListener("dragleave", handleDropTargetDragLeave);
     row.addEventListener("drop", (event) => handleScriptDrop(event, project.id));
@@ -1820,9 +1829,6 @@ function renderScriptsList(): void {
     currentScriptsState.scripts.filter((script) => !script.projectId && scriptMatchesQuery(script, query))
   );
   scriptList.classList.toggle("is-drop-target", activeDropProjectId === "__root__");
-  scriptList.addEventListener("dragover", (event) => handleDropTargetDragOver(event, undefined));
-  scriptList.addEventListener("dragleave", handleDropTargetDragLeave);
-  scriptList.addEventListener("drop", (event) => handleScriptDrop(event, undefined));
 
   if (scripts.length === 0) {
     const emptyItem = document.createElement("li");
@@ -1853,7 +1859,7 @@ function buildScriptListRow(script: ScriptRecord, nested: boolean): HTMLElement 
   item.addEventListener("dragstart", (event) => handleScriptDragStart(event as DragEvent, script));
   item.addEventListener("dragend", clearDropState);
   button.type = "button";
-  button.draggable = false;
+  button.draggable = true;
   button.className = [
     "script-list-item",
     script.id === activeScriptId ? "active" : "",
@@ -3245,6 +3251,9 @@ type EditorTheme = "light" | "dark";
 
 function setEditorTheme(theme: EditorTheme): void {
   document.documentElement.dataset.editorTheme = theme;
+  void window.teleprompter?.setEditorTheme(theme).catch((error: unknown) => {
+    console.error("Unable to update window controls theme", error);
+  });
 
   if (themeToggleButton) {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -3374,6 +3383,10 @@ settingsButton?.addEventListener("click", openSettings);
 settingsBackdrop?.addEventListener("click", closeSettings);
 closeSettingsButton?.addEventListener("click", closeSettings);
 settingsDrawer?.addEventListener("keydown", handleSettingsTabKey);
+
+scriptList?.addEventListener("dragover", (event) => handleDropTargetDragOver(event, undefined));
+scriptList?.addEventListener("dragleave", handleDropTargetDragLeave);
+scriptList?.addEventListener("drop", (event) => handleScriptDrop(event, undefined));
 
 setEditorTheme(loadEditorTheme());
 setSidebarCollapsed(loadSidebarCollapsed());
