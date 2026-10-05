@@ -405,6 +405,8 @@ async function signUp(input: SignUpInput): Promise<AuthActionResult> {
 
 async function signInWithGoogle(): Promise<AuthActionResult> {
   try {
+    // OAuth has no remember-me checkbox; keep its session across app launches.
+    setPersistentAuthEnabled(true);
     const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: "google",
       options: {
