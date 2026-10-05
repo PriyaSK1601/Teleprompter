@@ -1,7 +1,8 @@
-import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import {
   ipcChannels,
   type AppPingResponse,
+  type DeleteProjectMode,
   type IpcChannel,
   type SaveScriptInput,
   type SettingsUpdate,
@@ -23,15 +24,20 @@ import {
 } from "./windows";
 import {
   clearActiveScript,
+  createProject,
+  deleteProject,
   deleteScript,
   deleteScripts,
   loadAppSettings,
+  moveScriptToProject,
   getScriptsState,
   getStorageInfo,
   renameScript,
+  renameProject,
   resetAppSettings,
   resetOverlaySettings,
   saveScript,
+  setScriptPinned,
   setActiveScript,
   updateAppSettings
 } from "./storage";
@@ -143,6 +149,18 @@ export function registerIpcHandlers(): void {
     return state;
   });
 
+  registerLoggedHandler(ipcChannels.scriptsSetPinned, async (_event, id: string, pinned: boolean) => {
+    const state = setScriptPinned(id, pinned);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.scriptsMoveToProject, async (_event, id: string, projectId?: string) => {
+    const state = moveScriptToProject(id, projectId);
+    broadcastScriptChanged();
+    return state;
+  });
+
   registerLoggedHandler(ipcChannels.scriptsDelete, async (_event, id: string) => {
     const state = deleteScript(id);
     broadcastScriptChanged();
@@ -161,6 +179,24 @@ export function registerIpcHandlers(): void {
     return state;
   });
 
+  registerLoggedHandler(ipcChannels.projectsCreate, async (_event, name: string) => {
+    const state = createProject(name);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.projectsRename, async (_event, id: string, name: string) => {
+    const state = renameProject(id, name);
+    broadcastScriptChanged();
+    return state;
+  });
+
+  registerLoggedHandler(ipcChannels.projectsDelete, async (_event, id: string, mode: DeleteProjectMode) => {
+    const state = deleteProject(id, mode);
+    broadcastScriptChanged();
+    return state;
+  });
+
   registerLoggedHandler(ipcChannels.settingsGet, async () => {
     return loadAppSettings();
   });
@@ -175,6 +211,16 @@ export function registerIpcHandlers(): void {
     const settings = resetAppSettings();
     broadcastSettingsChanged(settings);
     return settings;
+  });
+
+  registerLoggedHandler(ipcChannels.authOpenExternalUrl, async (_event, url: string) => {
+    const parsedUrl = new URL(url);
+
+    if (parsedUrl.protocol !== "https:") {
+      throw new Error("Only HTTPS authentication URLs can be opened.");
+    }
+
+    await shell.openExternal(parsedUrl.toString());
   });
 
   registerLoggedHandler(ipcChannels.recoveryReset, async () => {

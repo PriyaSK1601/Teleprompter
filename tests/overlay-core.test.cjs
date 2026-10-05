@@ -2,13 +2,25 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   calculateOverlayBounds,
+  calculateScrollProgress,
   calculateSynchronizedTimerTotalSeconds,
+  deriveActiveTextColor,
+  getCenteredLineScrollRange,
+  getContrastRatio,
+  getProgressIndex,
   getCenteredLineScrollPosition,
   groupMeasuredWordsIntoLines,
   isShortcutActionEnabled,
   getSynchronizedTimerSeconds,
   preserveScrollProgress
 } = require("../dist/shared/overlayCore.js");
+
+const appearancePresets = [
+  { textColor: "#f9fafb", backgroundColor: "#111827" },
+  { textColor: "#ffffff", backgroundColor: "#000000" },
+  { textColor: "#26221b", backgroundColor: "#f4efe2" },
+  { textColor: "#eef4ec", backgroundColor: "#2f4636" }
+];
 
 test("overlay bounds use saved ratios inside the display work area", () => {
   assert.deepEqual(
@@ -36,8 +48,36 @@ test("the active script line is centered in the prompt viewport", () => {
   assert.equal(getCenteredLineScrollPosition(20, 40, 400), -160);
 });
 
+test("scroll range ends with the final measured line centered", () => {
+  assert.deepEqual(getCenteredLineScrollRange(20, 40, 980, 60, 400), {
+    min: -160,
+    max: 810
+  });
+});
+
+test("short scripts keep a stable centered endpoint", () => {
+  assert.deepEqual(getCenteredLineScrollRange(20, 40, 20, 40, 400), {
+    min: -160,
+    max: -160
+  });
+});
+
+test("zero-range scripts report completion only after playback starts", () => {
+  assert.equal(calculateScrollProgress(-160, -160, -160, false), 0);
+  assert.equal(calculateScrollProgress(-160, -160, -160, true), 1);
+});
+
 test("resize anchoring preserves proportional progress", () => {
   assert.equal(preserveScrollProgress(250, 0, 1000, 0, 400), 100);
+});
+
+test("word progress includes the first and final indices", () => {
+  assert.equal(getProgressIndex(0, 5), 0);
+  assert.equal(getProgressIndex(0.5, 5), 2);
+  assert.equal(getProgressIndex(1, 5), 4);
+  assert.equal(getProgressIndex(2, 5), 4);
+  assert.equal(getProgressIndex(-1, 5), 0);
+  assert.equal(getProgressIndex(0.5, 0), -1);
 });
 
 test("elapsed and remaining timers stay complementary", () => {
@@ -79,4 +119,19 @@ test("shortcut eligibility follows the persisted action toggle", () => {
   assert.equal(isShortcutActionEnabled(statuses, "startPause"), false);
   assert.equal(isShortcutActionEnabled(statuses, "restart"), true);
   assert.equal(isShortcutActionEnabled(statuses, "speedUp"), false);
+});
+
+test("appearance presets retain accessible text contrast", () => {
+  for (const preset of appearancePresets) {
+    assert.ok(getContrastRatio(preset.textColor, preset.backgroundColor) >= 4.5);
+  }
+});
+
+test("active text is darker while retaining preset contrast", () => {
+  for (const preset of appearancePresets) {
+    const activeColor = deriveActiveTextColor(preset.textColor, preset.backgroundColor);
+
+    assert.notEqual(activeColor, preset.textColor);
+    assert.ok(getContrastRatio(activeColor, preset.backgroundColor) >= 4.5);
+  }
 });

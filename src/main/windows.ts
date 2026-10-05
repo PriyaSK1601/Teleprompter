@@ -194,6 +194,18 @@ export function createEditorWindow(): BrowserWindow {
   return editorWindow;
 }
 
+export function forwardAuthCallbackUrl(url: string): void {
+  const window = createEditorWindow();
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+
+  window.show();
+  window.focus();
+  window.webContents.send(ipcChannels.authCallbackEvent, url);
+}
+
 export function createOverlayWindow(): BrowserWindow {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     applyConfiguredOverlayBounds(overlayWindow);
