@@ -49,6 +49,10 @@ const teleprompterApi: TeleprompterApi = {
   createProject: (name) => ipcRenderer.invoke(ipcChannels.projectsCreate, name),
   renameProject: (id, name) => ipcRenderer.invoke(ipcChannels.projectsRename, id, name),
   deleteProject: (id, mode) => ipcRenderer.invoke(ipcChannels.projectsDelete, id, mode),
+  migrateGuestDataToCurrentUser: async () => ({
+    ok: false,
+    message: "Guest migration is only available from the editor window."
+  }),
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, scriptEvent: ScriptChangedEvent) => {
       callback(scriptEvent);

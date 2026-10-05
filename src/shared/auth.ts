@@ -55,6 +55,7 @@ export type TeleprompterAuthApi = {
   getState: () => Promise<AuthState>;
   signIn: (input: SignInInput) => Promise<AuthActionResult>;
   signUp: (input: SignUpInput) => Promise<AuthActionResult>;
+  resendSignupConfirmation: (email: string) => Promise<AuthActionResult>;
   signInWithGoogle: () => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;

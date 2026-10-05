@@ -42,6 +42,10 @@ const resetPasswordStrengthText = document.querySelector<HTMLElement>("#resetPas
 const resetPasswordError = document.querySelector<HTMLElement>("#resetPasswordError");
 const resetPasswordSubmitButton = document.querySelector<HTMLButtonElement>("#resetPasswordSubmitButton");
 const checkEmailCard = document.querySelector<HTMLElement>("#checkEmailCard");
+const checkEmailDescription = document.querySelector<HTMLElement>("#checkEmailDescription");
+const checkEmailMessage = document.querySelector<HTMLElement>("#checkEmailMessage");
+const checkEmailError = document.querySelector<HTMLElement>("#checkEmailError");
+const resendConfirmationButton = document.querySelector<HTMLButtonElement>("#resendConfirmationButton");
 const showLoginFromCheckEmailButton = document.querySelector<HTMLButtonElement>("#showLoginFromCheckEmailButton");
 const profileButton = document.querySelector<HTMLButtonElement>("#profileButton");
 const profileAvatarImage = document.querySelector<HTMLImageElement>("#profileAvatarImage");
@@ -55,7 +59,9 @@ const profileMenuName = document.querySelector<HTMLElement>("#profileMenuName");
 const profileMenuEmail = document.querySelector<HTMLElement>("#profileMenuEmail");
 const profileMenuProvider = document.querySelector<HTMLElement>("#profileMenuProvider");
 const profileMenuProfileButton = document.querySelector<HTMLButtonElement>("#profileMenuProfileButton");
+const profileMenuProfileLabel = document.querySelector<HTMLElement>("#profileMenuProfileLabel");
 const profileMenuSettingsButton = document.querySelector<HTMLButtonElement>("#profileMenuSettingsButton");
+const profileMenuSettingsLabel = document.querySelector<HTMLElement>("#profileMenuSettingsLabel");
 const profileMenuSignOutButton = document.querySelector<HTMLButtonElement>("#profileMenuSignOutButton");
 const profileMenuError = document.querySelector<HTMLElement>("#profileMenuError");
 const profileModal = document.querySelector<HTMLElement>("#profileModal");
@@ -169,6 +175,7 @@ let editingProjectId: string | undefined;
 let draggedScriptId: string | undefined;
 let activeDropProjectId: string | undefined;
 const expandedProjectsStorageKey = "teleprompter.expandedProjects";
+const guestMigrationPendingStorageKey = "teleprompter.guestMigrationPending";
 const expandedProjectIds = new Set<string>();
 let overlayWidthRatio = 0.47;
 let overlayHeightRatio = 0.31;
@@ -191,6 +198,11 @@ let isGuest = false;
 let authSubmitting = false;
 let profileSubmitting = false;
 let currentAuthUser: AuthState["user"] = null;
+let pendingConfirmationEmail = "";
+let scriptsLoadGeneration = 0;
+let activeScriptsOwnerId: string | undefined;
+let guestMigrationPending = window.localStorage.getItem(guestMigrationPendingStorageKey) === "1";
+let guestMigrationInFlight: Promise<void> | null = null;
 
 const overlaySizeLimits = {
   minWidthRatio: 0.25,
@@ -345,7 +357,8 @@ function setAuthLoading(loading: boolean): void {
     signupSubmitButton,
     googleSignupButton,
     forgotPasswordSubmitButton,
-    resetPasswordSubmitButton
+    resetPasswordSubmitButton,
+    resendConfirmationButton
   ]) {
     if (button) {
       button.disabled = loading;
@@ -440,6 +453,28 @@ function renderAvatar(
   }
 }
 
+function renderGuestAvatar(image: HTMLImageElement | null, fallback: HTMLElement | null): void {
+  if (fallback) {
+    fallback.textContent = "G";
+  }
+  if (image) {
+    image.removeAttribute("src");
+    image.hidden = true;
+  }
+}
+
+function configureProfileMenuForGuest(guest: boolean): void {
+  if (profileMenuProfileLabel) {
+    profileMenuProfileLabel.textContent = guest ? "Go to Home" : "Profile";
+  }
+  if (profileMenuSettingsLabel) {
+    profileMenuSettingsLabel.textContent = guest ? "Sign In" : "Account Settings";
+  }
+  if (profileMenuSignOutButton) {
+    profileMenuSignOutButton.hidden = guest;
+  }
+}
+
 function renderProfileUi(user: AuthState["user"]): void {
   currentAuthUser = user;
   const displayName = getUserDisplayName(user);
@@ -510,6 +545,8 @@ function renderProfileUi(user: AuthState["user"]): void {
   if (removeProfilePhotoButton) {
     removeProfilePhotoButton.hidden = !user?.avatarUrl;
   }
+
+  configureProfileMenuForGuest(false);
 
   renderAvatar(profileAvatarImage, profileAvatarFallback, user);
   renderAvatar(profileMenuAvatarImage, profileMenuAvatarFallback, user);
@@ -722,19 +759,11 @@ async function submitAvatarRemoval(): Promise<void> {
 }
 
 async function signOutCurrentUser(): Promise<void> {
-  // Guests have no session to end — just return to the sign-in screen.
+  cancelAutosave();
+
+  // Guest "Sign in" keeps the local workspace intact until migration succeeds.
   if (isGuest) {
-    isGuest = false;
-    authInitialized = false;
-    currentAuthUser = null;
-
-    if (logoutButton) {
-      logoutButton.textContent = "Log out";
-    }
-
-    closeProfileMenu();
-    closeProfileModal();
-    setAuthView("login");
+    beginGuestSignIn();
     return;
   }
 
@@ -882,18 +911,23 @@ function applyAuthState(state: AuthState): void {
   }
 
   if (state.user) {
+    const ownerChanged = currentAuthUser?.id !== state.user.id || isGuest;
     isGuest = false;
 
     if (logoutButton) {
       logoutButton.textContent = "Log out";
     }
 
+    if (ownerChanged) {
+      clearVisibleScriptsForOwnerChange(state.user.id);
+    }
+
     renderProfileUi(state.user);
     showAuthenticatedApp();
 
-    if (!authInitialized) {
+    if (!authInitialized || ownerChanged) {
       authInitialized = true;
-      void runEditorAction("Load local scripts", loadScriptsState);
+      void runEditorAction("Load scripts", loadScriptsState);
       void runEditorAction("Load settings", loadSettings);
       void runEditorAction("Load shortcuts", loadShortcuts);
     }
@@ -902,6 +936,7 @@ function applyAuthState(state: AuthState): void {
   }
 
   authInitialized = false;
+  clearVisibleScriptsForOwnerChange();
   currentAuthUser = null;
   closeProfileMenu();
   closeProfileModal();
@@ -929,6 +964,10 @@ function renderGuestUi(): void {
     profileMenuEmail.textContent = "Scripts are saved on this device only.";
   }
 
+  if (profileMenuProvider) {
+    profileMenuProvider.textContent = "Guest mode";
+  }
+
   if (settingsAccountName) {
     settingsAccountName.textContent = "Guest";
   }
@@ -937,22 +976,98 @@ function renderGuestUi(): void {
     settingsAccountEmail.textContent = "Not signed in";
   }
 
+  if (settingsAccountProvider) {
+    settingsAccountProvider.textContent = "Guest mode";
+  }
+
   if (logoutButton) {
     logoutButton.textContent = "Sign in";
   }
+
+  configureProfileMenuForGuest(true);
+  renderGuestAvatar(profileAvatarImage, profileAvatarFallback);
+  renderGuestAvatar(profileMenuAvatarImage, profileMenuAvatarFallback);
+  renderGuestAvatar(profileDialogAvatarImage, profileDialogAvatarFallback);
+  renderGuestAvatar(settingsAccountAvatarImage, settingsAccountAvatarFallback);
 }
 
 function continueAsGuest(): void {
+  setGuestMigrationPending(false);
+  clearVisibleScriptsForOwnerChange();
   isGuest = true;
   renderGuestUi();
   showAuthenticatedApp();
 
   if (!authInitialized) {
     authInitialized = true;
-    void runEditorAction("Load local scripts", loadScriptsState);
+    void runEditorAction("Load guest scripts", loadScriptsState);
     void runEditorAction("Load settings", loadSettings);
     void runEditorAction("Load shortcuts", loadShortcuts);
   }
+}
+
+function setGuestMigrationPending(pending: boolean): void {
+  guestMigrationPending = pending;
+  if (pending) {
+    window.localStorage.setItem(guestMigrationPendingStorageKey, "1");
+  } else {
+    window.localStorage.removeItem(guestMigrationPendingStorageKey);
+  }
+}
+
+function beginGuestSignIn(): void {
+  setGuestMigrationPending(true);
+  authInitialized = false;
+  closeProfileMenu();
+  closeProfileModal();
+  closeSettings();
+  setAuthError(loginError);
+  setAuthView("login");
+}
+
+function handleAuthState(state: AuthState): void {
+  if (state.user && guestMigrationPending) {
+    void finishGuestMigration(state);
+    return;
+  }
+
+  if (!state.user && guestMigrationInFlight) {
+    return;
+  }
+
+  applyAuthState(state);
+}
+
+async function finishGuestMigration(authenticatedState: AuthState): Promise<void> {
+  if (guestMigrationInFlight) {
+    return guestMigrationInFlight;
+  }
+
+  guestMigrationInFlight = (async () => {
+    setAuthLoading(true);
+    const result = await requireTeleprompterApi().migrateGuestDataToCurrentUser();
+
+    if (result.ok) {
+      setGuestMigrationPending(false);
+      applyAuthState(authenticatedState);
+      return;
+    }
+
+    const signOutResult = await requireAuthApi().signOut();
+    authInitialized = false;
+    isGuest = true;
+    setAuthView("login");
+    const suffix = signOutResult.ok ? "" : " Sign out also failed; restart the app before retrying.";
+    setAuthError(
+      loginError,
+      `Your account was signed in, but Guest data could not be migrated. Your Guest work is safe. ${result.message ?? "Try again."}${suffix}`
+    );
+  })().finally(() => {
+    setAuthLoading(false);
+    guestMigrationInFlight = null;
+  });
+
+  return guestMigrationInFlight;
 }
 
 async function initializeAuth(): Promise<void> {
@@ -979,11 +1094,11 @@ async function initializeAuth(): Promise<void> {
       return;
     }
 
-    applyAuthState(event.state);
+    handleAuthState(event.state);
   });
 
   const state = await api.getState();
-  applyAuthState(state);
+  handleAuthState(state);
 }
 
 async function submitLogin(): Promise<void> {
@@ -1056,7 +1171,35 @@ async function submitSignup(): Promise<void> {
   }
 
   if (result.needsEmailConfirmation) {
+    pendingConfirmationEmail = result.pendingEmail ?? email;
+    if (checkEmailDescription) {
+      checkEmailDescription.textContent = `We sent a confirmation link to ${pendingConfirmationEmail}. Open it, then return to Teleprompter.`;
+    }
+    setAuthError(checkEmailError);
+    if (checkEmailMessage) {
+      checkEmailMessage.textContent = "If it is not in your inbox, check spam or request a new email below.";
+    }
     setAuthView("checkEmail");
+  }
+}
+
+async function resendConfirmationEmail(): Promise<void> {
+  setAuthError(checkEmailError);
+
+  if (!pendingConfirmationEmail) {
+    setAuthError(checkEmailError, "Return to sign up and enter your email address again.");
+    return;
+  }
+
+  const result = await requireAuthApi().resendSignupConfirmation(pendingConfirmationEmail);
+
+  if (!result.ok) {
+    setAuthError(checkEmailError, result.message ?? "Could not resend the confirmation email.");
+    return;
+  }
+
+  if (checkEmailMessage) {
+    checkEmailMessage.textContent = result.message ?? "A new confirmation email has been requested.";
   }
 }
 
@@ -1979,6 +2122,10 @@ function buildScriptActionMenu(script: ScriptRecord): HTMLElement {
 }
 
 function renderScriptsState(state: ScriptsState): void {
+  if (state.ownerId !== activeScriptsOwnerId) {
+    return;
+  }
+
   currentScriptsState = state;
 
   if (historyHeading) {
@@ -2012,8 +2159,21 @@ async function deleteScriptsWithConfirmation(ids: string[]): Promise<void> {
 }
 
 async function loadScriptsState(): Promise<void> {
+  const generation = ++scriptsLoadGeneration;
   const state = await requireTeleprompterApi().getScriptsState();
+
+  if (generation !== scriptsLoadGeneration) {
+    return;
+  }
+
   renderScriptsState(state);
+}
+
+function clearVisibleScriptsForOwnerChange(ownerId?: string): void {
+  scriptsLoadGeneration += 1;
+  activeScriptsOwnerId = ownerId;
+  cancelAutosave();
+  renderScriptsState({ scripts: [], projects: [], ownerId });
 }
 
 async function saveCurrentScript(): Promise<ScriptsState | undefined> {
@@ -3447,6 +3607,9 @@ guestModeButton?.addEventListener("click", continueAsGuest);
 showLoginFromSignupButton?.addEventListener("click", () => setAuthView("login"));
 showForgotPasswordButton?.addEventListener("click", () => setAuthView("forgot"));
 showLoginFromForgotButton?.addEventListener("click", () => setAuthView("login"));
+resendConfirmationButton?.addEventListener("click", () => {
+  void runAuthAction(resendConfirmationEmail);
+});
 showLoginFromCheckEmailButton?.addEventListener("click", () => setAuthView("login"));
 loginPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(loginPasswordInput, loginPasswordToggle));
 signupPasswordToggle?.addEventListener("click", () => togglePasswordVisibility(signupPasswordInput, signupPasswordToggle));
@@ -3456,12 +3619,6 @@ resetConfirmPasswordToggle?.addEventListener("click", () => togglePasswordVisibi
 signupPasswordInput?.addEventListener("input", () => renderPasswordStrength(signupPasswordInput.value, signupPasswordStrengthBar, signupPasswordStrengthText));
 resetPasswordInput?.addEventListener("input", () => renderPasswordStrength(resetPasswordInput.value, resetPasswordStrengthBar, resetPasswordStrengthText));
 profileButton?.addEventListener("click", () => {
-  // For a guest the chip is a shortcut back to sign-in rather than a menu.
-  if (isGuest) {
-    void signOutCurrentUser();
-    return;
-  }
-
   if (isProfileMenuOpen()) {
     closeProfileMenu();
   } else {
@@ -3469,8 +3626,19 @@ profileButton?.addEventListener("click", () => {
   }
 });
 
-profileMenuProfileButton?.addEventListener("click", openProfileModal);
+profileMenuProfileButton?.addEventListener("click", () => {
+  if (isGuest) {
+    closeProfileMenu();
+    scriptTitle?.focus();
+    return;
+  }
+  openProfileModal();
+});
 profileMenuSettingsButton?.addEventListener("click", () => {
+  if (isGuest) {
+    beginGuestSignIn();
+    return;
+  }
   closeProfileMenu();
   openSettings();
 });

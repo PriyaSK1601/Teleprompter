@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { teleprompterAuthApi } from "./auth";
+import { ownerAwareScriptsApi } from "./data";
 import {
   ipcChannels,
   type ScriptChangedEvent,
@@ -38,18 +39,19 @@ const teleprompterApi: TeleprompterApi = {
     ipcRenderer.on(ipcChannels.shortcutsChangedEvent, listener);
     return () => ipcRenderer.removeListener(ipcChannels.shortcutsChangedEvent, listener);
   },
-  getScriptsState: () => ipcRenderer.invoke(ipcChannels.scriptsGetState),
-  saveScript: (input) => ipcRenderer.invoke(ipcChannels.scriptsSave, input),
-  setActiveScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsSetActive, id),
-  renameScript: (id, title) => ipcRenderer.invoke(ipcChannels.scriptsRename, id, title),
-  setScriptPinned: (id, pinned) => ipcRenderer.invoke(ipcChannels.scriptsSetPinned, id, pinned),
-  moveScriptToProject: (id, projectId) => ipcRenderer.invoke(ipcChannels.scriptsMoveToProject, id, projectId),
-  deleteScript: (id) => ipcRenderer.invoke(ipcChannels.scriptsDelete, id),
-  deleteScripts: (ids) => ipcRenderer.invoke(ipcChannels.scriptsDeleteMany, ids),
-  clearActiveScript: () => ipcRenderer.invoke(ipcChannels.scriptsClearActive),
-  createProject: (name) => ipcRenderer.invoke(ipcChannels.projectsCreate, name),
-  renameProject: (id, name) => ipcRenderer.invoke(ipcChannels.projectsRename, id, name),
-  deleteProject: (id, mode) => ipcRenderer.invoke(ipcChannels.projectsDelete, id, mode),
+  getScriptsState: ownerAwareScriptsApi.getScriptsState,
+  saveScript: ownerAwareScriptsApi.saveScript,
+  setActiveScript: ownerAwareScriptsApi.setActiveScript,
+  renameScript: ownerAwareScriptsApi.renameScript,
+  setScriptPinned: ownerAwareScriptsApi.setScriptPinned,
+  moveScriptToProject: ownerAwareScriptsApi.moveScriptToProject,
+  deleteScript: ownerAwareScriptsApi.deleteScript,
+  deleteScripts: ownerAwareScriptsApi.deleteScripts,
+  clearActiveScript: ownerAwareScriptsApi.clearActiveScript,
+  createProject: ownerAwareScriptsApi.createProject,
+  renameProject: ownerAwareScriptsApi.renameProject,
+  deleteProject: ownerAwareScriptsApi.deleteProject,
+  migrateGuestDataToCurrentUser: ownerAwareScriptsApi.migrateGuestDataToCurrentUser,
   onScriptChanged: (callback: (event: ScriptChangedEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, scriptEvent: ScriptChangedEvent) => {
       callback(scriptEvent);

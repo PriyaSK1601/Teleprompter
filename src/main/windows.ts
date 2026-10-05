@@ -6,6 +6,7 @@ import {
   type OverlayBounds,
   type OverlayState,
   type ScriptChangedEvent,
+  type ScriptsState,
   type SettingsChangedEvent,
   type ShortcutStatus,
   type TeleprompterCommand,
@@ -24,6 +25,8 @@ let editorWindow: BrowserWindow | null = null;
 let overlayWindow: BrowserWindow | null = null;
 let saveOverlayBoundsTimer: NodeJS.Timeout | null = null;
 let isAppQuitting = false;
+const pendingAuthCallbackUrls: string[] = [];
+let cloudScriptsState: ScriptsState | null = null;
 
 app.on("before-quit", () => {
   isAppQuitting = true;
@@ -35,6 +38,16 @@ function preloadPath(name: "editor" | "overlay"): string {
 
 function rendererPath(name: "editor" | "overlay"): string {
   return join(rootPath, "src", "renderer", name, "index.html");
+}
+
+function flushAuthCallbackUrls(): void {
+  if (!editorWindow || editorWindow.isDestroyed() || editorWindow.webContents.isLoading()) {
+    return;
+  }
+
+  for (const url of pendingAuthCallbackUrls.splice(0)) {
+    editorWindow.webContents.send(ipcChannels.authCallbackEvent, url);
+  }
 }
 
 function getConfiguredOverlayBounds(): OverlayBounds {
@@ -119,10 +132,24 @@ function sendScriptChangedEvent(): void {
   }
 
   const event: ScriptChangedEvent = {
-    activeScript: getScriptsState().activeScript
+    activeScript: getCurrentScriptsState().activeScript
   };
 
   overlayWindow.webContents.send(ipcChannels.scriptChangedEvent, event);
+}
+
+export function getCurrentScriptsState(): ScriptsState {
+  return cloudScriptsState ?? getScriptsState();
+}
+
+export function setCloudScriptsState(state: ScriptsState): void {
+  cloudScriptsState = state;
+  sendScriptChangedEvent();
+}
+
+export function useGuestScriptsState(): void {
+  cloudScriptsState = null;
+  sendScriptChangedEvent();
 }
 
 function sendSettingsChangedEvent(settings: AppSettings = loadAppSettings()): void {
@@ -198,7 +225,8 @@ export function createEditorWindow(): BrowserWindow {
     }
   });
 
-  editorWindow.loadFile(rendererPath("editor"));
+  editorWindow.webContents.on("did-finish-load", flushAuthCallbackUrls);
+  void editorWindow.loadFile(rendererPath("editor"));
   editorWindow.on("closed", () => {
     editorWindow = null;
   });
@@ -207,6 +235,12 @@ export function createEditorWindow(): BrowserWindow {
 }
 
 export function forwardAuthCallbackUrl(url: string): void {
+  pendingAuthCallbackUrls.push(url);
+
+  if (!app.isReady()) {
+    return;
+  }
+
   const window = createEditorWindow();
 
   if (window.isMinimized()) {
@@ -215,7 +249,7 @@ export function forwardAuthCallbackUrl(url: string): void {
 
   window.show();
   window.focus();
-  window.webContents.send(ipcChannels.authCallbackEvent, url);
+  flushAuthCallbackUrls();
 }
 
 export function createOverlayWindow(): BrowserWindow {
