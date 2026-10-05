@@ -402,20 +402,38 @@ function renderAvatar(
   const initials = getUserInitials(user);
 
   if (fallback) {
-    fallback.textContent = initials;
+    fallback.hidden = false;
+    if (user) {
+      fallback.textContent = initials;
+    } else {
+      fallback.innerHTML = `<svg class="profile-guest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>`;
+    }
   }
 
   if (!image) {
     return;
   }
 
+  image.hidden = true;
+  const showImage = () => {
+    image.hidden = false;
+    if (fallback) {
+      fallback.hidden = true;
+    }
+  };
+  image.onload = showImage;
   image.onerror = () => {
     image.hidden = true;
+    if (fallback) {
+      fallback.hidden = false;
+    }
   };
 
   if (user?.avatarUrl) {
     image.src = user.avatarUrl;
-    image.hidden = false;
+    if (image.complete && image.naturalWidth > 0) {
+      showImage();
+    }
   } else {
     image.removeAttribute("src");
     image.hidden = true;
